@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Panda Ninja Theme - Verde pastel, morado oscuro, amarillo dorado */
+  --background: 140 25% 98%;
+  --foreground: 0 0% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 12%;
+  --primary: 270 55% 28%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 140 40% 85%;
+  --secondary-foreground: 0 0% 15%;
+  --muted: 140 20% 94%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 48 85% 58%;
+  --accent-foreground: 0 0% 12%;
+  --border: 140 15% 88%;
+  --ring: 270 55% 28%;
+  --radius: 14px;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.leaflet-container {
+  z-index: 0;
+}
+
+.leaflet-pane,
+.leaflet-control-container {
+  z-index: 0;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 1;
+}
+
+.a11y-contrast {
+  /* Panda Ninja Theme - Alto contraste */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 5%;
+  --muted: 140 15% 92%;
+  --muted-foreground: 0 0% 25%;
+  --border: 0 0% 20%;
+  --primary: 270 60% 20%;
+  --secondary: 140 45% 75%;
+  --accent: 48 90% 50%;
+}
+
+.a11y-text-lg {
+  font-size: 18px;
+}
+
+.no-print {
+  display: block;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  header,
+  footer {
+    display: none !important;
+  }
+
+  .shadow,
+  .shadow-sm,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+}

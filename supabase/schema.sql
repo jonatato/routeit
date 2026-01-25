@@ -1,0 +1,804 @@
+create extension if not exists "pgcrypto";
+
+create table if not exists itineraries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  title text not null,
+  date_range text not null,
+  intro text not null,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists days (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  order_index integer not null,
+  day_label text not null,
+  date_text text not null,
+  city text not null,
+  plan text not null,
+  kind text not null
+);
+
+create table if not exists schedule_items (
+  id uuid primary key default gen_random_uuid(),
+  day_id uuid not null references days(id) on delete cascade,
+  time text not null,
+  activity text not null,
+  link text,
+  map_link text,
+  lat double precision,
+  lng double precision,
+  order_index integer not null
+);
+
+create table if not exists day_notes (
+  id uuid primary key default gen_random_uuid(),
+  day_id uuid not null references days(id) on delete cascade,
+  note text not null,
+  order_index integer not null
+);
+
+create table if not exists tags (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  name text not null,
+  slug text not null
+);
+
+create table if not exists day_tags (
+  day_id uuid not null references days(id) on delete cascade,
+  tag_id uuid not null references tags(id) on delete cascade,
+  primary key (day_id, tag_id)
+);
+
+create table if not exists schedule_item_tags (
+  schedule_item_id uuid not null references schedule_items(id) on delete cascade,
+  tag_id uuid not null references tags(id) on delete cascade,
+  primary key (schedule_item_id, tag_id)
+);
+
+-- Private space & sharing
+create table if not exists itinerary_collaborators (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  user_id uuid not null,
+  role text not null check (role in ('owner','editor','viewer')),
+  created_at timestamp with time zone default now(),
+  unique (itinerary_id, user_id)
+);
+
+create table if not exists itinerary_share_links (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  token text not null unique,
+  role text not null check (role in ('owner','editor','viewer')),
+  expires_at timestamp with time zone,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists bag_categories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  name text not null,
+  order_index integer not null,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists bag_items (
+  id uuid primary key default gen_random_uuid(),
+  category_id uuid not null references bag_categories(id) on delete cascade,
+  text text not null,
+  checked boolean default false,
+  order_index integer not null,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists split_groups (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  currency text not null default 'EUR',
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists split_members (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references split_groups(id) on delete cascade,
+  user_id uuid,
+  name text not null,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists split_expenses (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references split_groups(id) on delete cascade,
+  payer_id uuid not null references split_members(id) on delete cascade,
+  amount numeric not null,
+  title text not null,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists split_shares (
+  id uuid primary key default gen_random_uuid(),
+  expense_id uuid not null references split_expenses(id) on delete cascade,
+  member_id uuid not null references split_members(id) on delete cascade,
+  amount numeric not null
+);
+
+create table if not exists itinerary_section_preferences (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  section_key text not null,
+  section_label text not null,
+  order_index integer not null,
+  is_visible boolean not null default true,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  unique (user_id, section_key)
+);
+
+alter table itinerary_collaborators enable row level security;
+alter table itinerary_share_links enable row level security;
+alter table bag_categories enable row level security;
+alter table bag_items enable row level security;
+alter table split_groups enable row level security;
+alter table split_members enable row level security;
+alter table split_expenses enable row level security;
+alter table split_shares enable row level security;
+alter table itinerary_section_preferences enable row level security;
+
+create policy "itinerary_collaborators_read" on itinerary_collaborators
+  for select
+  using (
+    user_id = auth.uid()
+    or exists (select 1 from itineraries where itineraries.id = itinerary_collaborators.itinerary_id and itineraries.user_id = auth.uid())
+  );
+
+create policy "itinerary_collaborators_write" on itinerary_collaborators
+  for all
+  using (
+    exists (select 1 from itineraries where itineraries.id = itinerary_collaborators.itinerary_id and itineraries.user_id = auth.uid())
+  )
+  with check (
+    exists (select 1 from itineraries where itineraries.id = itinerary_collaborators.itinerary_id and itineraries.user_id = auth.uid())
+  );
+
+create policy "itinerary_share_links_owner" on itinerary_share_links
+  for all
+  using (
+    exists (select 1 from itineraries where itineraries.id = itinerary_share_links.itinerary_id and itineraries.user_id = auth.uid())
+  )
+  with check (
+    exists (select 1 from itineraries where itineraries.id = itinerary_share_links.itinerary_id and itineraries.user_id = auth.uid())
+  );
+
+create policy "bag_categories_owner" on bag_categories
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create policy "bag_items_owner" on bag_items
+  for all
+  using (exists (select 1 from bag_categories where bag_categories.id = bag_items.category_id and bag_categories.user_id = auth.uid()))
+  with check (exists (select 1 from bag_categories where bag_categories.id = bag_items.category_id and bag_categories.user_id = auth.uid()));
+
+create policy "split_groups_access" on split_groups
+  for all
+  using (
+    exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+    or exists (
+      select 1 from itinerary_collaborators
+      where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+    or exists (
+      select 1 from itinerary_collaborators
+      where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid()
+    )
+  );
+
+create policy "split_members_access" on split_members
+  for all
+  using (
+    exists (select 1 from split_groups where split_groups.id = split_members.group_id
+      and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+        or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+      )
+    )
+  )
+  with check (
+    exists (select 1 from split_groups where split_groups.id = split_members.group_id
+      and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+        or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+      )
+    )
+  );
+
+create policy "split_expenses_access" on split_expenses
+  for all
+  using (
+    exists (select 1 from split_groups where split_groups.id = split_expenses.group_id
+      and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+        or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+      )
+    )
+  )
+  with check (
+    exists (select 1 from split_groups where split_groups.id = split_expenses.group_id
+      and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+        or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+      )
+    )
+  );
+
+create policy "split_shares_access" on split_shares
+  for all
+  using (
+    exists (select 1 from split_expenses
+      join split_groups on split_groups.id = split_expenses.group_id
+      where split_expenses.id = split_shares.expense_id
+        and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+          or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+        )
+    )
+  )
+  with check (
+    exists (select 1 from split_expenses
+      join split_groups on split_groups.id = split_expenses.group_id
+      where split_expenses.id = split_shares.expense_id
+        and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+          or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+        )
+    )
+  );
+
+create policy "itinerary_section_preferences_owner" on itinerary_section_preferences
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create or replace function accept_share_link(token_text text)
+returns table (itinerary_id uuid, role text)
+language plpgsql
+security definer
+as $$
+begin
+  return query
+  with link as (
+    select * from itinerary_share_links
+    where token = token_text
+      and (expires_at is null or expires_at > now())
+    limit 1
+  ),
+  inserted as (
+    insert into itinerary_collaborators (itinerary_id, user_id, role)
+    select link.itinerary_id, auth.uid(), link.role
+    from link
+    on conflict (itinerary_id, user_id) do update set role = excluded.role
+    returning itinerary_id, role
+  )
+  select itinerary_id, role from inserted;
+end;
+$$;
+
+revoke all on function accept_share_link(text) from public;
+grant execute on function accept_share_link(text) to authenticated;
+
+create or replace function has_itinerary_access(itinerary_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+set row_security = off
+as $$
+  select exists (
+    select 1 from itineraries
+    where id = itinerary_id and user_id = auth.uid()
+  )
+  or exists (
+    select 1 from itinerary_collaborators
+    where itinerary_id = has_itinerary_access.itinerary_id and user_id = auth.uid()
+  );
+$$;
+
+revoke all on function has_itinerary_access(uuid) from public;
+grant execute on function has_itinerary_access(uuid) to authenticated;
+
+create policy "itineraries_access" on itineraries
+  for select
+  using (has_itinerary_access(id));
+
+create policy "days_access" on days
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "schedule_items_access" on schedule_items
+  for select
+  using (
+    exists (select 1 from days where days.id = schedule_items.day_id and has_itinerary_access(days.itinerary_id))
+  );
+
+create policy "day_notes_access" on day_notes
+  for select
+  using (
+    exists (select 1 from days where days.id = day_notes.day_id and has_itinerary_access(days.itinerary_id))
+  );
+
+create policy "tags_access" on tags
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "day_tags_access" on day_tags
+  for select
+  using (
+    exists (select 1 from days where days.id = day_tags.day_id and has_itinerary_access(days.itinerary_id))
+  );
+
+create policy "schedule_item_tags_access" on schedule_item_tags
+  for select
+  using (
+    exists (select 1 from schedule_items
+      join days on days.id = schedule_items.day_id
+      where schedule_items.id = schedule_item_tags.schedule_item_id
+        and has_itinerary_access(days.itinerary_id))
+  );
+
+create policy "locations_access" on locations
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "routes_access" on routes
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "flights_access" on flights
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "lists_access" on itinerary_lists
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "list_items_access" on itinerary_list_items
+  for select
+  using (
+    exists (select 1 from itinerary_lists
+      where itinerary_lists.id = itinerary_list_items.list_id
+        and has_itinerary_access(itinerary_lists.itinerary_id))
+  );
+
+create policy "phrases_access" on phrases
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "budget_tiers_access" on budget_tiers
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create table if not exists locations (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  city text not null,
+  label text not null,
+  lat double precision not null,
+  lng double precision not null,
+  order_index integer not null
+);
+
+create table if not exists routes (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  city text not null,
+  order_index integer not null
+);
+
+create table if not exists flights (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  direction text not null,
+  date_text text not null,
+  from_time text not null,
+  to_time text not null,
+  from_city text not null,
+  to_city text not null,
+  duration text not null,
+  stops text not null
+);
+
+create table if not exists itinerary_lists (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  section_key text not null
+);
+
+create table if not exists itinerary_list_items (
+  id uuid primary key default gen_random_uuid(),
+  list_id uuid not null references itinerary_lists(id) on delete cascade,
+  text text not null,
+  order_index integer not null
+);
+
+create table if not exists phrases (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  spanish text not null,
+  pinyin text not null,
+  chinese text not null,
+  order_index integer not null
+);
+
+create table if not exists budget_tiers (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  label text not null,
+  daily integer not null,
+  tone text not null,
+  order_index integer not null
+);
+
+create index if not exists days_itinerary_id_idx on days (itinerary_id);
+create index if not exists schedule_items_day_id_idx on schedule_items (day_id);
+create index if not exists day_notes_day_id_idx on day_notes (day_id);
+create index if not exists schedule_item_tags_item_id_idx on schedule_item_tags (schedule_item_id);
+create index if not exists tags_itinerary_id_idx on tags (itinerary_id);
+create index if not exists locations_itinerary_id_idx on locations (itinerary_id);
+create index if not exists routes_itinerary_id_idx on routes (itinerary_id);
+create index if not exists flights_itinerary_id_idx on flights (itinerary_id);
+create index if not exists itinerary_lists_itinerary_id_idx on itinerary_lists (itinerary_id);
+create index if not exists itinerary_list_items_list_id_idx on itinerary_list_items (list_id);
+create index if not exists phrases_itinerary_id_idx on phrases (itinerary_id);
+create index if not exists budget_tiers_itinerary_id_idx on budget_tiers (itinerary_id);
+
+alter table itineraries enable row level security;
+alter table days enable row level security;
+alter table schedule_items enable row level security;
+alter table day_notes enable row level security;
+alter table tags enable row level security;
+alter table day_tags enable row level security;
+alter table schedule_item_tags enable row level security;
+alter table locations enable row level security;
+alter table routes enable row level security;
+alter table flights enable row level security;
+alter table itinerary_lists enable row level security;
+alter table itinerary_list_items enable row level security;
+alter table phrases enable row level security;
+alter table budget_tiers enable row level security;
+
+create policy "itineraries_read" on itineraries
+  for select using (auth.uid() = user_id);
+create policy "itineraries_write" on itineraries
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "days_read" on days
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = days.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "days_write" on days
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = days.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = days.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "schedule_items_read" on schedule_items
+  for select using (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = schedule_items.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "schedule_items_write" on schedule_items
+  for all using (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = schedule_items.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = schedule_items.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "day_notes_read" on day_notes
+  for select using (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = day_notes.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "day_notes_write" on day_notes
+  for all using (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = day_notes.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = day_notes.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "tags_read" on tags
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = tags.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "tags_write" on tags
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = tags.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = tags.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "day_tags_read" on day_tags
+  for select using (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = day_tags.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "day_tags_write" on day_tags
+  for all using (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = day_tags.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1
+      from days
+      join itineraries on itineraries.id = days.itinerary_id
+      where days.id = day_tags.day_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "schedule_item_tags_read" on schedule_item_tags
+  for select using (
+    exists (
+      select 1
+      from schedule_items
+      join days on days.id = schedule_items.day_id
+      join itineraries on itineraries.id = days.itinerary_id
+      where schedule_items.id = schedule_item_tags.schedule_item_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "schedule_item_tags_write" on schedule_item_tags
+  for all using (
+    exists (
+      select 1
+      from schedule_items
+      join days on days.id = schedule_items.day_id
+      join itineraries on itineraries.id = days.itinerary_id
+      where schedule_items.id = schedule_item_tags.schedule_item_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1
+      from schedule_items
+      join days on days.id = schedule_items.day_id
+      join itineraries on itineraries.id = days.itinerary_id
+      where schedule_items.id = schedule_item_tags.schedule_item_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "locations_read" on locations
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = locations.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "locations_write" on locations
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = locations.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = locations.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "routes_read" on routes
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = routes.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "routes_write" on routes
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = routes.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = routes.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "flights_read" on flights
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = flights.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "flights_write" on flights
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = flights.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = flights.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "itinerary_lists_read" on itinerary_lists
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = itinerary_lists.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "itinerary_lists_write" on itinerary_lists
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = itinerary_lists.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = itinerary_lists.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "itinerary_list_items_read" on itinerary_list_items
+  for select using (
+    exists (
+      select 1
+      from itinerary_lists
+      join itineraries on itineraries.id = itinerary_lists.itinerary_id
+      where itinerary_lists.id = itinerary_list_items.list_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "itinerary_list_items_write" on itinerary_list_items
+  for all using (
+    exists (
+      select 1
+      from itinerary_lists
+      join itineraries on itineraries.id = itinerary_lists.itinerary_id
+      where itinerary_lists.id = itinerary_list_items.list_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1
+      from itinerary_lists
+      join itineraries on itineraries.id = itinerary_lists.itinerary_id
+      where itinerary_lists.id = itinerary_list_items.list_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "phrases_read" on phrases
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = phrases.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "phrases_write" on phrases
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = phrases.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = phrases.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+
+create policy "budget_tiers_read" on budget_tiers
+  for select using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = budget_tiers.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
+create policy "budget_tiers_write" on budget_tiers
+  for all using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = budget_tiers.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = budget_tiers.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+  );
