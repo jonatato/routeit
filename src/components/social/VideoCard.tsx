@@ -28,12 +28,29 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
         embedRef.current.innerHTML = video.embed_code;
         setEmbedLoaded(true);
         
-        // Si es TikTok, reinicializar el script embed
-        if (video.platform === 'tiktok' && (window as any).tiktokEmbed) {
-          setTimeout(() => {
-            (window as any).tiktokEmbed?.process();
-          }, 100);
-        }
+        // Función para procesar embeds según la plataforma
+        const processEmbed = () => {
+          if (video.platform === 'tiktok') {
+            const tiktokEmbed = (window as any).tiktokEmbed;
+            if (tiktokEmbed && typeof tiktokEmbed.process === 'function') {
+              tiktokEmbed.process();
+            } else {
+              // Reintentar si el script aún no está cargado
+              setTimeout(processEmbed, 500);
+            }
+          } else if (video.platform === 'instagram') {
+            const instagramEmbed = (window as any).instgrm;
+            if (instagramEmbed && typeof instagramEmbed.Embeds?.process === 'function') {
+              instagramEmbed.Embeds.process();
+            } else {
+              // Reintentar si el script aún no está cargado
+              setTimeout(processEmbed, 500);
+            }
+          }
+        };
+        
+        // Esperar un poco antes de procesar los embeds
+        setTimeout(processEmbed, 100);
       } catch (error) {
         console.error('Error loading embed:', error);
         setEmbedError(true);
