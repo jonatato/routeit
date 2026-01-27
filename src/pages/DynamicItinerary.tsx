@@ -33,9 +33,16 @@ function DynamicItinerary() {
         const params = new URLSearchParams(location.search);
         const itineraryId = params.get('itineraryId');
         let dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
+        console.log('dataItinerary:', dataItinerary);
+        console.log('dataItinerary?.days length:', dataItinerary?.days?.length);
         if (!dataItinerary) {
           // Si no hay itinerario en BD, usar el de ejemplo
           console.log('No se encontró itinerario en BD, usando itinerario de ejemplo');
+          setItinerary(chinaTrip);
+          setHasNoItineraries(false);
+        } else if (!dataItinerary.days || dataItinerary.days.length === 0) {
+          // Si el itinerario no tiene días, usar el de ejemplo
+          console.log('El itinerario no tiene días, usando itinerario de ejemplo');
           setItinerary(chinaTrip);
           setHasNoItineraries(false);
         } else {
