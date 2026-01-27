@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
-import { Home, Receipt, Heart, Map as MapIcon, Plane, ShoppingBag, Settings, Search } from 'lucide-react';
+import { Home, Receipt, Heart, Map as MapIcon, Plane, ShoppingBag, Settings, Search, Video } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 
@@ -12,6 +12,7 @@ function WebSideMenu() {
     { path: '/app/admin', label: 'Administrar', icon: Settings },
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
+    { path: '/app/memories', label: 'Recuerdos', icon: Video },
     { path: '/app/favorites', label: 'Favoritos', icon: Heart },
     { path: '/app/guide', label: 'Guía', icon: MapIcon },
     { path: '/app/itineraries', label: 'Mis viajes', icon: Plane },

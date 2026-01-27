@@ -25,6 +25,7 @@ const Analytics = lazy(() => import('./pages/Analytics'));
 const Favorites = lazy(() => import('./pages/Favorites'));
 const Guide = lazy(() => import('./pages/Guide'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
+const SocialVideos = lazy(() => import('./pages/SocialVideos'));
 
 const LoadingFallback = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -194,6 +195,18 @@ function App() {
                   <Suspense fallback={<LoadingFallback />}>
                     <PageTransition>
                       <Guide />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/memories"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <SocialVideos />
                     </PageTransition>
                   </Suspense>
                 </RequireAuth>
@@ -372,6 +385,18 @@ function App() {
                       <Suspense fallback={<LoadingFallback />}>
                         <PageTransition>
                           <Guide />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/memories"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <SocialVideos />
                         </PageTransition>
                       </Suspense>
                     </RequireAuth>
