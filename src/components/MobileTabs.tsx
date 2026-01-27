@@ -12,7 +12,7 @@ const tabs: Tab[] = [
   { key: 'itinerary', label: 'Itinerario', path: '/app', icon: List },
   { key: 'map', label: 'Mapa', path: '/app#map', icon: MapPin },
   { key: 'split', label: 'Gastos', path: '/app/split', icon: Receipt },
-  { key: 'guide', label: 'Guía', path: '/app#guide', icon: Map },
+  { key: 'guide', label: 'Guía', path: '/app/guide', icon: Map },
 ];
 
 function MobileTabs() {

@@ -23,6 +23,10 @@ const Split = lazy(() => import('./pages/Split'));
 const StaticItinerary = lazy(() => import('./pages/StaticItinerary'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Analytics = lazy(() => import('./pages/Analytics'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Favorites = lazy(() => import('./pages/Favorites'));
+const Guide = lazy(() => import('./pages/Guide'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
 
 const LoadingFallback = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -167,6 +171,54 @@ function App() {
                 </RequireAuth>
               }
             />
+            <Route
+              path="/app/chat"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <Chat />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/favorites"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <Favorites />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/guide"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <Guide />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/search"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <SearchPage />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
             <Route path="*" element={<Navigate to="/static" replace />} />
           </Routes>
           {location.pathname !== '/login' && location.pathname !== '/static' && <MobileTabs />}
@@ -293,6 +345,54 @@ function App() {
                       <Suspense fallback={<LoadingFallback />}>
                         <PageTransition>
                           <Analytics />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/chat"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <Chat />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/favorites"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <Favorites />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/guide"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <Guide />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/search"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <SearchPage />
                         </PageTransition>
                       </Suspense>
                     </RequireAuth>

@@ -465,14 +465,18 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               dangerouslySetInnerHTML={renderHtml(itinerary.intro)}
             />
             <div className="flex flex-wrap gap-3">
-              <Button onClick={handlePrint} className="no-print rounded-full">
-                Itinerario
-              </Button>
-              <Button variant="outline" className="no-print rounded-full">
-                Gastos
-              </Button>
-              <Button variant="outline" className="no-print rounded-full">
-                Todos
+              <Link to="#itinerary" className="no-print">
+                <Button className="rounded-full">
+                  Itinerario
+                </Button>
+              </Link>
+              <Link to="/app/split" className="no-print">
+                <Button variant="outline" className="rounded-full">
+                  Gastos
+                </Button>
+              </Link>
+              <Button variant="outline" className="rounded-full no-print" onClick={handlePrint}>
+                Exportar PDF
               </Button>
             </div>
           </div>
@@ -748,10 +752,14 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-              <Button size="sm" className="rounded-full whitespace-nowrap">
-                <Plus className="h-4 w-4 mr-1" />
-                Nuevo día
-              </Button>
+              {editable && (
+                <Link to="/app/admin?section=days">
+                  <Button size="sm" className="rounded-full whitespace-nowrap">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nuevo día
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">

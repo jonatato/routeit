@@ -3,6 +3,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { MapPin, Plus, Receipt } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface ExpenseUser {
   name: string;
@@ -94,9 +95,11 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
               <h3 className="text-lg font-semibold">{selectedCity}</h3>
               <p className="text-sm text-muted-foreground">€{data.byCity.find(c => c.city === selectedCity)?.amount.toFixed(2)}</p>
             </div>
-            <Button size="sm" variant="outline" className="ml-auto">
-              Añadir gasto
-            </Button>
+            <Link to="/app/split" className="ml-auto">
+              <Button size="sm" variant="outline">
+                Añadir gasto
+              </Button>
+            </Link>
           </div>
 
           {/* Expenses by User */}

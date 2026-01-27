@@ -21,9 +21,11 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="relative h-9 w-9">
-            <Search className="h-5 w-5 text-gray-600" />
-          </Button>
+          <Link to="/app/search">
+            <Button variant="ghost" size="icon" className="relative h-9 w-9">
+              <Search className="h-5 w-5 text-gray-600" />
+            </Button>
+          </Link>
           <div className="relative">
             <Button variant="ghost" size="icon" className="relative h-9 w-9">
               <Bell className="h-5 w-5 text-gray-600" />
