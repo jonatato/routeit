@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import { Link } from 'react-router-dom';
+import { Plus, Settings } from 'lucide-react';
 import type { TravelItinerary } from '../data/itinerary';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { Tabs } from 'flowbite-react';
@@ -451,124 +452,82 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           highContrast ? 'a11y-contrast' : ''
         } ${largeText ? 'a11y-text-lg' : ''}`}
       >
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur no-print">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
+      {/* Simplified Header - only show on mobile or for print */}
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-white/80 shadow-sm backdrop-blur md:hidden no-print">
+        <div className="mx-auto flex w-full items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <PandaLogo size="md" />
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-mutedForeground">
-                Route<span className="text-red-500">i</span>t
-              </p>
-              <p className="text-lg font-semibold">{itinerary.title}</p>
-            </div>
-          </div>
-          <nav className="hidden items-center gap-4 text-sm font-medium md:flex">
-            <a href="#overview" className="text-mutedForeground hover:text-foreground">
-              Resumen
-            </a>
-            <a href="#itinerary" className="text-mutedForeground hover:text-foreground">
-              Itinerario
-            </a>
-            <a href="#foods" className="text-mutedForeground hover:text-foreground">
-              Comidas
-            </a>
-            <a href="#tips" className="text-mutedForeground hover:text-foreground">
-              Consejos
-            </a>
-            <a href="#guide" className="text-mutedForeground hover:text-foreground">
-              Guía
-            </a>
-            <a href="#budget" className="text-mutedForeground hover:text-foreground">
-              Presupuesto
-            </a>
-          </nav>
-          <div className="hidden items-center gap-2 md:flex">
-            <Button variant="outline" size="sm" onClick={() => setHighContrast(value => !value)}>
-              Contraste
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setLargeText(value => !value)}>
-              A+
-            </Button>
-            <Button variant="secondary" onClick={handlePrint}>
-              Guardar PDF
-            </Button>
+            <PandaLogo size="sm" />
+            <p className="text-lg font-semibold">{itinerary.title}</p>
           </div>
         </div>
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap gap-2 px-4 pb-3 md:hidden">
-          {['overview', 'itinerary', 'foods', 'tips', 'budget', 'guide'].map(anchor => (
-            <a
-              key={anchor}
-              href={`#${anchor}`}
-              className="rounded-full border border-border px-3 py-1 text-xs text-mutedForeground"
-            >
-              {anchor === 'overview'
-                ? 'Resumen'
-                : anchor === 'itinerary'
-                ? 'Itinerario'
-                : anchor === 'foods'
-                ? 'Comidas'
-                : anchor === 'tips'
-                ? 'Consejos'
-                : anchor === 'budget'
-                ? 'Presupuesto'
-                : 'Guía'}
-            </a>
-          ))}
+        <div className="mx-auto flex w-full flex-wrap gap-2 px-4 pb-3">
+          <div className="flex w-full items-center gap-2 overflow-x-auto rounded-full bg-white/80 p-2 shadow-sm">
+            {['overview', 'itinerary', 'foods', 'tips', 'budget', 'guide'].map(anchor => (
+              <a
+                key={anchor}
+                href={`#${anchor}`}
+                className="whitespace-nowrap rounded-full bg-muted/60 px-3 py-1 text-[11px] font-semibold text-mutedForeground"
+              >
+                {anchor === 'overview'
+                  ? 'Resumen'
+                  : anchor === 'itinerary'
+                  ? 'Itinerario'
+                  : anchor === 'foods'
+                  ? 'Comidas'
+                  : anchor === 'tips'
+                  ? 'Consejos'
+                  : anchor === 'budget'
+                  ? 'Presupuesto'
+                  : 'Guía'}
+              </a>
+            ))}
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 py-10" style={{ display: 'flex', flexDirection: 'column' }}>
-        <section data-section="flights" className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]" style={{ order: -1 }}>
+      <main className="mx-auto flex w-full flex-col gap-16 px-4 py-10" style={{ display: 'flex', flexDirection: 'column' }}>
+        <section data-section="flights" className="grid gap-8 lg:grid-cols-1" style={{ order: -1 }}>
           <div className="flex flex-col gap-6">
-            <Badge variant="accent" className="w-fit">
-              Itinerario completo
-            </Badge>
             <h1 className="text-4xl font-semibold leading-tight md:text-5xl">
               {itinerary.title}
-              <span className="block text-mutedForeground">Del {itinerary.dateRange}</span>
+              <span className="block text-lg font-normal text-mutedForeground mt-2">Del {itinerary.dateRange}</span>
             </h1>
             <div
-              className="text-lg text-mutedForeground"
+              className="text-base text-mutedForeground max-w-3xl"
               dangerouslySetInnerHTML={renderHtml(itinerary.intro)}
             />
             <div className="flex flex-wrap gap-3">
-              <Button onClick={handlePrint} className="no-print">
-                Exportar PDF
+              <Button onClick={handlePrint} className="no-print rounded-full">
+                Nuevo día
               </Button>
-              <Button variant="outline" className="no-print">
-                Compartir
+              <Button variant="outline" className="no-print rounded-full">
+                Gastos
               </Button>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs text-mutedForeground">
-              {checklistItems.map((item, index) => (
-                <span
-                  key={`utility-${index}`}
-                  className="rounded-full border border-border px-3 py-1"
-                  dangerouslySetInnerHTML={renderHtml(item)}
-                />
-              ))}
+              <Button variant="outline" className="no-print rounded-full">
+                Todos
+              </Button>
             </div>
           </div>
 
-          <Card className="bg-gradient-to-br from-white to-muted">
+          <Card className="mt-6 bg-gradient-to-br from-white to-muted hidden lg:block">
             <CardHeader>
               <CardTitle>Resumen rápido</CardTitle>
               <CardDescription>Todo lo esencial a un vistazo.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-lg border border-border bg-background p-4">
+            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
                 <p className="text-sm text-mutedForeground">Total de días</p>
                 <p className="text-3xl font-semibold">{totalDays}</p>
               </div>
-              <div className="rounded-lg border border-border bg-background p-4">
+              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
                 <p className="text-sm text-mutedForeground">Ciudades</p>
                 <p className="text-3xl font-semibold">{itinerary.locations.length}</p>
               </div>
-              <div className="rounded-lg border border-border bg-background p-4">
+              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
                 <p className="text-sm text-mutedForeground">Traslados</p>
                 <p className="text-3xl font-semibold">{travelCount}</p>
               </div>
-              <div className="rounded-lg border border-border bg-background p-4">
+              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
                 <p className="text-sm text-mutedForeground">Vuelos</p>
                 <p className="text-3xl font-semibold">
                   {itinerary.days.filter(day => day.kind === 'flight').length}
@@ -811,144 +770,50 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-3xl font-semibold">Itinerario</h2>
-              <p className="text-mutedForeground">Un día por pantalla con navegación por flechas o swipe.</p>
             </div>
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              <Badge variant="secondary">
-                {visibleDays === 0 ? '0 / 0' : `${currentDayIndex + 1} / ${visibleDays}`}
-              </Badge>
-              <span className="text-xs text-mutedForeground">Resultados: {visibleDays}</span>
-              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToIndex(0)}
-                  disabled={currentDayIndex === 0}
-                >
-                  Inicio
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToIndex(todayIndex ?? 0)}
-                  disabled={todayIndex === null || visibleDays === 0}
-                >
-                  Ir a hoy
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToIndex(currentDayIndex - 1)}
-                  disabled={currentDayIndex === 0 || visibleDays === 0}
-                >
-                  ←
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToIndex(currentDayIndex + 1)}
-                  disabled={visibleDays === 0 || currentDayIndex === visibleDays - 1}
-                >
-                  →
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToIndex(visibleDays - 1)}
-                  disabled={visibleDays === 0 || currentDayIndex === visibleDays - 1}
-                >
-                  Final
-                </Button>
-              </div>
-            </div>
-          </div>
-          <Card className="no-print">
-            <CardContent className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr] md:p-6">
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">Buscar en el itinerario</p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <input
                   value={searchQuery}
                   onChange={event => setSearchQuery(event.target.value)}
-                  placeholder="Ciudad, actividad, notas..."
-                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  placeholder="Buscar actividad, lugar..."
+                  className="w-full rounded-full border border-border bg-background px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   aria-label="Buscar en el itinerario"
                 />
               </div>
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">Filtros rápidos</p>
-                <div className="flex flex-wrap gap-2">
-                  {filterOptions.map(option => {
-                    const isActive = activeFilters.includes(option.id);
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => {
-                          setActiveFilters(prev =>
-                            prev.includes(option.id)
-                              ? prev.filter(value => value !== option.id)
-                              : [...prev, option.id],
-                          );
-                        }}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                          isActive
-                            ? 'border-primary bg-primary text-primaryForeground'
-                            : 'border-border bg-background text-mutedForeground'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setActiveFilters([]);
-                    }}
-                    className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-mutedForeground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  >
-                    Limpiar
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {cityOptions.map(city => (
-                    <button
-                      key={city}
-                      type="button"
-                      onClick={() => setSearchQuery(city)}
-                      className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-mutedForeground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      {city}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {currentDay && (
-            <Card className="border-dashed bg-gradient-to-r from-muted/40 via-transparent to-transparent">
-              <CardContent className="grid gap-4 p-4 sm:p-6 md:grid-cols-[1.2fr_1fr_1fr]">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-mutedForeground">Resumen del día</p>
-                  <p className="text-2xl font-semibold">{currentDay.city}</p>
-                  <p className="text-sm text-mutedForeground">{currentDay.plan}</p>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <p className="text-mutedForeground">Fecha</p>
-                  <p className="font-semibold">{currentDay.date}</p>
-                  <p className="text-mutedForeground">Tipo</p>
-                  <p className="font-semibold">{kindLabels[currentDay.kind]}</p>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <p className="text-mutedForeground">Momentos</p>
-                  <p className="font-semibold">{currentDay.schedule.length} bloques</p>
-                  <p className="text-mutedForeground">Notas</p>
-                  <p className="font-semibold">{currentDay.notes.length} apuntes</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              <Button variant="outline" size="sm" className="rounded-full">
+                <Plus className="h-4 w-4 mr-1" />
+                Gemar aga
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 no-print">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setActiveFilters([]);
+              }}
+              className="text-sm text-mutedForeground"
+            >
+              Ver todo
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFilters(['kind:city'])}
+              className="text-sm text-mutedForeground"
+            >
+              Filtrar por ciudad
+            </Button>
+            <span className="text-xs text-mutedForeground ml-auto">
+              Marcharville actividade: {checkedItems.length}
+            </span>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
           <div
             className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-[height] duration-300 ease-out"
             style={sliderHeight ? { height: `${sliderHeight}px` } : undefined}
@@ -1404,7 +1269,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       </main>
 
       <footer className="border-t border-border bg-muted">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-mutedForeground md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex w-full  flex-col gap-2 px-4 py-6 text-sm text-mutedForeground md:flex-row md:items-center md:justify-between">
           <span>
             Route<span className="text-red-500">i</span>t · Mi Itinerario
           </span>
@@ -1417,3 +1282,4 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 }
 
 export default ItineraryView;
+

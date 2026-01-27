@@ -69,7 +69,7 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
+      <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
         <Skeleton className="h-8 w-64" />
         <div className="grid gap-4 md:grid-cols-3">
           {[1, 2, 3, 4, 5].map(i => (
@@ -82,14 +82,14 @@ export default function Analytics() {
 
   if (!userId) {
     return (
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-center px-4 py-10">
+      <div className="mx-auto flex w-full  items-center justify-center px-4 py-10">
         <p className="text-mutedForeground">No hay sesión activa</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
+    <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
       <div>
         <h1 className="text-3xl font-semibold">Analytics</h1>
         <p className="text-sm text-mutedForeground">Estadísticas de uso y actividad</p>
@@ -182,3 +182,4 @@ export default function Analytics() {
     </div>
   );
 }
+

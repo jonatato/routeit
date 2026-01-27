@@ -109,18 +109,10 @@ function DynamicItinerary() {
 
   return (
     <div className="relative">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-end gap-2 px-4 pt-4 relative z-10">
-        <NotificationBell />
-        <Link to="/app/admin" aria-label="Editar">
-          <Button variant="outline" size="sm">
-            <Edit className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Editar</span>
-          </Button>
-        </Link>
-      </div>
       <ItineraryView itinerary={itinerary} editable />
     </div>
   );
 }
 
 export default DynamicItinerary;
+

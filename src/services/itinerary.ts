@@ -20,7 +20,7 @@ import {
 } from './itineraryMapper';
 
 async function fetchSingleItinerary(userId: string) {
-  // Primero buscar en itinerarios propios
+  // Obtener el itinerario propio más reciente
   const { data: owned, error: ownedError } = await supabase
     .from('itineraries')
     .select('*')
@@ -30,30 +30,31 @@ async function fetchSingleItinerary(userId: string) {
     .order('created_at', { ascending: false })
     .limit(1);
   if (ownedError) throw ownedError;
-  
-  if (owned && owned.length > 0) {
-    return owned[0] as DbItinerary;
-  }
-  
-  // Si no hay propios, buscar en compartidos
+
+  // Obtener el itinerario compartido más reciente
   const { data: shared, error: sharedError } = await supabase
     .from('itinerary_collaborators')
     .select('itineraries(*)')
     .eq('user_id', userId)
+    .is('itineraries.deleted_at', null)
+    .order('updated_at', { foreignTable: 'itineraries', ascending: false, nullsFirst: false })
+    .order('created_at', { foreignTable: 'itineraries', ascending: false })
     .limit(1);
   if (sharedError) throw sharedError;
-  
-  if (shared && shared.length > 0) {
-    const itinerary = shared[0].itineraries;
-    if (itinerary && !Array.isArray(itinerary)) {
-      const it = itinerary as any;
-      if (!it.deleted_at) {
-        return it as DbItinerary;
-      }
-    }
-  }
-  
-  return null;
+
+  const ownedItem = owned && owned.length > 0 ? (owned[0] as DbItinerary) : null;
+  const sharedItem =
+    shared && shared.length > 0 && shared[0].itineraries && !Array.isArray(shared[0].itineraries)
+      ? (shared[0].itineraries as DbItinerary)
+      : null;
+
+  if (!ownedItem && !sharedItem) return null;
+  if (ownedItem && !sharedItem) return ownedItem;
+  if (!ownedItem && sharedItem) return sharedItem;
+
+  const ownedUpdated = new Date(ownedItem!.updated_at ?? ownedItem!.created_at).getTime();
+  const sharedUpdated = new Date(sharedItem!.updated_at ?? sharedItem!.created_at).getTime();
+  return ownedUpdated >= sharedUpdated ? ownedItem! : sharedItem!;
 }
 
 async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinerary> {

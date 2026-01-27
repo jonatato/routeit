@@ -3,6 +3,8 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import MobileTabs from './components/MobileTabs';
 import WebSideMenu from './components/WebSideMenu';
+import TopNavBar from './components/TopNavBar';
+import ExpensesSidebar from './components/ExpensesSidebar';
 import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
 import { Skeleton } from './components/ui/skeleton';
@@ -31,6 +33,9 @@ function App() {
   const isMobileShell = useIsMobileShell();
   const location = useLocation();
   const showSideMenu = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
+  const showTopNav = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
+  const showExpensesSidebar = !isMobileShell && location.pathname === '/app';
+  
   return (
     <>
       {isMobileShell ? (
@@ -165,7 +170,8 @@ function App() {
         </div>
       ) : (
         <div className="min-h-screen">
-          <div className="mx-auto flex w-full max-w-6xl">
+          {showTopNav && <TopNavBar />}
+          <div className="mx-auto flex w-full">
             {showSideMenu && <WebSideMenu />}
             <div className="flex-1">
               <Routes>
@@ -292,6 +298,7 @@ function App() {
                 <Route path="*" element={<Navigate to="/static" replace />} />
               </Routes>
             </div>
+            {showExpensesSidebar && <ExpensesSidebar />}
           </div>
         </div>
       )}
@@ -300,3 +307,4 @@ function App() {
 }
 
 export default App;
+

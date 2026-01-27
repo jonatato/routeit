@@ -1,44 +1,37 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
+import { Home, MessageSquare, Receipt, Heart, Map, Plane, User } from 'lucide-react';
 
 function WebSideMenu() {
+  const location = useLocation();
+  
+  const menuItems = [
+    { path: '/app', label: 'Inicio', icon: Home },
+    { path: '/app/chat', label: 'Chat', icon: MessageSquare },
+    { path: '/app/split', label: 'Gastos', icon: Receipt },
+    { path: '/app/guide', label: 'Guía', icon: Map },
+    { path: '/app/itineraries', label: 'Mis viajes', icon: Plane },
+  ];
+
   return (
-    <aside className="hidden w-56 shrink-0 flex-col gap-2 border-r border-border bg-background px-4 py-6 md:flex">
-      <Link to="/app">
-        <Button variant="ghost" className="w-full justify-start">
-          Itinerario
-        </Button>
-      </Link>
-      <Link to="/app/private">
-        <Button variant="ghost" className="w-full justify-start">
-          Privado
-        </Button>
-      </Link>
-      <Link to="/app/itineraries">
-        <Button variant="ghost" className="w-full justify-start">
-          Mis itinerarios
-        </Button>
-      </Link>
-      <Link to="/app/bag">
-        <Button variant="ghost" className="w-full justify-start">
-          Maleta
-        </Button>
-      </Link>
-      <Link to="/app/split">
-        <Button variant="ghost" className="w-full justify-start">
-          Split
-        </Button>
-      </Link>
-      <Link to="/app/admin">
-        <Button variant="ghost" className="w-full justify-start">
-          Admin
-        </Button>
-      </Link>
-      <Link to="/app/profile">
-        <Button variant="ghost" className="w-full justify-start">
-          Perfil
-        </Button>
-      </Link>
+    <aside className="hidden w-64 shrink-0 flex-col gap-1 border-r border-border bg-background/50 px-3 py-4 md:flex">
+      {menuItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = location.pathname === item.path;
+        
+        return (
+          <Link key={item.path} to={item.path}>
+            <Button 
+              variant={isActive ? 'secondary' : 'ghost'} 
+              className="w-full justify-start gap-3"
+              size="sm"
+            >
+              <Icon className={`h-4 w-4 ${isActive ? 'text-primary' : ''}`} />
+              {item.label}
+            </Button>
+          </Link>
+        );
+      })}
     </aside>
   );
 }

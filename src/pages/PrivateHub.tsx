@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { AnimatedCard } from '../components/AnimatedCard';
@@ -61,17 +62,19 @@ function PrivateHub() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
+    <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Espacio privado
-          </h1>
-          <p className="mt-2 text-base text-mutedForeground">Tu espacio personal para planificar y compartir viajes.</p>
+        <div className="flex items-center gap-3">
+          <Link to="/app" aria-label="Volver">
+            <Button variant="ghost" size="sm" className="rounded-full">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-semibold text-foreground">Crear Itinerario</h1>
+            <p className="mt-1 text-sm text-mutedForeground">Tu espacio personal para planificar y compartir viajes.</p>
+          </div>
         </div>
-        <Link to="/app">
-          <Button variant="outline">Volver al itinerario</Button>
-        </Link>
       </div>
 
       {/* Sección destacada para crear nuevo itinerario */}
@@ -85,12 +88,18 @@ function PrivateHub() {
                 </svg>
               </div>
               <div>
-                <CardTitle className="text-2xl">Crear nuevo itinerario</CardTitle>
-                <CardDescription className="text-base">Comienza desde cero y personaliza tu viaje.</CardDescription>
+                <CardTitle className="text-xl">Crear nuevo itinerario</CardTitle>
+                <CardDescription className="text-sm">Comienza desde cero y personaliza tu viaje.</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex h-28 items-end justify-between rounded-2xl bg-gradient-to-r from-primary/20 via-purple-100 to-primary/10 p-4">
+              <div className="text-sm font-semibold text-foreground">Tu próximo viaje empieza aquí</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-primary shadow-sm">
+                <Sparkles className="h-5 w-5" />
+              </div>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Título del viaje" error={errors.title} required>
                       <input
@@ -237,3 +246,4 @@ function PrivateHub() {
 }
 
 export default PrivateHub;
+

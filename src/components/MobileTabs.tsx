@@ -24,7 +24,7 @@ function MobileTabs() {
   
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[70] border-t border-border bg-white/90 shadow-[0_-6px_24px_rgba(111,99,216,0.15)] backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-6xl items-end px-3 py-2">
+      <div className="mx-auto flex w-full  items-end px-3 py-2">
         <div className="grid w-full grid-cols-5 items-end gap-1">
           {/* Tabs izquierdos */}
           {otherTabs.slice(0, 2).map(tab => {
@@ -91,3 +91,4 @@ function MobileTabs() {
 }
 
 export default MobileTabs;
+

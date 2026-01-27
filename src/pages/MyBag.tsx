@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -92,15 +92,19 @@ function MyBag() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
+    <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">Mi maleta</h1>
-          <p className="text-sm text-mutedForeground">Checklist personal para tu viaje.</p>
+        <div className="flex items-center gap-3">
+          <Link to="/app/private" aria-label="Volver">
+            <Button variant="ghost" size="sm" className="rounded-full">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-semibold">Mi maleta</h1>
+            <p className="text-sm text-mutedForeground">Checklist personal para tu viaje.</p>
+          </div>
         </div>
-        <Link to="/app/private">
-          <Button variant="outline">Volver</Button>
-        </Link>
       </div>
 
       {/* Checklist del usuario */}
@@ -173,7 +177,7 @@ function MyBag() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Buscar por nombre o etiqueta..."
-              className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2 text-sm"
+              className="w-full rounded-xl border border-border bg-white pl-10 pr-4 py-2 text-sm shadow-sm"
             />
           </div>
 
@@ -212,7 +216,7 @@ function MyBag() {
                 return (
                   <div
                     key={`${item.name}-${index}`}
-                    className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg border border-border bg-card p-3 ${
+                    className={`flex flex-col gap-2 rounded-xl border border-border/70 bg-white/80 p-3 shadow-sm sm:flex-row sm:items-center sm:gap-3 ${
                       alreadyAdded ? 'opacity-60' : ''
                     }`}
                   >
@@ -248,3 +252,4 @@ function MyBag() {
 }
 
 export default MyBag;
+

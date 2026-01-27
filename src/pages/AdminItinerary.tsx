@@ -380,7 +380,7 @@ function AdminItinerary() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
+    <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
       {isResolvingMaps && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm">
@@ -1397,3 +1397,4 @@ function AdminItinerary() {
 }
 
 export default AdminItinerary;
+

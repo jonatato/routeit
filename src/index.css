@@ -47,6 +47,18 @@
   border-color: hsl(var(--border));
 }
 
+input,
+textarea,
+select {
+  color: hsl(var(--foreground));
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.85;
+}
+
 body {
   background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
   color: hsl(var(--foreground));

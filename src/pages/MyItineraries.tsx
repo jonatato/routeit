@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -140,13 +141,17 @@ function MyItineraries() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">Mis itinerarios</h1>
-          <p className="text-sm text-mutedForeground">Crea, comparte y gestiona.</p>
+        <div className="flex items-center gap-3">
+          <Link to="/app/private" aria-label="Volver">
+            <Button variant="ghost" size="sm" className="rounded-full">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-semibold">Mis itinerarios</h1>
+            <p className="text-sm text-mutedForeground">Crea, comparte y gestiona.</p>
+          </div>
         </div>
-        <Link to="/app/private">
-          <Button variant="outline">Volver</Button>
-        </Link>
       </div>
 
       <Card>
@@ -159,7 +164,7 @@ function MyItineraries() {
             value={acceptToken}
             onChange={event => setAcceptToken(event.target.value)}
             placeholder="Token de invitación"
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm shadow-sm"
           />
           <Button onClick={handleAcceptShare}>Aceptar</Button>
         </CardContent>
@@ -212,7 +217,7 @@ function MyItineraries() {
               <select
                 value={shareRole}
                 onChange={event => setShareRole(event.target.value as ShareRole)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                className="rounded-xl border border-border bg-white px-3 py-2 text-sm shadow-sm"
               >
                 <option value="viewer">Viewer</option>
                 <option value="editor">Editor</option>
@@ -227,7 +232,7 @@ function MyItineraries() {
                 <input
                   value={shareLink}
                   readOnly
-                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm shadow-sm"
                 />
                 <Button
                   variant="outline"
@@ -243,7 +248,7 @@ function MyItineraries() {
                   Colaboradores
                 </p>
                 {collaborators.map(item => (
-                  <div key={item.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                  <div key={item.id} className="flex items-center justify-between rounded-xl border border-border/70 bg-white/80 px-3 py-2 text-sm shadow-sm">
                     <span>{item.user_id}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-mutedForeground">{item.role}</span>

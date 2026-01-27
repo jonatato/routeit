@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Skeleton } from '../components/ui/skeleton';
@@ -344,22 +345,26 @@ function Split() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
+    <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">Split</h1>
-          <p className="text-sm text-mutedForeground">Divide gastos del itinerario.</p>
+        <div className="flex items-center gap-3">
+          <Link to="/app/private" aria-label="Volver">
+            <Button variant="ghost" size="sm" className="rounded-full">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-semibold">División de gastos</h1>
+            <p className="text-sm text-mutedForeground">Divide gastos del itinerario.</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => handleExport('json')}>
             Exportar JSON
           </Button>
           <Button variant="outline" onClick={() => handleExport('csv')}>
             Exportar CSV
           </Button>
-          <Link to="/app/private">
-            <Button variant="outline">Volver</Button>
-          </Link>
         </div>
       </div>
 
@@ -372,7 +377,7 @@ function Split() {
           <select
             value={activeItineraryId ?? ''}
             onChange={event => setActiveItineraryId(event.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm shadow-sm"
           >
             {itineraries.map(itinerary => (
               <option key={itinerary.id} value={itinerary.id}>
@@ -384,7 +389,7 @@ function Split() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-5 gap-2 bg-white/80 p-2">
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="expenses">Gastos</TabsTrigger>
           <TabsTrigger value="payments">Pagos</TabsTrigger>
@@ -746,3 +751,4 @@ function Split() {
 }
 
 export default Split;
+
