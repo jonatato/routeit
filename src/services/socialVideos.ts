@@ -54,22 +54,30 @@ export function parseVideoUrl(url: string): { platform: 'tiktok' | 'instagram' |
 
 // Generar código embed según plataforma
 export function generateEmbedCode(platform: 'tiktok' | 'instagram' | 'youtube', videoId: string, videoUrl: string): string {
+  let embedCode = '';
+  
   switch (platform) {
     case 'tiktok':
       // TikTok oEmbed - usaremos el formato blockquote que TikTok procesa
-      return `<blockquote class="tiktok-embed" cite="${videoUrl}" data-video-id="${videoId}" style="max-width: 605px; min-width: 325px; margin: 0 auto;">
+      embedCode = `<blockquote class="tiktok-embed" cite="${videoUrl}" data-video-id="${videoId}" style="max-width: 605px; min-width: 325px; margin: 0 auto;">
         <section>
           <a target="_blank" title="@user" href="${videoUrl}">Ver en TikTok</a>
         </section>
       </blockquote>`;
+      break;
     case 'instagram':
       // Instagram oEmbed - usaremos iframe que es más confiable
-      return `<iframe src="https://www.instagram.com/p/${videoId}/embed/captioned" width="400" height="600" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;overflow:hidden;max-width:540px;width:100%;margin:0 auto;display:block;" allowfullscreen="true"></iframe>`;
+      embedCode = `<iframe src="https://www.instagram.com/p/${videoId}/embed/captioned" width="400" height="600" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;overflow:hidden;max-width:540px;width:100%;margin:0 auto;display:block;" allowfullscreen="true"></iframe>`;
+      break;
     case 'youtube':
-      return `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"></iframe>`;
+      embedCode = `<iframe width="420" height="700" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="border: none; display: block; margin: 0 auto;"></iframe>`;
+      break;
     default:
-      return '';
+      embedCode = '';
   }
+  
+  console.log('generateEmbedCode - platform:', platform, 'videoId:', videoId, 'embedCode:', embedCode);
+  return embedCode;
 }
 
 // Función para obtener embed HTML desde oEmbed API (más confiable)
@@ -180,16 +188,22 @@ export async function addVideo(
     throw new Error('URL de video no válida. Soportamos TikTok, Instagram Reels y YouTube Shorts.');
   }
   
-  // Intentar obtener el embed desde oEmbed primero, si falla usar el generado
+  // Generar el embed code - NO usar oEmbed para YouTube porque da dimensiones pequeñas
   let embedCode = generateEmbedCode(parsed.platform, parsed.videoId, videoUrl);
-  try {
-    const oembedHtml = await fetchOEmbedHtml(parsed.platform, videoUrl);
-    if (oembedHtml) {
-      embedCode = oembedHtml;
+  
+  // Solo intentar oEmbed para TikTok (YouTube da dimensiones incorrectas)
+  if (parsed.platform === 'tiktok') {
+    try {
+      const oembedHtml = await fetchOEmbedHtml(parsed.platform, videoUrl);
+      if (oembedHtml) {
+        embedCode = oembedHtml;
+      }
+    } catch (error) {
+      console.log('Using fallback embed code for', parsed.platform);
     }
-  } catch (error) {
-    console.log('Using fallback embed code for', parsed.platform);
   }
+  
+  console.log('addVideo - Using embed code:', embedCode);
   
   const thumbnailUrl = generateThumbnailUrl(parsed.platform, parsed.videoId);
   

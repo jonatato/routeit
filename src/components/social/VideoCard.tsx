@@ -20,6 +20,8 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
   const isOwner = currentUserId === video.user_id;
 
   useEffect(() => {
+    console.log('VideoCard useEffect - mode:', mode, 'platform:', video.platform, 'embed_code:', video.embed_code?.substring(0, 100));
+    
     if (mode === 'embed' && video.embed_code && embedRef.current) {
       // Resetear contador de reintentos
       retryCountRef.current = 0;
@@ -28,7 +30,9 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
       embedRef.current.innerHTML = '';
       
       try {
+        console.log('Setting innerHTML for', video.platform);
         embedRef.current.innerHTML = video.embed_code;
+        console.log('innerHTML set successfully, embedRef content:', embedRef.current.innerHTML.substring(0, 100));
         setEmbedError(false);
         
         // Solo procesar TikTok embeds si el código contiene blockquote de TikTok
@@ -142,18 +146,22 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
   };
 
   if (mode === 'embed') {
+    // Altura específica por plataforma
+    const containerHeight = video.platform === 'youtube' ? '700px' : '600px';
+    
     return (
       <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
         <CardContent className="p-0">
           {/* Video Embed */}
-          <div className={`relative bg-gray-100 ${
-            video.platform === 'youtube' ? 'w-full' : 'flex items-center justify-center min-h-[600px]'
-          }`} style={video.platform === 'youtube' ? { height: '700px' } : {}}>
+          <div 
+            className="relative bg-gray-100 w-full" 
+            style={{ height: containerHeight }}
+          >
             {!embedError ? (
               <div 
                 ref={embedRef} 
-                className={`w-full h-full ${video.platform === 'youtube' ? '' : 'flex items-center justify-center'}`}
-                style={video.platform === 'youtube' ? { height: '100%' } : { minHeight: '600px' }}
+                className="w-full h-full"
+                style={{ height: '100%' }}
               />
             ) : (
               <div className="flex flex-col items-center gap-4 p-8">
