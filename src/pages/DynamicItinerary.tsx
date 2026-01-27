@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Edit } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
@@ -16,6 +16,7 @@ function DynamicItinerary() {
   const [itinerary, setItinerary] = useState<TravelItinerary | null>(null);
   const [hasNoItineraries, setHasNoItineraries] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -30,9 +31,11 @@ function DynamicItinerary() {
         return;
       }
       try {
+        // Primero intentamos obtener el ID de la URL query params
         const params = new URLSearchParams(location.search);
-        const itineraryId = params.get('itineraryId');
-        let dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
+        const queryItineraryId = params.get('itineraryId');
+        
+        let dataItinerary = queryItineraryId ? await fetchItineraryById(queryItineraryId) : await fetchUserItinerary(user.id);
         
         if (!dataItinerary) {
           // Si no hay itinerario en BD, mostrar mensaje
@@ -41,6 +44,13 @@ function DynamicItinerary() {
         } else {
           setItinerary(dataItinerary);
           setHasNoItineraries(false);
+          
+          // Actualizar la URL para que muestre el ID del itinerario cargado
+          // Solo si no está ya en la URL
+          const currentPath = location.pathname + location.search;
+          if (!currentPath.includes(`itineraryId=${dataItinerary.id}`)) {
+            navigate(`/app?itineraryId=${dataItinerary.id}`, { replace: true });
+          }
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el itinerario.';
@@ -52,7 +62,7 @@ function DynamicItinerary() {
       }
     };
     load();
-  }, [location.search]);
+  }, [location.search, navigate]);
 
   if (isLoading) {
     return (

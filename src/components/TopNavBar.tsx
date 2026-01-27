@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, Heart, Receipt, Map, Plane, ShoppingBag, Settings } from 'lucide-react';
+import { Search, Receipt, ShoppingBag, Plane, Settings } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { Button } from './ui/button';
 import { NotificationBell } from './NotificationBell';
@@ -18,7 +18,7 @@ function TopNavBar() {
         <nav className="hidden md:flex items-center gap-1">
           <Link to="/app">
             <Button variant="ghost" size="sm" className="gap-2">
-              <Map className="h-4 w-4 text-primary" />
+              <Settings className="h-4 w-4 text-primary" />
               Inicio
             </Button>
           </Link>

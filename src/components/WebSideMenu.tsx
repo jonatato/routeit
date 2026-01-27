@@ -14,12 +14,19 @@ function WebSideMenu() {
     { path: '/app/guide', label: 'Guía', icon: Map },
     { path: '/app/itineraries', label: 'Mis viajes', icon: Plane },
   ];
+  
+  const isItineraryPageActive = () => {
+    // Considerar activo si estamos en /app con query params de itineraryId
+    return location.pathname === '/app' || (location.pathname === '/app' && location.search.includes('itineraryId='));
+  };
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col gap-1 border-r border-border bg-background/50 px-3 py-4 md:flex">
       {menuItems.map((item) => {
         const Icon = item.icon;
-        const isActive = location.pathname === item.path;
+        const isActive = item.path === '/app' 
+          ? isItineraryPageActive()
+          : location.pathname === item.path;
         
         return (
           <Link key={item.path} to={item.path}>

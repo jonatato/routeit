@@ -38,7 +38,7 @@ function App() {
   const location = useLocation();
   const showSideMenu = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   const showTopNav = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
-  const showExpensesSidebar = !isMobileShell && location.pathname === '/app';
+  const showExpensesSidebar = !isMobileShell && location.pathname === '/app' || location.search.includes('itineraryId=');
   const showMobileHeader = isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   
   return (

@@ -290,8 +290,24 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 
   // Sincronizar tab con índice del día
   useEffect(() => {
-    setActiveTabValue(String(currentDayIndex));
+    // No sobrescribir si el tab actual es "general"
+    if (activeTabValue !== 'general') {
+      setActiveTabValue(String(currentDayIndex));
+    }
   }, [currentDayIndex]);
+
+  // Sincronizar índice del día con tab
+  useEffect(() => {
+    const tabValue = activeTabValue;
+    if (tabValue === 'general') {
+      // No cambiar currentDayIndex para el tab general
+      return;
+    }
+    const index = Number(tabValue);
+    if (!isNaN(index) && index >= 0 && index < filteredDays.length && index !== currentDayIndex) {
+      setCurrentDayIndex(index);
+    }
+  }, [activeTabValue, filteredDays.length]);
 
   // Cargar preferencias de secciones
   useEffect(() => {
