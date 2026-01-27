@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import MobileTabs from './components/MobileTabs';
+import MobileHeader from './components/MobileHeader';
 import WebSideMenu from './components/WebSideMenu';
 import TopNavBar from './components/TopNavBar';
 import ExpensesSidebar from './components/ExpensesSidebar';
@@ -35,11 +36,13 @@ function App() {
   const showSideMenu = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   const showTopNav = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   const showExpensesSidebar = !isMobileShell && location.pathname === '/app';
+  const showMobileHeader = isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   
   return (
     <>
       {isMobileShell ? (
         <div className="min-h-screen pb-14">
+          {showMobileHeader && <MobileHeader />}
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/static" element={<StaticItinerary />} />

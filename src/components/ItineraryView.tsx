@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import { Link } from 'react-router-dom';
-import { Plus, Settings } from 'lucide-react';
+import { Plus, Settings, Search } from 'lucide-react';
 import type { TravelItinerary } from '../data/itinerary';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { Tabs } from 'flowbite-react';
@@ -452,53 +452,21 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           highContrast ? 'a11y-contrast' : ''
         } ${largeText ? 'a11y-text-lg' : ''}`}
       >
-      {/* Simplified Header - only show on mobile or for print */}
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-white/80 shadow-sm backdrop-blur md:hidden no-print">
-        <div className="mx-auto flex w-full items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <PandaLogo size="sm" />
-            <p className="text-lg font-semibold">{itinerary.title}</p>
-          </div>
-        </div>
-        <div className="mx-auto flex w-full flex-wrap gap-2 px-4 pb-3">
-          <div className="flex w-full items-center gap-2 overflow-x-auto rounded-full bg-white/80 p-2 shadow-sm">
-            {['overview', 'itinerary', 'foods', 'tips', 'budget', 'guide'].map(anchor => (
-              <a
-                key={anchor}
-                href={`#${anchor}`}
-                className="whitespace-nowrap rounded-full bg-muted/60 px-3 py-1 text-[11px] font-semibold text-mutedForeground"
-              >
-                {anchor === 'overview'
-                  ? 'Resumen'
-                  : anchor === 'itinerary'
-                  ? 'Itinerario'
-                  : anchor === 'foods'
-                  ? 'Comidas'
-                  : anchor === 'tips'
-                  ? 'Consejos'
-                  : anchor === 'budget'
-                  ? 'Presupuesto'
-                  : 'Guía'}
-              </a>
-            ))}
-          </div>
-        </div>
-      </header>
 
-      <main className="mx-auto flex w-full flex-col gap-16 px-4 py-10" style={{ display: 'flex', flexDirection: 'column' }}>
-        <section data-section="flights" className="grid gap-8 lg:grid-cols-1" style={{ order: -1 }}>
-          <div className="flex flex-col gap-6">
-            <h1 className="text-4xl font-semibold leading-tight md:text-5xl">
+      <main className="mx-auto flex w-full flex-col gap-8 px-4 py-6 md:py-10" style={{ display: 'flex', flexDirection: 'column' }}>
+        <section data-section="flights" className="grid gap-6" style={{ order: -1 }}>
+          <div className="flex flex-col gap-4">
+            <h1 className="text-3xl font-bold leading-tight md:text-5xl">
               {itinerary.title}
-              <span className="block text-lg font-normal text-mutedForeground mt-2">Del {itinerary.dateRange}</span>
             </h1>
+            <p className="text-base font-medium text-mutedForeground">Del {itinerary.dateRange}</p>
             <div
-              className="text-base text-mutedForeground max-w-3xl"
+              className="text-sm text-mutedForeground max-w-3xl"
               dangerouslySetInnerHTML={renderHtml(itinerary.intro)}
             />
             <div className="flex flex-wrap gap-3">
               <Button onClick={handlePrint} className="no-print rounded-full">
-                Nuevo día
+                Itinerario
               </Button>
               <Button variant="outline" className="no-print rounded-full">
                 Gastos
@@ -509,7 +477,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
             </div>
           </div>
 
-          <Card className="mt-6 bg-gradient-to-br from-white to-muted hidden lg:block">
+          <Card className="mt-2 bg-gradient-to-br from-white to-muted hidden lg:block">
             <CardHeader>
               <CardTitle>Resumen rápido</CardTitle>
               <CardDescription>Todo lo esencial a un vistazo.</CardDescription>
@@ -766,28 +734,27 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         )}
 
         {shouldShowSection('itinerary') && (
-          <section id="itinerary" data-section="itinerary" className="space-y-6" style={{ order: getSectionOrder('itinerary') }}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-3xl font-semibold">Itinerario</h2>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+          <section id="itinerary" data-section="itinerary" className="space-y-4" style={{ order: getSectionOrder('itinerary') }}>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-2xl font-bold md:text-3xl">Itinerario</h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1">
                 <input
                   value={searchQuery}
                   onChange={event => setSearchQuery(event.target.value)}
                   placeholder="Buscar actividad, lugar..."
-                  className="w-full rounded-full border border-border bg-background px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="w-full rounded-full border border-border bg-white px-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 pl-10"
                   aria-label="Buscar en el itinerario"
                 />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-              <Button variant="outline" size="sm" className="rounded-full">
+              <Button size="sm" className="rounded-full whitespace-nowrap">
                 <Plus className="h-4 w-4 mr-1" />
-                Gemar aga
+                Nuevo día
               </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2 no-print">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             <Button
               variant="ghost"
               size="sm"
@@ -795,24 +762,20 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 setSearchQuery('');
                 setActiveFilters([]);
               }}
-              className="text-sm text-mutedForeground"
+              className="text-xs shrink-0 rounded-full"
             >
               Ver todo
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setActiveFilters(['kind:city'])}
-              className="text-sm text-mutedForeground"
+              className="text-xs shrink-0 rounded-full"
             >
               Filtrar por ciudad
             </Button>
-            <span className="text-xs text-mutedForeground ml-auto">
-              Marcharville actividade: {checkedItems.length}
+            <span className="text-xs text-mutedForeground ml-auto shrink-0">
+              Marcharde actividad: {checkedItems.length}
             </span>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Settings className="h-4 w-4" />
-            </Button>
           </div>
           <div
             className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-[height] duration-300 ease-out"
