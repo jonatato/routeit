@@ -185,7 +185,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
 
   if (loading) {
     return (
-      <aside className="hidden xl:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
+      <aside className="hidden lg:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Gastos</CardTitle>
@@ -200,7 +200,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
 
   if (!data) {
     return (
-      <aside className="hidden xl:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
+      <aside className="hidden lg:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
         <Card className="shadow-md">
           <CardHeader>
             <CardTitle>Gastos</CardTitle>
@@ -220,7 +220,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
   }
 
   return (
-    <aside className="hidden xl:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
+    <aside className="hidden lg:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
       {/* Expenses Summary Card */}
       <Card className="shadow-md">
         <CardHeader>
