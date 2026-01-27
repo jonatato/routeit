@@ -38,8 +38,8 @@ function Auth() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center gap-6 px-4 py-12 bg-gradient-to-br from-[hsl(140,40%,85%)] via-[hsl(270,30%,90%)] to-[hsl(140,25%,95%)]">
-      <div className="mb-4">
-        <PandaLogo size="lg" showText className="text-2xl" />
+      <div className="mb-6">
+        <PandaLogo size="2xl" showText className="text-3xl" />
       </div>
       <Card className="w-full max-w-md border border-border bg-card shadow-xl">
         <CardHeader>

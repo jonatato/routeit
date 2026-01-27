@@ -34,6 +34,11 @@ function WebSideMenu() {
           Admin
         </Button>
       </Link>
+      <Link to="/app/profile">
+        <Button variant="ghost" className="w-full justify-start">
+          Perfil
+        </Button>
+      </Link>
     </aside>
   );
 }

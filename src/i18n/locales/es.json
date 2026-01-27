@@ -1,0 +1,45 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "email": "Email",
+    "password": "Contraseña"
+  },
+  "itinerary": {
+    "title": "Itinerario",
+    "create": "Crear itinerario",
+    "edit": "Editar itinerario",
+    "delete": "Eliminar itinerario",
+    "export": "Exportar PDF",
+    "share": "Compartir",
+    "days": "Días",
+    "overview": "Resumen",
+    "map": "Mapa",
+    "budget": "Presupuesto"
+  },
+  "profile": {
+    "title": "Perfil",
+    "preferences": "Preferencias",
+    "theme": "Tema",
+    "language": "Idioma",
+    "notifications": "Notificaciones"
+  },
+  "split": {
+    "title": "Dividir gastos",
+    "expenses": "Gastos",
+    "payments": "Pagos",
+    "balances": "Balances",
+    "addExpense": "Añadir gasto",
+    "addPayment": "Añadir pago"
+  }
+}

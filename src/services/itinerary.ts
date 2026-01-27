@@ -20,14 +20,40 @@ import {
 } from './itineraryMapper';
 
 async function fetchSingleItinerary(userId: string) {
-  const { data, error } = await supabase
+  // Primero buscar en itinerarios propios
+  const { data: owned, error: ownedError } = await supabase
     .from('itineraries')
     .select('*')
     .eq('user_id', userId)
+    .is('deleted_at', null)
+    .order('updated_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .limit(1);
-  if (error) throw error;
-  return (data?.[0] ?? null) as DbItinerary | null;
+  if (ownedError) throw ownedError;
+  
+  if (owned && owned.length > 0) {
+    return owned[0] as DbItinerary;
+  }
+  
+  // Si no hay propios, buscar en compartidos
+  const { data: shared, error: sharedError } = await supabase
+    .from('itinerary_collaborators')
+    .select('itineraries(*)')
+    .eq('user_id', userId)
+    .limit(1);
+  if (sharedError) throw sharedError;
+  
+  if (shared && shared.length > 0) {
+    const itinerary = shared[0].itineraries;
+    if (itinerary && !Array.isArray(itinerary)) {
+      const it = itinerary as any;
+      if (!it.deleted_at) {
+        return it as DbItinerary;
+      }
+    }
+  }
+  
+  return null;
 }
 
 async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinerary> {
@@ -134,7 +160,12 @@ export async function fetchUserItinerary(userId: string): Promise<TravelItinerar
 }
 
 export async function fetchItineraryById(itineraryId: string): Promise<TravelItinerary | null> {
-  const { data, error } = await supabase.from('itineraries').select('*').eq('id', itineraryId).single();
+  const { data, error } = await supabase
+    .from('itineraries')
+    .select('*')
+    .eq('id', itineraryId)
+    .is('deleted_at', null)
+    .single();
   if (error) throw error;
   if (!data) return null;
   return fetchItineraryData(data as DbItinerary);
@@ -156,6 +187,25 @@ async function getUserRole(userId: string, itineraryId: string) {
     .maybeSingle();
   if (error) throw error;
   return collaborator?.role ?? null;
+}
+
+export async function createEmptyItinerary(userId: string, title: string, dateRange: string): Promise<string> {
+  const { data: created, error } = await supabase
+    .from('itineraries')
+    .insert({
+      user_id: userId,
+      title,
+      date_range: dateRange,
+      intro: 'Crea tu itinerario personalizado desde cero.',
+    })
+    .select('id')
+    .single();
+
+  if (error || !created) {
+    throw error ?? new Error('No se pudo crear el itinerario.');
+  }
+
+  return created.id as string;
 }
 
 export async function seedUserItinerary(userId: string, base: TravelItinerary): Promise<TravelItinerary> {
@@ -226,25 +276,25 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
   if (seed.locations.length > 0) {
     const { error: locationsError } = await supabase
       .from('locations')
-      .insert(seed.locations.map(location => ({ ...location, itinerary_id: itineraryIdResolved })));
+      .insert(seed.locations.map(location => ({ ...location, itinerary_id: itineraryId })));
     if (locationsError) throw locationsError;
   }
   if (seed.routes.length > 0) {
     const { error: routesError } = await supabase
       .from('routes')
-      .insert(seed.routes.map(route => ({ ...route, itinerary_id: itineraryIdResolved })));
+      .insert(seed.routes.map(route => ({ ...route, itinerary_id: itineraryId })));
     if (routesError) throw routesError;
   }
   if (seed.flights.length > 0) {
     const { error: flightsError } = await supabase
       .from('flights')
-      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryIdResolved })));
+      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryId })));
     if (flightsError) throw flightsError;
   }
 
   const { data: insertedLists, error: listsError } = await supabase
     .from('itinerary_lists')
-    .insert(seed.lists.map(list => ({ ...list, itinerary_id: itineraryIdResolved })))
+    .insert(seed.lists.map(list => ({ ...list, itinerary_id: itineraryId })))
     .select('*');
   if (listsError) throw listsError;
 
@@ -266,20 +316,20 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
   if (seed.phrases.length > 0) {
     const { error: phraseError } = await supabase
       .from('phrases')
-      .insert(seed.phrases.map(phrase => ({ ...phrase, itinerary_id: itineraryIdResolved })));
+      .insert(seed.phrases.map(phrase => ({ ...phrase, itinerary_id: itineraryId })));
     if (phraseError) throw phraseError;
   }
 
   if (seed.budgetTiers.length > 0) {
     const { error: budgetError } = await supabase
       .from('budget_tiers')
-    .insert(seed.budgetTiers.map(tier => ({ ...tier, itinerary_id: itineraryIdResolved })));
+    .insert(seed.budgetTiers.map(tier => ({ ...tier, itinerary_id: itineraryId })));
     if (budgetError) throw budgetError;
   }
 
   const { data: insertedTags, error: tagsError } = await supabase
     .from('tags')
-    .insert(seed.tags.map(tag => ({ ...tag, itinerary_id: itineraryIdResolved })))
+    .insert(seed.tags.map(tag => ({ ...tag, itinerary_id: itineraryId })))
     .select('*');
   if (tagsError) throw tagsError;
 
@@ -336,7 +386,7 @@ export async function saveUserItinerary(
 ): Promise<TravelItinerary> {
   const targetId = itineraryId ?? updated.id ?? null;
   const existing = targetId
-    ? await supabase.from('itineraries').select('*').eq('id', targetId).single()
+    ? await supabase.from('itineraries').select('*').eq('id', targetId).is('deleted_at', null).single()
     : { data: await fetchSingleItinerary(userId), error: null };
   if (existing.error) throw existing.error;
   if (!existing.data) {
@@ -354,6 +404,7 @@ export async function saveUserItinerary(
       title: updated.title,
       date_range: updated.dateRange,
       intro: updated.intro,
+      updated_at: new Date().toISOString(),
     })
     .eq('id', itineraryIdResolved);
   if (updateError) throw updateError;

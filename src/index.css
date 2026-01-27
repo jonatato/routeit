@@ -23,6 +23,26 @@
   --radius: 14px;
 }
 
+.dark {
+  /* Panda Ninja Theme - Dark Mode */
+  --background: 0 0% 8%;
+  --foreground: 0 0% 95%;
+  --card: 0 0% 12%;
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 12%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 270 55% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 140 30% 25%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 0 0% 18%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 48 85% 65%;
+  --accent-foreground: 0 0% 8%;
+  --border: 0 0% 20%;
+  --ring: 270 55% 65%;
+}
+
 * {
   border-color: hsl(var(--border));
 }

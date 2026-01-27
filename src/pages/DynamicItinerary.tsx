@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Settings } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { Skeleton } from '../components/ui/skeleton';
+import { PandaLogo } from '../components/PandaLogo';
 import ItineraryView from '../components/ItineraryView';
+import { NotificationBell } from '../components/NotificationBell';
 import { chinaTrip } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
-import { fetchItineraryById, fetchUserItinerary, seedUserItinerary } from '../services/itinerary';
+import { fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
 
 function DynamicItinerary() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [itinerary, setItinerary] = useState<typeof chinaTrip | null>(null);
+  const [hasNoItineraries, setHasNoItineraries] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       setError(null);
+      setHasNoItineraries(false);
       const { data } = await supabase.auth.getUser();
       const user = data.user;
       if (!user) {
@@ -29,11 +34,17 @@ function DynamicItinerary() {
         const itineraryId = params.get('itineraryId');
         let dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
         if (!dataItinerary) {
-          dataItinerary = await seedUserItinerary(user.id, chinaTrip);
+          setHasNoItineraries(true);
+          setItinerary(null);
+        } else {
+          setItinerary(dataItinerary);
+          setHasNoItineraries(false);
         }
-        setItinerary(dataItinerary);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'No se pudo cargar el itinerario.');
+        const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el itinerario.';
+        setError(errorMessage);
+        setHasNoItineraries(false);
+        setItinerary(null);
       } finally {
         setIsLoading(false);
       }
@@ -43,8 +54,16 @@ function DynamicItinerary() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <p className="text-sm text-mutedForeground">Cargando itinerario...</p>
+      <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-4 py-10">
+        <div className="space-y-3">
+          <Skeleton className="h-12 w-3/4" />
+          <Skeleton className="h-6 w-1/2" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </div>
     );
   }
@@ -60,22 +79,44 @@ function DynamicItinerary() {
     );
   }
 
+  if (hasNoItineraries) {
+    return (
+      <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-6 px-4 text-center">
+        <PandaLogo size="lg" className="mb-4" />
+        <div className="space-y-4">
+          <h1 className="text-3xl font-bold">¡Aún no tienes itinerarios!</h1>
+          <p className="text-lg text-mutedForeground max-w-md">
+            Crea tu primer itinerario personalizado y comienza a planificar tu viaje perfecto.
+          </p>
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link to="/app/private">
+              <Button size="lg" className="w-full sm:w-auto">
+                Crear mi primer itinerario
+              </Button>
+            </Link>
+            <Button variant="outline" size="lg" onClick={() => supabase.auth.signOut()} className="w-full sm:w-auto">
+              Cerrar sesión
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!itinerary) {
     return null;
   }
 
   return (
     <div className="relative">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-end gap-2 px-4 pt-4">
-        <Link to="/app/admin" aria-label="Administrar">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-end gap-2 px-4 pt-4 relative z-10">
+        <NotificationBell />
+        <Link to="/app/admin" aria-label="Editar">
           <Button variant="outline" size="sm">
-            <Settings className="h-4 w-4" />
+            <Edit className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Editar</span>
           </Button>
         </Link>
-        <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>
-          <LogOut className="h-4 w-4" />
-          <span className="ml-2">Salir</span>
-        </Button>
       </div>
       <ItineraryView itinerary={itinerary} editable />
     </div>

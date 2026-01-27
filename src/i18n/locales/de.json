@@ -1,0 +1,45 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "loading": "Laden...",
+    "error": "Fehler",
+    "success": "Erfolg"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "email": "E-Mail",
+    "password": "Passwort"
+  },
+  "itinerary": {
+    "title": "Reiseroute",
+    "create": "Reiseroute erstellen",
+    "edit": "Reiseroute bearbeiten",
+    "delete": "Reiseroute löschen",
+    "export": "PDF exportieren",
+    "share": "Teilen",
+    "days": "Tage",
+    "overview": "Übersicht",
+    "map": "Karte",
+    "budget": "Budget"
+  },
+  "profile": {
+    "title": "Profil",
+    "preferences": "Einstellungen",
+    "theme": "Thema",
+    "language": "Sprache",
+    "notifications": "Benachrichtigungen"
+  },
+  "split": {
+    "title": "Ausgaben teilen",
+    "expenses": "Ausgaben",
+    "payments": "Zahlungen",
+    "balances": "Salden",
+    "addExpense": "Ausgabe hinzufügen",
+    "addPayment": "Zahlung hinzufügen"
+  }
+}

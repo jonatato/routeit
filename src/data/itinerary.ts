@@ -75,7 +75,7 @@ export interface TravelItinerary {
 }
 
 export const chinaTrip: TravelItinerary = {
-  title: 'Ruta China 2026',
+  title: 'Mi Viaje 2026',
   dateRange: 'Vie 9 Oct → Vie 31 Oct',
   intro:
     'Itinerario completo con horarios sugeridos, organizado por día y por ciudad, pensado para minimizar traslados y maximizar experiencias.',

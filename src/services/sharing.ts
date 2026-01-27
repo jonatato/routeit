@@ -25,8 +25,19 @@ const mapItinerarySummary = (row: {
 });
 
 export async function listUserItineraries(userId: string): Promise<ItinerarySummary[]> {
+  // Verificar que el userId coincide con el usuario autenticado
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.id !== userId) {
+    throw new Error('No autorizado');
+  }
+
   const [owned, shared] = await Promise.all([
-    supabase.from('itineraries').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+    supabase
+      .from('itineraries')
+      .select('*')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }),
     supabase
       .from('itinerary_collaborators')
       .select('role, itineraries(*)')
@@ -47,13 +58,22 @@ export async function listUserItineraries(userId: string): Promise<ItinerarySumm
 
   const sharedRows = (shared.data ?? [])
     .map(row => {
-      const itinerary = row.itineraries as {
+      const itineraries = row.itineraries as {
         id: string;
         title: string;
         date_range: string;
         user_id: string;
-      } | null;
-      if (!itinerary) return null;
+        deleted_at: string | null;
+      } | {
+        id: string;
+        title: string;
+        date_range: string;
+        user_id: string;
+        deleted_at: string | null;
+      }[] | null;
+      if (!itineraries) return null;
+      const itinerary = Array.isArray(itineraries) ? itineraries[0] : itineraries;
+      if (!itinerary || itinerary.deleted_at) return null; // Filtrar eliminados
       return mapItinerarySummary({
         id: itinerary.id,
         title: itinerary.title,
@@ -84,6 +104,34 @@ export async function listCollaborators(itineraryId: string) {
 
 export async function removeCollaborator(collaboratorId: string) {
   const { error } = await supabase.from('itinerary_collaborators').delete().eq('id', collaboratorId);
+  if (error) throw error;
+}
+
+export async function deleteItinerary(itineraryId: string, userId: string): Promise<void> {
+  // Verificar que el userId coincide con el usuario autenticado
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.id !== userId) {
+    throw new Error('No autorizado');
+  }
+
+  // Verificar que el usuario es el owner del itinerario
+  const { data: itinerary, error: fetchError } = await supabase
+    .from('itineraries')
+    .select('user_id')
+    .eq('id', itineraryId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!itinerary || itinerary.user_id !== userId) {
+    throw new Error('No tienes permisos para eliminar este itinerario.');
+  }
+
+  // Borrado lógico: marcar como eliminado
+  const { error } = await supabase
+    .from('itineraries')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', itineraryId);
+
   if (error) throw error;
 }
 

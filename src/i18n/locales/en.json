@@ -1,0 +1,45 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "email": "Email",
+    "password": "Password"
+  },
+  "itinerary": {
+    "title": "Itinerary",
+    "create": "Create itinerary",
+    "edit": "Edit itinerary",
+    "delete": "Delete itinerary",
+    "export": "Export PDF",
+    "share": "Share",
+    "days": "Days",
+    "overview": "Overview",
+    "map": "Map",
+    "budget": "Budget"
+  },
+  "profile": {
+    "title": "Profile",
+    "preferences": "Preferences",
+    "theme": "Theme",
+    "language": "Language",
+    "notifications": "Notifications"
+  },
+  "split": {
+    "title": "Split expenses",
+    "expenses": "Expenses",
+    "payments": "Payments",
+    "balances": "Balances",
+    "addExpense": "Add expense",
+    "addPayment": "Add payment"
+  }
+}

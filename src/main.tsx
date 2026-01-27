@@ -4,7 +4,13 @@ import { createRoot } from 'react-dom/client';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './index.css';
+import './i18n/config';
 import App from './App.tsx';
+import { ThemeProvider } from './components/ThemeProvider.tsx';
+import { NotificationProvider } from './context/NotificationContext.tsx';
+import { I18nProvider } from './components/I18nProvider.tsx';
+import { OfflineIndicator } from './components/OfflineIndicator.tsx';
+import { Toaster } from 'react-hot-toast';
 
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -15,8 +21,16 @@ L.Icon.Default.mergeOptions({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ThemeProvider>
+      <NotificationProvider>
+        <I18nProvider>
+          <BrowserRouter>
+            <App />
+            <OfflineIndicator />
+            <Toaster position="top-right" />
+          </BrowserRouter>
+        </I18nProvider>
+      </NotificationProvider>
+    </ThemeProvider>
   </StrictMode>
 );

@@ -1,0 +1,45 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "logout": "Se déconnecter",
+    "email": "Email",
+    "password": "Mot de passe"
+  },
+  "itinerary": {
+    "title": "Itinéraire",
+    "create": "Créer un itinéraire",
+    "edit": "Modifier l'itinéraire",
+    "delete": "Supprimer l'itinéraire",
+    "export": "Exporter PDF",
+    "share": "Partager",
+    "days": "Jours",
+    "overview": "Aperçu",
+    "map": "Carte",
+    "budget": "Budget"
+  },
+  "profile": {
+    "title": "Profil",
+    "preferences": "Préférences",
+    "theme": "Thème",
+    "language": "Langue",
+    "notifications": "Notifications"
+  },
+  "split": {
+    "title": "Partager les dépenses",
+    "expenses": "Dépenses",
+    "payments": "Paiements",
+    "balances": "Soldes",
+    "addExpense": "Ajouter une dépense",
+    "addPayment": "Ajouter un paiement"
+  }
+}

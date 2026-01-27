@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { supabase } from '../lib/supabase';
-import { acceptShareLink, createShareLink, listCollaborators, listUserItineraries, removeCollaborator } from '../services/sharing';
+import { acceptShareLink, createShareLink, deleteItinerary, listCollaborators, listUserItineraries, removeCollaborator } from '../services/sharing';
+import { useToast } from '../hooks/useToast';
 
 type ShareRole = 'editor' | 'viewer';
 
@@ -22,7 +24,10 @@ function MyItineraries() {
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [collaborators, setCollaborators] = useState<Array<{ id: string; user_id: string; role: string }>>([]);
   const [acceptToken, setAcceptToken] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const load = async () => {
     setIsLoading(true);
@@ -66,7 +71,10 @@ function MyItineraries() {
 
   const handleAcceptShare = async () => {
     const raw = acceptToken.trim();
-    if (!raw) return;
+    if (!raw) {
+      toast.error('Por favor, introduce un token de invitación');
+      return;
+    }
     let token = raw;
     if (raw.includes('token=')) {
       try {
@@ -75,10 +83,42 @@ function MyItineraries() {
         token = raw.split('token=')[1] ?? raw;
       }
     }
-    await acceptShareLink(token);
-    setAcceptToken('');
-    await load();
-    navigate('/app/itineraries', { replace: true });
+    try {
+      await acceptShareLink(token);
+      setAcceptToken('');
+      await load();
+      toast.success('Invitación aceptada correctamente');
+      navigate('/app/itineraries', { replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo aceptar la invitación');
+    }
+  };
+
+  const handleDeleteItinerary = (itineraryId: string, title: string) => {
+    setConfirmDelete({ id: itineraryId, title });
+  };
+
+  const confirmDeleteItinerary = async () => {
+    if (!confirmDelete) return;
+
+    setDeletingId(confirmDelete.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Debes estar autenticado para eliminar un itinerario.');
+        setConfirmDelete(null);
+        setDeletingId(null);
+        return;
+      }
+      await deleteItinerary(confirmDelete.id, user.id);
+      await load();
+      toast.success(`Itinerario "${confirmDelete.title}" eliminado correctamente`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo eliminar el itinerario.');
+    } finally {
+      setDeletingId(null);
+      setConfirmDelete(null);
+    }
   };
 
   if (isLoading) {
@@ -142,7 +182,16 @@ function MyItineraries() {
                 </Link>
               )}
               {itinerary.role === 'owner' && (
-                <Button onClick={() => openShare(itinerary.id)}>Compartir</Button>
+                <>
+                  <Button onClick={() => openShare(itinerary.id)}>Compartir</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDeleteItinerary(itinerary.id, itinerary.title)}
+                    disabled={deletingId === itinerary.id}
+                  >
+                    {deletingId === itinerary.id ? 'Eliminando...' : 'Eliminar'}
+                  </Button>
+                </>
               )}
               <span className="ml-auto rounded-full border border-border px-3 py-1 text-xs text-mutedForeground">
                 {itinerary.role}
@@ -223,6 +272,17 @@ function MyItineraries() {
       {ownedItineraries.length === 0 && (
         <p className="text-sm text-mutedForeground">Aún no tienes itinerarios.</p>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDelete !== null}
+        title="Eliminar itinerario"
+        message={`¿Estás seguro de que quieres eliminar "${confirmDelete?.title}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={confirmDeleteItinerary}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

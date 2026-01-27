@@ -1,18 +1,31 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import MobileTabs from './components/MobileTabs';
 import WebSideMenu from './components/WebSideMenu';
+import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
+import { Skeleton } from './components/ui/skeleton';
 import Auth from './pages/Auth';
-import AdminItinerary from './pages/AdminItinerary';
-import AdminSections from './pages/AdminSections';
-import DynamicItinerary from './pages/DynamicItinerary';
-import MyBag from './pages/MyBag';
-import MyItineraries from './pages/MyItineraries';
-import PrivateHub from './pages/PrivateHub';
-import ShareAccept from './pages/ShareAccept';
-import Split from './pages/Split';
-import StaticItinerary from './pages/StaticItinerary';
+
+// Lazy load heavy components
+const AdminItinerary = lazy(() => import('./pages/AdminItinerary'));
+const AdminSections = lazy(() => import('./pages/AdminSections'));
+const DynamicItinerary = lazy(() => import('./pages/DynamicItinerary'));
+const MyBag = lazy(() => import('./pages/MyBag'));
+const MyItineraries = lazy(() => import('./pages/MyItineraries'));
+const PrivateHub = lazy(() => import('./pages/PrivateHub'));
+const ShareAccept = lazy(() => import('./pages/ShareAccept'));
+const Split = lazy(() => import('./pages/Split'));
+const StaticItinerary = lazy(() => import('./pages/StaticItinerary'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+
+const LoadingFallback = () => (
+  <div className="flex min-h-screen items-center justify-center">
+    <Skeleton className="h-8 w-64" />
+  </div>
+);
 
 function App() {
   const isMobileShell = useIsMobileShell();
@@ -30,7 +43,11 @@ function App() {
               path="/app"
               element={
                 <RequireAuth>
-                  <DynamicItinerary />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <DynamicItinerary />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -38,7 +55,11 @@ function App() {
               path="/app/private"
               element={
                 <RequireAuth>
-                  <PrivateHub />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <PrivateHub />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -46,7 +67,11 @@ function App() {
               path="/app/itineraries"
               element={
                 <RequireAuth>
-                  <MyItineraries />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <MyItineraries />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -54,7 +79,11 @@ function App() {
               path="/app/bag"
               element={
                 <RequireAuth>
-                  <MyBag />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <MyBag />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -62,7 +91,11 @@ function App() {
               path="/app/split"
               element={
                 <RequireAuth>
-                  <Split />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <Split />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -70,7 +103,11 @@ function App() {
               path="/app/share"
               element={
                 <RequireAuth>
-                  <ShareAccept />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <ShareAccept />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -78,7 +115,11 @@ function App() {
               path="/app/admin"
               element={
                 <RequireAuth>
-                  <AdminItinerary />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <AdminItinerary />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -86,7 +127,35 @@ function App() {
               path="/app/admin/sections"
               element={
                 <RequireAuth>
-                  <AdminSections />
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <AdminSections />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/profile"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <Profile />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/analytics"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <Analytics />
+                    </PageTransition>
+                  </Suspense>
                 </RequireAuth>
               }
             />
@@ -101,13 +170,26 @@ function App() {
             <div className="flex-1">
               <Routes>
                 <Route path="/" element={<Navigate to="/login" replace />} />
-                <Route path="/static" element={<StaticItinerary />} />
+                <Route
+                  path="/static"
+                  element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <PageTransition>
+                        <StaticItinerary />
+                      </PageTransition>
+                    </Suspense>
+                  }
+                />
                 <Route path="/login" element={<Auth />} />
                 <Route
                   path="/app"
                   element={
                     <RequireAuth>
-                      <DynamicItinerary />
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <DynamicItinerary />
+                        </PageTransition>
+                      </Suspense>
                     </RequireAuth>
                   }
                 />
@@ -115,7 +197,11 @@ function App() {
                   path="/app/private"
                   element={
                     <RequireAuth>
-                      <PrivateHub />
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <PrivateHub />
+                        </PageTransition>
+                      </Suspense>
                     </RequireAuth>
                   }
                 />
@@ -123,7 +209,11 @@ function App() {
                   path="/app/itineraries"
                   element={
                     <RequireAuth>
-                      <MyItineraries />
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <MyItineraries />
+                        </PageTransition>
+                      </Suspense>
                     </RequireAuth>
                   }
                 />
@@ -131,7 +221,11 @@ function App() {
                   path="/app/bag"
                   element={
                     <RequireAuth>
-                      <MyBag />
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <MyBag />
+                        </PageTransition>
+                      </Suspense>
                     </RequireAuth>
                   }
                 />
@@ -139,7 +233,11 @@ function App() {
                   path="/app/split"
                   element={
                     <RequireAuth>
-                      <Split />
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <Split />
+                        </PageTransition>
+                      </Suspense>
                     </RequireAuth>
                   }
                 />
@@ -147,7 +245,11 @@ function App() {
                   path="/app/share"
                   element={
                     <RequireAuth>
-                      <ShareAccept />
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <ShareAccept />
+                        </PageTransition>
+                      </Suspense>
                     </RequireAuth>
                   }
                 />
@@ -155,7 +257,35 @@ function App() {
                   path="/app/admin"
                   element={
                     <RequireAuth>
-                      <AdminItinerary />
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <AdminItinerary />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/profile"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <Profile />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/analytics"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <Analytics />
+                        </PageTransition>
+                      </Suspense>
                     </RequireAuth>
                   }
                 />

@@ -11,6 +11,8 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { fetchSectionPreferences, type SectionPreference } from '../services/sections';
 import { supabase } from '../lib/supabase';
+import { exportItineraryToPDF } from '../services/pdfExport';
+import { PDFExportDialog } from './PDFExportDialog';
 
 const kindLabels = {
   flight: 'Vuelo',
@@ -42,7 +44,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
   const [currentDayIndex, setCurrentDayIndex] = useState(0);
   const [sectionPreferences, setSectionPreferences] = useState<SectionPreference[]>([]);
-  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const [sliderHeight, setSliderHeight] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
@@ -160,7 +161,11 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 
   const filteredDays = useMemo(() => {
     const normalizedQuery = normalizeText(searchQuery.trim());
-    return allDays.filter(day => {
+    // Primero filtrar días de vuelo y aplicar búsqueda/filtros
+    const filtered = allDays.filter(day => {
+      // Excluir días de vuelo
+      if (day.kind === 'flight') return false;
+      
       const haystack = [
         day.city,
         day.plan,
@@ -184,6 +189,21 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           return true;
         });
       return matchesSearch && matchesFilter;
+    });
+    
+    // Recalcular numeración: el primer día después del vuelo es "Día 1"
+    return filtered.map((day) => {
+      // Encontrar la posición original de este día en allDays
+      const dayIndexInAll = allDays.findIndex(d => d.id === day.id);
+      // Contar cuántos días de vuelo hay antes de este día
+      const flightsBefore = allDays.slice(0, dayIndexInAll).filter(d => d.kind === 'flight').length;
+      // Si el dayLabel es numérico, recalcularlo
+      const numericLabel = parseInt(day.dayLabel, 10);
+      if (!isNaN(numericLabel)) {
+        const newLabel = numericLabel - flightsBefore;
+        return { ...day, dayLabel: String(newLabel) };
+      }
+      return day;
     });
   }, [activeFilters, allDays, filterOptions, searchQuery]);
   const visibleDays = filteredDays.length;
@@ -261,7 +281,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          setIsLoadingPreferences(false);
           return;
         }
         const prefs = await fetchSectionPreferences();
@@ -269,8 +288,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       } catch (error) {
         console.error('Error loading section preferences:', error);
         setSectionPreferences([]);
-      } finally {
-        setIsLoadingPreferences(false);
       }
     };
     void loadPreferences();
@@ -405,18 +422,35 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
     return () => observer.disconnect();
   }, []);
 
-  const handlePrint = () => {
-    window.print();
+  const [showPDFDialog, setShowPDFDialog] = useState(false);
+  const itineraryContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const handlePDFExport = async (options: import('../services/pdfExport').PDFExportOptions) => {
+    if (!itineraryContainerRef.current) {
+      throw new Error('No se pudo encontrar el contenedor del itinerario');
+    }
+    await exportItineraryToPDF(itinerary, itineraryContainerRef.current, options);
   };
 
-
+  const handlePrint = () => {
+    setShowPDFDialog(true);
+  };
 
   return (
-    <div
-      className={`min-h-screen bg-background text-foreground ${
-        highContrast ? 'a11y-contrast' : ''
-      } ${largeText ? 'a11y-text-lg' : ''}`}
-    >
+    <>
+      {showPDFDialog && (
+        <PDFExportDialog
+          isOpen={showPDFDialog}
+          onExport={handlePDFExport}
+          onCancel={() => setShowPDFDialog(false)}
+        />
+      )}
+      <div
+        ref={itineraryContainerRef}
+        className={`min-h-screen bg-background text-foreground ${
+          highContrast ? 'a11y-contrast' : ''
+        } ${largeText ? 'a11y-text-lg' : ''}`}
+      >
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur no-print">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -484,7 +518,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-4 py-10" style={{ display: 'flex', flexDirection: 'column' }}>
-        <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]" style={{ order: -1 }}>
+        <section data-section="flights" className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]" style={{ order: -1 }}>
           <div className="flex flex-col gap-6">
             <Badge variant="accent" className="w-fit">
               Itinerario completo
@@ -550,44 +584,47 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
             <p className="text-mutedForeground">Detalles clave de salida y regreso.</p>
           </div>
           <Tabs aria-label="Información del vuelo" variant="pills" className="w-full max-w-md">
-            {flightTabs.map(tab => (
-              <Tabs.Item key={tab.value} title={tab.label}>
-                <Card className="border-none shadow-lg">
-                  <CardContent className="space-y-6 p-6">
-                    <p className="text-lg font-semibold text-mutedForeground">{tab.data.date}</p>
-                    <div className="grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
-                      <div className="space-y-2 text-center md:text-left">
-                        <p className="text-4xl font-semibold">{tab.data.fromTime}</p>
-                        <p className="text-sm text-mutedForeground">{tab.data.fromCity}</p>
+            {flightTabs.map(tab => {
+              const TabsItem = (Tabs as any).Item;
+              return (
+                <TabsItem key={tab.value} title={tab.label}>
+                  <Card className="border-none shadow-lg">
+                    <CardContent className="space-y-6 p-6">
+                      <p className="text-lg font-semibold text-mutedForeground">{tab.data.date}</p>
+                      <div className="grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
+                        <div className="space-y-2 text-center md:text-left">
+                          <p className="text-4xl font-semibold">{tab.data.fromTime}</p>
+                          <p className="text-sm text-mutedForeground">{tab.data.fromCity}</p>
+                        </div>
+                        <div className="flex flex-col items-center gap-2 text-mutedForeground">
+                          <span className="text-2xl">✈️</span>
+                          <span className="text-sm">{tab.data.duration}</span>
+                          <span className="text-xs">{tab.data.stops}</span>
+                        </div>
+                        <div className="space-y-2 text-center md:text-right">
+                          <p className="text-4xl font-semibold">{tab.data.toTime}</p>
+                          <p className="text-sm text-mutedForeground">{tab.data.toCity}</p>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-center gap-2 text-mutedForeground">
-                        <span className="text-2xl">✈️</span>
-                        <span className="text-sm">{tab.data.duration}</span>
-                        <span className="text-xs">{tab.data.stops}</span>
+                      <Button variant="outline" className="w-full border-2 text-base font-semibold">
+                        Detalles del viaje
+                      </Button>
+                      <div className="flex items-center gap-3 rounded-2xl bg-purple-50 px-4 py-3 text-sm text-purple-700">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-100 text-xs font-semibold">
+                          i
+                        </span>
+                        <span>Servicio de facturación no disponible</span>
                       </div>
-                      <div className="space-y-2 text-center md:text-right">
-                        <p className="text-4xl font-semibold">{tab.data.toTime}</p>
-                        <p className="text-sm text-mutedForeground">{tab.data.toCity}</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" className="w-full border-2 text-base font-semibold">
-                      Detalles del viaje
-                    </Button>
-                    <div className="flex items-center gap-3 rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold">
-                        i
-                      </span>
-                      <span>Servicio de facturación no disponible</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Tabs.Item>
-            ))}
+                    </CardContent>
+                  </Card>
+                </TabsItem>
+              );
+            })}
           </Tabs>
         </section>
 
         {shouldShowSection('map') && (
-          <section id="map" className="space-y-6" ref={mapSectionRef} style={{ order: getSectionOrder('map') }}>
+          <section id="map" data-section="map" className="space-y-6" ref={mapSectionRef} style={{ order: getSectionOrder('map') }}>
           <div className="flex flex-col gap-2">
             <h2 className="text-3xl font-semibold">Mapa interactivo</h2>
             <p className="text-mutedForeground">Pins por ciudad y ruta general del viaje.</p>
@@ -710,7 +747,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         )}
 
         {shouldShowSection('overview') && (
-          <section id="overview" className="grid gap-6 lg:grid-cols-[2fr_1fr]" style={{ order: getSectionOrder('overview') }}>
+          <section id="overview" data-section="overview" className="grid gap-6 lg:grid-cols-[2fr_1fr]" style={{ order: getSectionOrder('overview') }}>
           <Card>
             <CardHeader>
               <CardTitle>Checklist previa</CardTitle>
@@ -770,7 +807,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         )}
 
         {shouldShowSection('itinerary') && (
-          <section id="itinerary" className="space-y-6" style={{ order: getSectionOrder('itinerary') }}>
+          <section id="itinerary" data-section="itinerary" className="space-y-6" style={{ order: getSectionOrder('itinerary') }}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-3xl font-semibold">Itinerario</h2>
@@ -961,7 +998,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                     ref={el => {
                       slideRefs.current[index] = el;
                     }}
-                    className={`w-full shrink-0 self-start p-3 transition-opacity duration-500 ease-out sm:p-4 lg:p-8 ${
+                    className={`w-full shrink-0 self-start p-2 transition-opacity duration-500 ease-out sm:p-2 ${
                       index === currentDayIndex ? 'opacity-100' : 'opacity-40'
                     }`}
                   >
@@ -970,7 +1007,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant={kindVariants[day.kind]}>{kindLabels[day.kind]}</Badge>
                           <Badge variant="secondary">
-                            {day.dayLabel === '✈️' ? 'Vuelo' : `Día ${day.dayLabel}`}
+                            {`Día ${day.dayLabel}`}
                           </Badge>
                           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
                             {day.date}
@@ -1024,9 +1061,9 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       )}
                       <div className="relative space-y-4">
                         <div className="absolute left-3 top-2 h-[calc(100%-16px)] w-px bg-border" />
-                        {day.schedule.map(item => (
+                        {day.schedule.map((item, itemIndex) => (
                           <div
-                            key={`${day.id}-${item.time}`}
+                            key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
                             className="relative flex flex-col gap-2 pl-8 text-sm sm:flex-row sm:items-center"
                           >
                             <span className="absolute left-1.5 top-2 h-3 w-3 rounded-full bg-primary" />
@@ -1152,7 +1189,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 }`}
                 aria-label={`Ir al día ${day.dayLabel}`}
               >
-                {day.dayLabel === '✈️' ? '✈️' : day.dayLabel}
+                {day.dayLabel}
               </button>
             ))}
           </div>
@@ -1161,7 +1198,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         )}
 
         {shouldShowSection('foods') && (
-          <section id="foods" className="grid gap-6 lg:grid-cols-2" style={{ order: getSectionOrder('foods') }}>
+          <section id="foods" data-section="lists" className="grid gap-6 lg:grid-cols-2" style={{ order: getSectionOrder('foods') }}>
           <Card id="tips">
             <CardHeader>
               <CardTitle>Comidas típicas por ciudad</CardTitle>
@@ -1195,7 +1232,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         )}
 
         {shouldShowSection('budget') && (
-          <section id="budget" className="space-y-6" style={{ order: getSectionOrder('budget') }}>
+          <section id="budget" data-section="budget" className="space-y-6" style={{ order: getSectionOrder('budget') }}>
           <div className="flex flex-col gap-2">
             <h2 className="text-3xl font-semibold">Presupuesto estimado</h2>
             <p className="text-mutedForeground">Valores de ejemplo para planificar y ajustar.</p>
@@ -1334,7 +1371,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
             </Card>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+            <Card data-section="phrases">
               <CardHeader>
                 <CardTitle>Frases útiles</CardTitle>
                 <CardDescription>Para moverte sin barreras.</CardDescription>
@@ -1355,7 +1392,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
             <Card>
               <CardHeader>
                 <CardTitle>Emergencias y ayuda</CardTitle>
-                <CardDescription>Números clave en China.</CardDescription>
+                <CardDescription>Números clave de emergencia.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-mutedForeground">
                 <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.emergency))} />
@@ -1369,12 +1406,13 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       <footer className="border-t border-border bg-muted">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-mutedForeground md:flex-row md:items-center md:justify-between">
           <span>
-            Route<span className="text-red-500">i</span>t · Itinerario China 2026
+            Route<span className="text-red-500">i</span>t · Mi Itinerario
           </span>
           <span>Diseñado para móvil y escritorio</span>
         </div>
       </footer>
     </div>
+    </>
   );
 }
 

@@ -11,7 +11,7 @@ export interface ButtonProps extends React.ComponentProps<typeof FlowbiteButton>
 }
 
 const variantToColor: Record<ButtonVariant, React.ComponentProps<typeof FlowbiteButton>['color']> = {
-  default: 'blue',
+  default: 'purple',
   secondary: 'light',
   outline: 'gray',
   ghost: 'gray',
@@ -20,7 +20,7 @@ const variantToColor: Record<ButtonVariant, React.ComponentProps<typeof Flowbite
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'default', size = 'md', outline, ...props }, ref) => {
-    const color = variantToColor[variant];
+    const color: React.ComponentProps<typeof FlowbiteButton>['color'] = (variantToColor[variant as ButtonVariant] ?? 'purple') as React.ComponentProps<typeof FlowbiteButton>['color'];
     const isOutline = variant === 'outline' || variant === 'ghost' ? true : outline;
     const ghostClasses = variant === 'ghost' ? 'border-0 bg-transparent' : '';
     return (
