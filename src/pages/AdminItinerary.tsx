@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Skeleton } from '../components/ui/skeleton';
@@ -380,61 +381,125 @@ function AdminItinerary() {
   }
 
   return (
-    <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
-      {isResolvingMaps && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            Resolviendo enlace de Maps...
-          </div>
-        </div>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">Panel de administración</h1>
-          <p className="text-sm text-mutedForeground">Edita todo el itinerario dinámico.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link to="/app/admin/sections">
-            <Button variant="outline">Secciones</Button>
-          </Link>
+    <div className="min-h-screen bg-background">
+      {/* Header Mobile */}
+      <div className="border-b border-border bg-white px-4 py-4 md:hidden">
+        <div className="flex items-center gap-3">
           <Link to="/app">
-            <Button variant="outline">Ver itinerario</Button>
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
           </Link>
-          <Button onClick={handleSave} disabled={isSaving || isResolvingMaps}>
-            {isResolvingMaps ? 'Resolviendo mapas...' : isSaving ? 'Guardando...' : 'Guardar cambios'}
+          <div className="flex-1">
+            <h1 className="text-lg font-bold">Administrar Itinerario</h1>
+          </div>
+          <Button onClick={handleSave} disabled={isSaving || isResolvingMaps} size="sm">
+            {isSaving ? 'Guardando...' : 'Guardar'}
           </Button>
         </div>
       </div>
+
+      {/* Content */}
+      <div className="mx-auto w-full px-4 py-6">
+        {isResolvingMaps && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Resolviendo enlace de Maps...
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Header */}
+        <div className="mb-6 hidden items-center justify-between md:flex">
+          <div>
+            <h1 className="text-3xl font-bold">Administrar Itinerario</h1>
+            <p className="text-muted-foreground">Edita tu itinerario dinámico</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/app/admin/sections">
+              <Button variant="outline">Secciones</Button>
+            </Link>
+            <Link to="/app">
+              <Button variant="outline">Ver itinerario</Button>
+            </Link>
+            <Button onClick={handleSave} disabled={isSaving || isResolvingMaps}>
+              {isSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabs Navigation */}
+        <div className="mb-6 flex gap-2 overflow-x-auto no-scrollbar">
+          <Button
+            variant={activeSection === 'general' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('general')}
+            className="rounded-full shrink-0"
+          >
+            General
+          </Button>
+          <Button
+            variant={activeSection === 'days' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('days')}
+            className="rounded-full shrink-0"
+          >
+            Días
+          </Button>
+          <Button
+            variant={activeSection === 'flights' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('flights')}
+            className="rounded-full shrink-0"
+          >
+            Vuelos
+          </Button>
+          <Button
+            variant={activeSection === 'budget' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('budget')}
+            className="rounded-full shrink-0"
+          >
+            Presupuesto
+          </Button>
+          <Button
+            variant={activeSection === 'lists' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('lists')}
+            className="rounded-full shrink-0"
+          >
+            Listas
+          </Button>
+          <Button
+            variant={activeSection === 'map' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('map')}
+            className="rounded-full shrink-0"
+          >
+            Mapa
+          </Button>
+          <Button
+            variant={activeSection === 'phrases' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('phrases')}
+            className="rounded-full shrink-0"
+          >
+            Frases
+          </Button>
+          <Button
+            variant={activeSection === 'tags' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveSection('tags')}
+            className="rounded-full shrink-0"
+          >
+            Etiquetas
+          </Button>
+        </div>
       {status && <p className="text-sm text-mutedForeground">{status}</p>}
 
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="flex flex-wrap gap-2 lg:w-64 lg:flex-col">
-          {[
-            { id: 'general', label: 'General' },
-            { id: 'flights', label: 'Vuelos' },
-            { id: 'budget', label: 'Presupuesto' },
-            { id: 'lists', label: 'Listas' },
-            { id: 'phrases', label: 'Frases' },
-            { id: 'map', label: 'Mapa' },
-            { id: 'tags', label: 'Etiquetas' },
-            { id: 'days', label: 'Días' },
-          ].map(section => (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() => setActiveSection(section.id as typeof activeSection)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                activeSection === section.id
-                  ? 'border-primary bg-primary text-primaryForeground'
-                  : 'border-border bg-background text-mutedForeground'
-              }`}
-            >
-              {section.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1 space-y-6">
+      {/* Content Sections */}
+      <div className="space-y-6">
           {activeSection === 'general' && (
             <Card>
         <CardHeader>

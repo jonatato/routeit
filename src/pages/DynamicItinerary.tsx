@@ -34,17 +34,20 @@ function DynamicItinerary() {
         const itineraryId = params.get('itineraryId');
         let dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
         if (!dataItinerary) {
-          setHasNoItineraries(true);
-          setItinerary(null);
+          // Si no hay itinerario en BD, usar el de ejemplo
+          console.log('No se encontró itinerario en BD, usando itinerario de ejemplo');
+          setItinerary(chinaTrip);
+          setHasNoItineraries(false);
         } else {
           setItinerary(dataItinerary);
           setHasNoItineraries(false);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el itinerario.';
-        setError(errorMessage);
+        console.error('Error cargando itinerario:', errorMessage);
+        // En caso de error, usar itinerario de ejemplo
+        setItinerary(chinaTrip);
         setHasNoItineraries(false);
-        setItinerary(null);
       } finally {
         setIsLoading(false);
       }
