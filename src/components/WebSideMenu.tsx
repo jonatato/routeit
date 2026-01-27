@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
-import { Home, Receipt, Heart, Map, Plane, ShoppingBag } from 'lucide-react';
+import { Home, Receipt, Heart, Map, Plane, ShoppingBag, Settings } from 'lucide-react';
 
 function WebSideMenu() {
   const location = useLocation();
   
   const menuItems = [
     { path: '/app', label: 'Inicio', icon: Home },
+    { path: '/app/admin', label: 'Administrar', icon: Settings },
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
     { path: '/app/favorites', label: 'Favoritos', icon: Heart },

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { List, MapPin, Receipt, Map, ShoppingBag, Heart, Plane } from 'lucide-react';
+import { List, MapPin, Receipt, Map, ShoppingBag, Heart, Plane, Settings } from 'lucide-react';
 
 type Tab = {
   key: string;
@@ -34,9 +34,9 @@ function MobileTabs() {
 
   const tabs: Tab[] = [
     { key: 'itinerary', label: 'Inicio', path: '/app', icon: List },
+    { key: 'admin', label: 'Admin', path: '/app/admin', icon: Settings },
     { key: 'split', label: 'Gastos', path: '/app/split', icon: Receipt },
     { key: 'bag', label: 'Maleta', path: '/app/bag', icon: ShoppingBag },
-    { key: 'favorites', label: 'Favoritos', path: '/app/favorites', icon: Heart },
     { key: 'itineraries', label: 'Mis viajes', path: '/app/itineraries', icon: Plane },
   ];
   
