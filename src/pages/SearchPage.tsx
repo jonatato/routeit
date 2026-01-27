@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, X, MapPin, Clock, Tag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { supabase } from '../lib/supabase';
+import { fetchUserItinerary } from '../services/itinerary';
 
 interface SearchResult {
   id: string;
@@ -23,61 +25,110 @@ function SearchPage({ onClose }: SearchPageProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [itineraryId, setItineraryId] = useState<string | null>(null);
 
-  // Mock search results
-  const mockResults: SearchResult[] = [
-    {
-      id: '1',
-      type: 'place',
-      title: 'Puerta de Brandeburgo',
-      description: 'Monumento histórico icónico',
-      location: 'Berlín',
-      tags: ['histórico', 'monumento'],
-    },
-    {
-      id: '2',
-      type: 'activity',
-      title: 'Visitar Museum Island',
-      description: 'Complejo de museos de clase mundial',
-      location: 'Berlín',
-      time: '10:00',
-      tags: ['cultura', 'museo'],
-    },
-    {
-      id: '3',
-      type: 'restaurant',
-      title: 'Curry 36',
-      description: 'Famoso puesto de currywurst',
-      location: 'Kreuzberg',
-      tags: ['comida', 'alemán'],
-    },
-    {
-      id: '4',
-      type: 'day',
-      title: 'Día 3 - Berlín histórico',
-      description: 'Recorrido por el centro histórico y hutongs',
-      time: 'Dom 11',
-      tags: ['día', 'berlín'],
-    },
-  ];
+  useEffect(() => {
+    const loadItinerary = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  const handleSearch = (searchQuery: string) => {
+      const itinerary = await fetchUserItinerary(user.id);
+      if (itinerary) {
+        setItineraryId(itinerary.id);
+      }
+    };
+    loadItinerary();
+  }, []);
+
+  const handleSearch = async (searchQuery: string) => {
     setQuery(searchQuery);
-    if (searchQuery.trim().length > 0) {
-      setIsSearching(true);
-      // Simular búsqueda
-      setTimeout(() => {
-        const filtered = mockResults.filter(
-          result =>
-            result.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            result.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            result.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-        setResults(filtered);
-        setIsSearching(false);
-      }, 300);
-    } else {
+    if (searchQuery.trim().length === 0) {
       setResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+
+    try {
+      if (!itineraryId) {
+        setResults([]);
+        return;
+      }
+
+      const searchTerm = `%${searchQuery.toLowerCase()}%`;
+
+      // Search in days
+      const { data: days, error: daysError } = await supabase
+        .from('days')
+        .select('*')
+        .eq('itinerary_id', itineraryId)
+        .or(`city.ilike.${searchTerm},plan.ilike.${searchTerm}`);
+
+      if (daysError) throw daysError;
+
+      // Search in schedule items
+      const { data: scheduleItems, error: scheduleError } = await supabase
+        .from('schedule_items')
+        .select('*, days!inner(itinerary_id)')
+        .eq('days.itinerary_id', itineraryId)
+        .or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm}`);
+
+      if (scheduleError) throw scheduleError;
+
+      // Search in locations
+      const { data: locations, error: locationsError } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('itinerary_id', itineraryId)
+        .or(`city.ilike.${searchTerm},region.ilike.${searchTerm}`);
+
+      if (locationsError) throw locationsError;
+
+      // Map results
+      const searchResults: SearchResult[] = [];
+
+      // Add days
+      days?.forEach(day => {
+        searchResults.push({
+          id: day.id,
+          type: 'day',
+          title: `Día ${day.day_label} - ${day.city}`,
+          description: day.plan || '',
+          time: day.date_text || day.date || '',
+          tags: [day.kind],
+        });
+      });
+
+      // Add schedule items
+      scheduleItems?.forEach(item => {
+        searchResults.push({
+          id: item.id,
+          type: item.kind === 'food' ? 'restaurant' : 'activity',
+          title: item.title || '',
+          description: item.description || '',
+          location: item.location || '',
+          time: item.time || '',
+          tags: item.tags || [],
+        });
+      });
+
+      // Add locations
+      locations?.forEach(loc => {
+        searchResults.push({
+          id: loc.id,
+          type: 'place',
+          title: loc.city || '',
+          description: loc.region || '',
+          tags: [],
+        });
+      });
+
+      setResults(searchResults);
+    } catch (error) {
+      console.error('Error searching:', error);
+      setResults([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 

@@ -6,10 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Skeleton } from '../components/ui/skeleton';
 import RichTextEditor from '../components/RichTextEditor';
 import type { ItineraryDay, TravelItinerary } from '../data/itinerary';
-import { chinaTrip } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
 import { resolveMapsUrl } from '../services/maps';
-import { fetchItineraryById, fetchUserItinerary, saveUserItinerary, seedUserItinerary } from '../services/itinerary';
+import { fetchItineraryById, fetchUserItinerary, saveUserItinerary } from '../services/itinerary';
 import { useToast } from '../hooks/useToast';
 
 const listSections = [
@@ -147,7 +146,9 @@ function AdminItinerary() {
         const itineraryId = params.get('itineraryId');
         let dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
         if (!dataItinerary) {
-          dataItinerary = await seedUserItinerary(user.id, chinaTrip);
+          // Si no hay itinerario, redirigir a crear uno nuevo
+          setStatus('No se encontró ningún itinerario. Por favor, crea uno nuevo.');
+          return;
         }
         setDraft(dataItinerary);
       } catch (err) {

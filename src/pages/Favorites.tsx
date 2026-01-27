@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Heart, MapPin, Star } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { supabase } from '../lib/supabase';
+import { fetchUserItinerary } from '../services/itinerary';
 
 interface Favorite {
   id: string;
@@ -16,32 +18,103 @@ interface Favorite {
 }
 
 function Favorites() {
-  const [favorites] = useState<Favorite[]>([
-    {
-      id: '1',
-      type: 'place',
-      name: 'Puerta de Brandeburgo',
-      location: 'Berlín, Alemania',
-      description: 'Monumento histórico icónico en el corazón de Berlín',
-      rating: 4.8,
-    },
-    {
-      id: '2',
-      type: 'restaurant',
-      name: 'Curry 36',
-      location: 'Berlín, Alemania',
-      description: 'Famoso puesto de currywurst berlinés',
-      rating: 4.5,
-    },
-    {
-      id: '3',
-      type: 'activity',
-      name: 'Museum Island',
-      location: 'Berlín, Alemania',
-      description: 'Complejo de museos de clase mundial',
-      rating: 4.9,
-    },
-  ]);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          navigate('/auth');
+          return;
+        }
+
+        // Fetch itinerary
+        const itinerary = await fetchUserItinerary(user.id);
+        if (!itinerary) {
+          setFavorites([]);
+          return;
+        }
+
+        // Get favorite IDs from localStorage
+        const storedFavorites = localStorage.getItem(`favorites_${user.id}`);
+        const favoriteIds: string[] = storedFavorites ? JSON.parse(storedFavorites) : [];
+
+        if (favoriteIds.length === 0) {
+          setFavorites([]);
+          return;
+        }
+
+        // Get favorites from schedule items and locations
+        const { data: scheduleItems, error: scheduleError } = await supabase
+          .from('schedule_items')
+          .select('*, days!inner(itinerary_id)')
+          .eq('days.itinerary_id', itinerary.id)
+          .in('id', favoriteIds);
+
+        if (scheduleError) throw scheduleError;
+
+        const { data: locations, error: locationsError } = await supabase
+          .from('locations')
+          .select('*')
+          .eq('itinerary_id', itinerary.id)
+          .in('id', favoriteIds);
+
+        if (locationsError) throw locationsError;
+
+        // Map to Favorite type
+        const favs: Favorite[] = [];
+
+        scheduleItems?.forEach(item => {
+          favs.push({
+            id: item.id,
+            type: item.kind === 'food' ? 'restaurant' : 'activity',
+            name: item.title || '',
+            location: item.location || '',
+            description: item.description || '',
+            rating: 4.5, // Default rating
+          });
+        });
+
+        locations?.forEach(loc => {
+          favs.push({
+            id: loc.id,
+            type: 'place',
+            name: loc.city || '',
+            location: loc.region || '',
+            description: '',
+            rating: 4.5, // Default rating
+          });
+        });
+
+        setFavorites(favs);
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+        setFavorites([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFavorites();
+  }, [navigate]);
+
+  const removeFavorite = async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Remove from localStorage
+    const storedFavorites = localStorage.getItem(`favorites_${user.id}`);
+    const favoriteIds: string[] = storedFavorites ? JSON.parse(storedFavorites) : [];
+    const updatedIds = favoriteIds.filter(fid => fid !== id);
+    localStorage.setItem(`favorites_${user.id}`, JSON.stringify(updatedIds));
+
+    // Update state
+    setFavorites(favorites.filter(fav => fav.id !== id));
+  };
 
   const typeLabels = {
     place: 'Lugar',
@@ -114,7 +187,12 @@ function Favorites() {
                         {favorite.location}
                       </CardDescription>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-red-500">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-red-500"
+                      onClick={() => removeFavorite(favorite.id)}
+                    >
                       <Heart className="h-5 w-5 fill-current" />
                     </Button>
                   </div>

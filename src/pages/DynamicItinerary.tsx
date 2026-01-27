@@ -6,14 +6,14 @@ import { Skeleton } from '../components/ui/skeleton';
 import { PandaLogo } from '../components/PandaLogo';
 import ItineraryView from '../components/ItineraryView';
 import { NotificationBell } from '../components/NotificationBell';
-import { chinaTrip } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
 import { fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
+import type { TravelItinerary } from '../data/itinerary';
 
 function DynamicItinerary() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [itinerary, setItinerary] = useState<typeof chinaTrip | null>(null);
+  const [itinerary, setItinerary] = useState<TravelItinerary | null>(null);
   const [hasNoItineraries, setHasNoItineraries] = useState(false);
   const location = useLocation();
 
@@ -33,18 +33,11 @@ function DynamicItinerary() {
         const params = new URLSearchParams(location.search);
         const itineraryId = params.get('itineraryId');
         let dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
-        console.log('dataItinerary:', dataItinerary);
-        console.log('dataItinerary?.days length:', dataItinerary?.days?.length);
+        
         if (!dataItinerary) {
-          // Si no hay itinerario en BD, usar el de ejemplo
-          console.log('No se encontró itinerario en BD, usando itinerario de ejemplo');
-          setItinerary(chinaTrip);
-          setHasNoItineraries(false);
-        } else if (!dataItinerary.days || dataItinerary.days.length === 0) {
-          // Si el itinerario no tiene días, usar el de ejemplo
-          console.log('El itinerario no tiene días, usando itinerario de ejemplo');
-          setItinerary(chinaTrip);
-          setHasNoItineraries(false);
+          // Si no hay itinerario en BD, mostrar mensaje
+          setHasNoItineraries(true);
+          setItinerary(null);
         } else {
           setItinerary(dataItinerary);
           setHasNoItineraries(false);
@@ -52,9 +45,8 @@ function DynamicItinerary() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el itinerario.';
         console.error('Error cargando itinerario:', errorMessage);
-        // En caso de error, usar itinerario de ejemplo
-        setItinerary(chinaTrip);
-        setHasNoItineraries(false);
+        setError(errorMessage);
+        setItinerary(null);
       } finally {
         setIsLoading(false);
       }

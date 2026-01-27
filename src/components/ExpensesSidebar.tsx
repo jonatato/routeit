@@ -2,8 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { MapPin, Plus, Receipt } from 'lucide-react';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { fetchExpenses } from '../services/split';
 
 interface ExpenseUser {
   name: string;
@@ -21,31 +23,136 @@ interface ExpensesSidebarProps {
 }
 
 function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
-  const [selectedCity, setSelectedCity] = useState('Berlin');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [realExpenses, setRealExpenses] = useState<{
+    total: number;
+    byCity: { city: string; amount: number }[];
+    byUser: ExpenseUser[];
+    categories: { name: string; percentage: number; color: string }[];
+  } | null>(null);
+  const navigate = useNavigate();
 
-  // Mock data if not provided
-  const defaultExpenses = {
-    total: 540.0,
-    byCity: [
-      { city: 'Berlin', amount: 540.0 },
-      { city: 'Praga', amount: 0 },
-      { city: 'Viena', amount: 0 },
-      { city: 'Budapest', amount: 0 },
-    ],
-    byUser: [
-      { name: 'Jon', amount: 37.14 },
-      { name: 'Julia', amount: 42.2 },
-      { name: 'Jon', amount: 44.94 },
-    ],
-    categories: [
-      { name: 'Alojamiento', percentage: 55, color: '#9b87f5' },
-      { name: 'Comida', percentage: 20, color: '#fbbf24' },
-      { name: 'Comida', percentage: 18, color: '#f472b6' },
-      { name: 'Otros', percentage: 7, color: '#94a3b8' },
-    ],
-  };
+  useEffect(() => {
+    const loadExpenses = async () => {
+      try {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-  const data = expenses || defaultExpenses;
+        // Fetch all expenses from the split_expenses table
+        const allExpenses = await fetchExpenses();
+        
+        if (allExpenses.length === 0) {
+          setRealExpenses(null);
+          return;
+        }
+
+        // Calculate total
+        const total = allExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+        // Group by city (using tags or a custom field if available)
+        const cityMap = new Map<string, number>();
+        allExpenses.forEach(exp => {
+          // For now, we'll use "General" as default city
+          // You can modify this to use actual city data if available
+          const city = 'General';
+          cityMap.set(city, (cityMap.get(city) || 0) + exp.amount);
+        });
+
+        const byCity = Array.from(cityMap.entries()).map(([city, amount]) => ({
+          city,
+          amount,
+        }));
+
+        // Group by user (payer)
+        const userMap = new Map<string, { name: string; amount: number }>();
+        allExpenses.forEach(exp => {
+          const userName = exp.payer_name || 'Usuario';
+          if (userMap.has(exp.payer_id)) {
+            userMap.get(exp.payer_id)!.amount += exp.amount;
+          } else {
+            userMap.set(exp.payer_id, { name: userName, amount: exp.amount });
+          }
+        });
+
+        const byUser = Array.from(userMap.values());
+
+        // Group by category
+        const categoryMap = new Map<string, number>();
+        allExpenses.forEach(exp => {
+          const categoryName = exp.category_name || 'Otros';
+          categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + exp.amount);
+        });
+
+        const categories = Array.from(categoryMap.entries()).map(([name, amount], index) => {
+          const colors = ['#9b87f5', '#fbbf24', '#f472b6', '#94a3b8', '#10b981', '#ef4444'];
+          return {
+            name,
+            percentage: Math.round((amount / total) * 100),
+            color: colors[index % colors.length],
+          };
+        });
+
+        setRealExpenses({
+          total,
+          byCity,
+          byUser,
+          categories,
+        });
+
+        // Set default selected city
+        if (byCity.length > 0) {
+          setSelectedCity(byCity[0].city);
+        }
+      } catch (error) {
+        console.error('Error loading expenses:', error);
+        setRealExpenses(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadExpenses();
+  }, []);
+
+  const data = expenses || realExpenses;
+
+  if (loading) {
+    return (
+      <aside className="hidden xl:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle>Gastos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Cargando gastos...</p>
+          </CardContent>
+        </Card>
+      </aside>
+    );
+  }
+
+  if (!data) {
+    return (
+      <aside className="hidden xl:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle>Gastos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">No hay gastos registrados aún.</p>
+            <Link to="/app/split">
+              <Button className="w-full">
+                <Plus className="mr-2 h-4 w-4" />
+                Añadir primer gasto
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </aside>
+    );
+  }
 
   return (
     <aside className="hidden xl:block w-80 shrink-0 p-4 space-y-4 overflow-y-auto max-h-screen">
