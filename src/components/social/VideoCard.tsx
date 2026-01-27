@@ -39,7 +39,32 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
           const processTikTok = () => {
             // Límite de 10 reintentos (5 segundos)
             if (retryCountRef.current >= 10) {
-              console.log('TikTok embed script not loaded, showing fallback');
+              console.log('TikTok embed script not loaded after 5 seconds');
+              // Para TikTok en localhost, mostrar una vista previa amigable
+              if (embedRef.current && video.platform === 'tiktok') {
+                embedRef.current.innerHTML = `
+                  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 600px; padding: 2rem; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div style="background: white; border-radius: 1rem; padding: 2rem; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+                      <div style="font-size: 3rem; margin-bottom: 1rem;">🎵</div>
+                      <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; color: #1f2937;">Video de TikTok</h3>
+                      <p style="color: #6b7280; margin-bottom: 1.5rem; font-size: 0.875rem;">
+                        Los videos de TikTok requieren que visites el enlace directamente en localhost
+                      </p>
+                      <a href="${video.video_url}" target="_blank" rel="noopener noreferrer" 
+                         style="display: inline-flex; align-items: center; gap: 0.5rem; background: #000; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 500; transition: transform 0.2s;"
+                         onmouseover="this.style.transform='scale(1.05)'"
+                         onmouseout="this.style.transform='scale(1)'">
+                        <span>Ver en TikTok</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+                `;
+              }
               return;
             }
             
@@ -132,7 +157,12 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
               />
             ) : (
               <div className="flex flex-col items-center gap-4 p-8">
-                <p className="text-muted-foreground">No se pudo cargar el video embebido</p>
+                <p className="text-muted-foreground text-center">
+                  {video.platform === 'tiktok' 
+                    ? 'Los videos de TikTok no se pueden mostrar en localhost. Despliega tu app para verlos incrustados.'
+                    : 'No se pudo cargar el video embebido'
+                  }
+                </p>
                 <a
                   href={video.video_url}
                   target="_blank"
