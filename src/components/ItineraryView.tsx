@@ -823,8 +823,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           
           {/* Desktop: Tabs + Contenido + Mapa lateral */}
           {!isMobile && (
-            <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
-              <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+              <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full min-w-0">
                 <div className="overflow-x-auto no-scrollbar">
                   <TabsList className="inline-flex w-auto min-w-full">
                     {filteredDays.map((day, index) => (
