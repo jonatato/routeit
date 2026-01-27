@@ -56,14 +56,51 @@ export function parseVideoUrl(url: string): { platform: 'tiktok' | 'instagram' |
 export function generateEmbedCode(platform: 'tiktok' | 'instagram' | 'youtube', videoId: string, videoUrl: string): string {
   switch (platform) {
     case 'tiktok':
-      // TikTok requiere el script externo y usa blockquote
-      return `<blockquote class="tiktok-embed" cite="${videoUrl}" data-video-id="${videoId}" style="max-width: 605px; min-width: 325px; margin: 0 auto;"><section><a target="_blank" title="TikTok" href="${videoUrl}">Ver en TikTok</a></section></blockquote>`;
+      // TikTok oEmbed - usaremos el formato blockquote que TikTok procesa
+      return `<blockquote class="tiktok-embed" cite="${videoUrl}" data-video-id="${videoId}" style="max-width: 605px; min-width: 325px; margin: 0 auto;">
+        <section>
+          <a target="_blank" title="@user" href="${videoUrl}">Ver en TikTok</a>
+        </section>
+      </blockquote>`;
     case 'instagram':
-      return `<blockquote class="instagram-media" data-instgrm-permalink="${videoUrl}" data-instgrm-version="14" style="max-width:540px; min-width:326px; width:99.375%; margin: 0 auto;"></blockquote>`;
+      // Instagram oEmbed - usaremos iframe que es más confiable
+      return `<iframe src="https://www.instagram.com/p/${videoId}/embed/captioned" width="400" height="600" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;overflow:hidden;max-width:540px;width:100%;margin:0 auto;display:block;" allowfullscreen="true"></iframe>`;
     case 'youtube':
       return `<iframe width="100%" height="600" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="max-width: 605px; margin: 0 auto; display: block;"></iframe>`;
     default:
       return '';
+  }
+}
+
+// Función para obtener embed HTML desde oEmbed API (más confiable)
+export async function fetchOEmbedHtml(platform: 'tiktok' | 'instagram' | 'youtube', videoUrl: string): Promise<string | null> {
+  try {
+    let oembedUrl = '';
+    
+    switch (platform) {
+      case 'tiktok':
+        oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`;
+        break;
+      case 'instagram':
+        // Instagram requiere un token de acceso, así que usaremos el iframe directo
+        return null; // Usaremos el iframe estándar en su lugar
+      case 'youtube':
+        oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`;
+        break;
+      default:
+        return null;
+    }
+
+    if (!oembedUrl) return null;
+
+    const response = await fetch(oembedUrl);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    return data.html || null;
+  } catch (error) {
+    console.error('Error fetching oEmbed:', error);
+    return null;
   }
 }
 
@@ -143,7 +180,17 @@ export async function addVideo(
     throw new Error('URL de video no válida. Soportamos TikTok, Instagram Reels y YouTube Shorts.');
   }
   
-  const embedCode = generateEmbedCode(parsed.platform, parsed.videoId, videoUrl);
+  // Intentar obtener el embed desde oEmbed primero, si falla usar el generado
+  let embedCode = generateEmbedCode(parsed.platform, parsed.videoId, videoUrl);
+  try {
+    const oembedHtml = await fetchOEmbedHtml(parsed.platform, videoUrl);
+    if (oembedHtml) {
+      embedCode = oembedHtml;
+    }
+  } catch (error) {
+    console.log('Using fallback embed code for', parsed.platform);
+  }
+  
   const thumbnailUrl = generateThumbnailUrl(parsed.platform, parsed.videoId);
   
   const { data, error } = await supabase

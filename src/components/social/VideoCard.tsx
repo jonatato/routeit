@@ -33,45 +33,58 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
         setEmbedLoaded(true);
         setEmbedError(false);
         
-        // Función para procesar embeds según la plataforma
-        const processEmbed = () => {
-          // Límite de 10 reintentos (5 segundos)
-          if (retryCountRef.current >= 10) {
-            console.warn(`Embed script not loaded after 10 attempts for ${video.platform}`);
-            return;
-          }
-          
-          if (video.platform === 'tiktok') {
+        // Solo procesar TikTok embeds si el código contiene blockquote de TikTok
+        if (video.platform === 'tiktok' && video.embed_code.includes('tiktok-embed')) {
+          // Función para procesar embeds de TikTok
+          const processTikTok = () => {
+            // Límite de 10 reintentos (5 segundos)
+            if (retryCountRef.current >= 10) {
+              console.log('TikTok embed script not loaded, showing fallback');
+              return;
+            }
+            
             const tiktokEmbed = (window as any).tiktokEmbed;
             if (tiktokEmbed && typeof tiktokEmbed.process === 'function') {
               try {
                 tiktokEmbed.process();
+                console.log('TikTok embed processed successfully');
               } catch (e) {
                 console.error('Error processing TikTok embed:', e);
               }
             } else {
               // Reintentar si el script aún no está cargado
               retryCountRef.current++;
-              setTimeout(processEmbed, 500);
+              setTimeout(processTikTok, 500);
             }
-          } else if (video.platform === 'instagram') {
+          };
+          
+          setTimeout(processTikTok, 100);
+        }
+        
+        // Para Instagram, si usa blockquote procesamos con su script
+        if (video.platform === 'instagram' && video.embed_code.includes('instagram-media')) {
+          const processInstagram = () => {
+            if (retryCountRef.current >= 10) {
+              console.log('Instagram embed script not loaded');
+              return;
+            }
+            
             const instagramEmbed = (window as any).instgrm;
             if (instagramEmbed && typeof instagramEmbed.Embeds?.process === 'function') {
               try {
                 instagramEmbed.Embeds.process();
+                console.log('Instagram embed processed successfully');
               } catch (e) {
                 console.error('Error processing Instagram embed:', e);
               }
             } else {
-              // Reintentar si el script aún no está cargado
               retryCountRef.current++;
-              setTimeout(processEmbed, 500);
+              setTimeout(processInstagram, 500);
             }
-          }
-        };
-        
-        // Esperar un poco antes de procesar los embeds
-        setTimeout(processEmbed, 100);
+          };
+          
+          setTimeout(processInstagram, 100);
+        }
       } catch (error) {
         console.error('Error loading embed:', error);
         setEmbedError(true);
