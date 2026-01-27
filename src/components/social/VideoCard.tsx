@@ -3,7 +3,7 @@ import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ExternalLink, Trash2, Edit3 } from 'lucide-react';
-import { SocialVideo } from '../../services/socialVideos';
+import type { SocialVideo } from '../../services/socialVideos';
 
 interface VideoCardProps {
   video: SocialVideo;

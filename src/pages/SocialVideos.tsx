@@ -7,11 +7,11 @@ import { Plus, Grid3x3, List, Filter, Video as VideoIcon } from 'lucide-react';
 import { VideoCard } from '../components/social/VideoCard';
 import { VideoReactions } from '../components/social/VideoReactions';
 import { VideoUploadDialog } from '../components/social/VideoUploadDialog';
+import type { SocialVideo } from '../services/socialVideos';
 import { 
   fetchVideos, 
   filterVideosByTags, 
-  deleteVideo, 
-  SocialVideo 
+  deleteVideo
 } from '../services/socialVideos';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../hooks/useToast';

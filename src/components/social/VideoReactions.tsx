@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Heart, Flame, Laugh, ThumbsUp, MessageCircle, Trash2 } from 'lucide-react';
+import type { VideoReaction } from '../../services/socialVideos';
 import { 
-  VideoReaction, 
   addReaction, 
   deleteReaction, 
   getVideoReactionStats 
