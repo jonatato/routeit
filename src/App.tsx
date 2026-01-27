@@ -23,7 +23,6 @@ const Split = lazy(() => import('./pages/Split'));
 const StaticItinerary = lazy(() => import('./pages/StaticItinerary'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Analytics = lazy(() => import('./pages/Analytics'));
-const Chat = lazy(() => import('./pages/Chat'));
 const Favorites = lazy(() => import('./pages/Favorites'));
 const Guide = lazy(() => import('./pages/Guide'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
@@ -166,18 +165,6 @@ function App() {
                   <Suspense fallback={<LoadingFallback />}>
                     <PageTransition>
                       <Analytics />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/chat"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <Chat />
                     </PageTransition>
                   </Suspense>
                 </RequireAuth>
@@ -345,18 +332,6 @@ function App() {
                       <Suspense fallback={<LoadingFallback />}>
                         <PageTransition>
                           <Analytics />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/chat"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <Chat />
                         </PageTransition>
                       </Suspense>
                     </RequireAuth>
