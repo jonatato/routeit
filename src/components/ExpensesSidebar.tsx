@@ -3,7 +3,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { MapPin, Plus, Receipt } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { fetchSplit } from '../services/split';
 
@@ -31,8 +31,8 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
     byUser: ExpenseUser[];
     categories: { name: string; percentage: number; color: string }[];
   } | null>(null);
-  const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
 
   useEffect(() => {
     const loadExpenses = async () => {
@@ -169,7 +169,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
           byUser,
           categories,
           groupId: groups[0].id,
-          itineraryId: itinerary.id
+          itineraryId: itineraryId
         });
 
         setRealExpenses({

@@ -327,7 +327,7 @@ function SocialVideos() {
 
       {/* Delete Confirmation */}
       <ConfirmDialog
-        open={showDeleteConfirm}
+        isOpen={showDeleteConfirm}
         title="Eliminar video"
         message="¿Estás seguro de que quieres eliminar este video? Esta acción no se puede deshacer."
         confirmText="Eliminar"
@@ -336,6 +336,7 @@ function SocialVideos() {
           setShowDeleteConfirm(false);
           setVideoToDelete(null);
         }}
+        variant="destructive"
       />
     </div>
   );

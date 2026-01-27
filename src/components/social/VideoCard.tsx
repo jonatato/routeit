@@ -14,7 +14,6 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: VideoCardProps) {
-  const [embedLoaded, setEmbedLoaded] = useState(false);
   const [embedError, setEmbedError] = useState(false);
   const embedRef = useRef<HTMLDivElement>(null);
   const retryCountRef = useRef(0);
@@ -30,7 +29,6 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
       
       try {
         embedRef.current.innerHTML = video.embed_code;
-        setEmbedLoaded(true);
         setEmbedError(false);
         
         // Solo procesar TikTok embeds si el código contiene blockquote de TikTok
