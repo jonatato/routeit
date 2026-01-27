@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { ArrowLeft, MapPin, Clock, DollarSign, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, MapPin, Clock, DollarSign, Info, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { supabase } from '../lib/supabase';
+import { PandaLogo } from '../components/PandaLogo';
 
 interface GuideSection {
   id: string;
@@ -20,89 +22,132 @@ interface GuideItem {
 }
 
 function Guide() {
-  const [sections] = useState<GuideSection[]>([
-    {
-      id: 'transport',
-      title: 'Transporte',
-      icon: MapPin,
-      items: [
-        {
-          id: '1',
-          title: 'Metro y Tren',
-          description: 'Berlín cuenta con un excelente sistema de transporte público (U-Bahn, S-Bahn)',
-          tips: [
-            'Compra la Berlin WelcomeCard para transporte ilimitado',
-            'Los trenes funcionan hasta la 1:00 AM aproximadamente',
-            'Los fines de semana hay servicio nocturno',
-          ],
-        },
-        {
-          id: '2',
-          title: 'Bicicletas',
-          description: 'Berlín es muy amigable con las bicicletas',
-          tips: [
-            'Alquila bicicletas en estaciones Nextbike o Lime',
-            'Respeta los carriles bici señalizados',
-            'Usa casco aunque no sea obligatorio',
-          ],
-        },
-      ],
-    },
-    {
-      id: 'money',
-      title: 'Dinero y Pagos',
-      icon: DollarSign,
-      items: [
-        {
-          id: '3',
-          title: 'Moneda',
-          description: 'Alemania usa el Euro (€)',
-          tips: [
-            'Muchos lugares aceptan tarjeta, pero lleva efectivo',
-            'Los restaurantes pequeños prefieren efectivo',
-            'Cajeros automáticos disponibles en toda la ciudad',
-          ],
-        },
-        {
-          id: '4',
-          title: 'Propinas',
-          description: 'Las propinas son esperadas pero no obligatorias',
-          tips: [
-            'Redondea la cuenta en restaurantes (5-10%)',
-            'En taxis, redondea al euro más cercano',
-            'En bares, deja las monedas de cambio',
-          ],
-        },
-      ],
-    },
-    {
-      id: 'tips',
-      title: 'Consejos Útiles',
-      icon: Info,
-      items: [
-        {
-          id: '5',
-          title: 'Horarios',
-          description: 'Los alemanes son muy puntuales',
-          tips: [
-            'Las tiendas cierran temprano los domingos',
-            'Los supermercados abren hasta las 20:00-22:00',
-            'Los restaurantes suelen cerrar entre comidas',
-          ],
-        },
-        {
-          id: '6',
-          title: 'Idioma',
-          description: 'El alemán es el idioma oficial',
-          tips: [
-            'Muchos hablan inglés, especialmente jóvenes',
-            'Aprende frases básicas en alemán',
-            'Usa Google Translate como respaldo',
-          ],
-        },
-      ],
-    },
-  ]);
+  const [sections, setSections] = useState<GuideSection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasData, setHasData] = useState(false);
+
+  useEffect(() => {
+    const loadGuideData = async () => {
+      try {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setHasData(false);
+          setLoading(false);
+          return;
+        }
+
+        // Get user's most recent itinerary
+        const { data: itinerary } = await supabase
+          .from('itineraries')
+          .select('id')
+          .eq('user_id', user.id)
+          .is('deleted_at', null)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!itinerary) {
+          setHasData(false);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch phrases from the itinerary (this is where guide data could be stored)
+        const { data: phrases } = await supabase
+          .from('phrases')
+          .select('*')
+          .eq('itinerary_id', itinerary.id);
+
+        // For now, we'll check if there are any phrases (guide data)
+        // In the future, you could create a separate 'guide_sections' table
+        if (!phrases || phrases.length === 0) {
+          setHasData(false);
+          setLoading(false);
+          return;
+        }
+
+        // If there's data, you would map it here
+        // For now, we're just checking if data exists
+        setHasData(true);
+        setLoading(false);
+
+      } catch (error) {
+        console.error('Error loading guide data:', error);
+        setHasData(false);
+        setLoading(false);
+      }
+    };
+
+    loadGuideData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="border-b border-border bg-white px-4 py-4 md:hidden">
+          <div className="flex items-center gap-3">
+            <Link to="/app">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <h1 className="text-lg font-bold">Guía de Viaje</h1>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-4xl px-4 py-6">
+          <div className="mb-6 hidden md:block">
+            <h1 className="text-3xl font-bold">Guía de Viaje</h1>
+            <p className="text-muted-foreground">Información útil para tu viaje</p>
+          </div>
+
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="border-b border-border bg-white px-4 py-4 md:hidden">
+          <div className="flex items-center gap-3">
+            <Link to="/app">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <h1 className="text-lg font-bold">Guía de Viaje</h1>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-4xl px-4 py-6">
+          <div className="mb-6 hidden md:block">
+            <h1 className="text-3xl font-bold">Guía de Viaje</h1>
+            <p className="text-muted-foreground">Información útil para tu viaje</p>
+          </div>
+
+          <div className="flex flex-col items-center justify-center gap-6 py-12 text-center">
+            <PandaLogo size="lg" className="opacity-50" />
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold">No hay información de guía disponible</h2>
+              <p className="text-muted-foreground max-w-md">
+                Aún no has agregado información de guía para tu itinerario. Puedes agregar frases útiles, consejos y otra información desde la sección de administración.
+              </p>
+              <Link to="/app/admin">
+                <Button size="lg">
+                  Ir a administración
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
