@@ -32,7 +32,6 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
     categories: { name: string; percentage: number; color: string }[];
   } | null>(null);
   const location = useLocation();
-  const toast = useToast();
 
   useEffect(() => {
     const loadExpenses = async () => {
