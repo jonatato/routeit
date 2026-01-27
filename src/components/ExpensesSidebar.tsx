@@ -150,6 +150,15 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
           };
         });
 
+        console.log('ExpensesSidebar - Datos cargados:', {
+          total,
+          byCity,
+          byUser,
+          categories,
+          groupId: groups[0].id,
+          itineraryId: itinerary.id
+        });
+
         setRealExpenses({
           total,
           byCity,
@@ -291,49 +300,61 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <Receipt className="h-5 w-5 text-primary" />
             </div>
-            <CardTitle>Gastos</CardTitle>
+            <CardTitle>Desglose</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Pie Chart Placeholder */}
-          <div className="relative h-48 flex items-center justify-center">
-            <div className="h-40 w-40 rounded-full border-8 border-primary/20 flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-2xl font-bold">55%</p>
-                <p className="text-xs text-muted-foreground">Alojamiento</p>
+          {/* Categories with visual indicators */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold">Por categoría</h4>
+            {data.categories.map((category, idx) => (
+              <div key={idx} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="h-3 w-3 rounded-full" 
+                      style={{ backgroundColor: category.color }}
+                    />
+                    <span>{category.name}</span>
+                  </div>
+                  <span className="font-medium">{category.percentage}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all" 
+                    style={{ 
+                      width: `${category.percentage}%`,
+                      backgroundColor: category.color 
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            ))}
           </div>
 
           {/* Expense Users List */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-primary/10" />
-                <span>Jon</span>
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold">Por persona</h4>
+            {data.byUser.map((user, idx) => (
+              <div key={idx} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs font-semibold text-primary">
+                      {user.name.substring(0, 1).toUpperCase()}
+                    </span>
+                  </div>
+                  <span>{user.name}</span>
+                </div>
+                <span className="font-medium">€{user.amount.toFixed(2)}</span>
               </div>
-              <span className="font-medium">70%</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-primary/10" />
-                <span>Sandra</span>
-              </div>
-              <span className="font-medium">€0.00</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-primary/10" />
-                <span>Julia</span>
-              </div>
-              <span className="font-medium">€0.00</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-primary/10" />
-                <span>Julia</span>
-              </div>
-              <span className="font-medium">€50.30</span>
+            ))}
+          </div>
+
+          {/* Total */}
+          <div className="pt-3 border-t">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Total</span>
+              <span className="text-lg font-bold text-primary">€{data.total.toFixed(2)}</span>
             </div>
           </div>
         </CardContent>
