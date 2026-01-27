@@ -3,7 +3,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { MapPin, Plus, Receipt } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { fetchSplit } from '../services/split';
 
@@ -32,6 +32,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
     categories: { name: string; percentage: number; color: string }[];
   } | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const loadExpenses = async () => {
@@ -40,42 +41,53 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Get user's most recent itinerary (owned or collaborated)
-        // First try owned itineraries
-        let { data: ownedItinerary } = await supabase
-          .from('itineraries')
-          .select('id')
-          .eq('user_id', user.id)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        // If no owned itinerary, try collaborated itineraries
-        let itinerary = ownedItinerary;
-        if (!itinerary) {
-          const { data: collaboratedItineraries } = await supabase
-            .from('itinerary_collaborators')
-            .select('itinerary_id')
+        // Get itinerary ID from URL or fetch the most recent one
+        const params = new URLSearchParams(location.search);
+        const urlItineraryId = params.get('itineraryId');
+        
+        let itineraryId = urlItineraryId;
+        
+        // If no itinerary ID in URL, get the most recent one
+        if (!itineraryId) {
+          // First try owned itineraries
+          let { data: ownedItinerary } = await supabase
+            .from('itineraries')
+            .select('id')
             .eq('user_id', user.id)
+            .order('updated_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
-          if (collaboratedItineraries) {
-            itinerary = { id: collaboratedItineraries.itinerary_id };
+          // If no owned itinerary, try collaborated itineraries
+          if (!ownedItinerary) {
+            const { data: collaboratedItineraries } = await supabase
+              .from('itinerary_collaborators')
+              .select('itinerary_id')
+              .eq('user_id', user.id)
+              .limit(1)
+              .maybeSingle();
+
+            if (collaboratedItineraries) {
+              itineraryId = collaboratedItineraries.itinerary_id;
+            }
+          } else {
+            itineraryId = ownedItinerary.id;
           }
         }
 
-        if (!itinerary) {
+        if (!itineraryId) {
           setRealExpenses(null);
           setLoading(false);
           return;
         }
 
+        console.log('ExpensesSidebar - Cargando gastos para itinerario:', itineraryId);
+
         // Fetch split groups for this itinerary
         const { data: groups, error: groupsError } = await supabase
           .from('split_groups')
           .select('*')
-          .eq('itinerary_id', itinerary.id)
+          .eq('itinerary_id', itineraryId)
           .order('created_at', { ascending: false })
           .limit(1);
 
@@ -87,6 +99,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         }
 
         if (!groups || groups.length === 0) {
+          console.log('ExpensesSidebar - No se encontraron grupos de gastos para este itinerario');
           setRealExpenses(null);
           setLoading(false);
           return;
@@ -179,7 +192,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
     };
 
     loadExpenses();
-  }, []);
+  }, [location.search]); // Re-run when URL search params change
 
   const data = expenses || realExpenses;
 
