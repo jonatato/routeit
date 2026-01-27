@@ -26,17 +26,17 @@ function MobileTabs() {
   };
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[70] safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-[70] pb-safe">
       {/* Borde con muesca curva para el botón central */}
       <div className="relative">
-        <div className="absolute inset-x-0 -top-4 h-24 bg-white/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" 
+        <div className="absolute inset-x-0 -top-4 h-28 bg-white/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" 
              style={{
                clipPath: 'polygon(0 40px, calc(50% - 55px) 40px, calc(50% - 45px) 25px, calc(50% - 35px) 12px, calc(50% - 25px) 4px, calc(50% + 25px) 4px, calc(50% + 35px) 12px, calc(50% + 45px) 25px, calc(50% + 55px) 40px, 100% 40px, 100% 100%, 0 100%)'
              }}>
         </div>
       </div>
       
-      <div className="relative mx-auto flex w-full items-end justify-around px-6 pt-2 pb-3 bg-transparent">
+      <div className="relative mx-auto flex w-full items-end justify-around px-6 pt-2 pb-4 bg-transparent">
         {tabs.map(tab => {
           const isActive = tab.key === 'itinerary' 
             ? isItineraryActive()
