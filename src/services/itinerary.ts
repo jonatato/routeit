@@ -20,41 +20,53 @@ import {
 } from './itineraryMapper';
 
 async function fetchSingleItinerary(userId: string) {
-  // Obtener el itinerario propio más reciente
+  // Obtener todos los itinerarios propios
   const { data: owned, error: ownedError } = await supabase
     .from('itineraries')
     .select('*')
     .eq('user_id', userId)
-    .is('deleted_at', null)
-    .order('updated_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false })
-    .limit(1);
+    .is('deleted_at', null);
   if (ownedError) throw ownedError;
 
-  // Obtener el itinerario compartido más reciente
+  // Obtener todos los itinerarios compartidos
   const { data: shared, error: sharedError } = await supabase
     .from('itinerary_collaborators')
-    .select('itineraries(*)')
-    .eq('user_id', userId)
-    .is('itineraries.deleted_at', null)
-    .order('updated_at', { foreignTable: 'itineraries', ascending: false, nullsFirst: false })
-    .order('created_at', { foreignTable: 'itineraries', ascending: false })
-    .limit(1);
+    .select('itinerary_id, itineraries(*)')
+    .eq('user_id', userId);
   if (sharedError) throw sharedError;
 
-  const ownedItem = owned && owned.length > 0 ? (owned[0] as DbItinerary) : null;
-  const sharedItem =
-    shared && shared.length > 0 && shared[0].itineraries && !Array.isArray(shared[0].itineraries)
-      ? (shared[0].itineraries as DbItinerary)
-      : null;
+  // Mapear todos los itinerarios con sus fechas de actualización
+  const allItineraries: DbItinerary[] = [];
 
-  if (!ownedItem && !sharedItem) return null;
-  if (ownedItem && !sharedItem) return ownedItem;
-  if (!ownedItem && sharedItem) return sharedItem;
+  // Agregar itinerarios propios
+  if (owned && owned.length > 0) {
+    allItineraries.push(...(owned as DbItinerary[]));
+  }
 
-  const ownedUpdated = new Date(ownedItem!.updated_at ?? ownedItem!.created_at).getTime();
-  const sharedUpdated = new Date(sharedItem!.updated_at ?? sharedItem!.created_at).getTime();
-  return ownedUpdated >= sharedUpdated ? ownedItem! : sharedItem!;
+  // Agregar itinerarios compartidos
+  if (shared && shared.length > 0) {
+    for (const item of shared) {
+      if (item.itineraries && !Array.isArray(item.itineraries)) {
+        const itinerary = item.itineraries as DbItinerary;
+        if (!itinerary.deleted_at) {
+          allItineraries.push(itinerary);
+        }
+      }
+    }
+  }
+
+  // Si no hay itinerarios, retornar null
+  if (allItineraries.length === 0) return null;
+
+  // Ordenar por updated_at o created_at (el más reciente primero)
+  allItineraries.sort((a, b) => {
+    const dateA = new Date(a.updated_at ?? a.created_at).getTime();
+    const dateB = new Date(b.updated_at ?? b.created_at).getTime();
+    return dateB - dateA; // Más reciente primero
+  });
+
+  // Retornar el más reciente
+  return allItineraries[0];
 }
 
 async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinerary> {
