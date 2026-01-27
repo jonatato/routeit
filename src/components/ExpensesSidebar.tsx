@@ -55,9 +55,8 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         if (!itinerary) {
           const { data: collaboratedItineraries } = await supabase
             .from('itinerary_collaborators')
-            .select('itinerary_id, itineraries!inner(id, updated_at)')
+            .select('itinerary_id')
             .eq('user_id', user.id)
-            .order('itineraries.updated_at', { ascending: false, foreignTable: 'itineraries' })
             .limit(1)
             .maybeSingle();
 
