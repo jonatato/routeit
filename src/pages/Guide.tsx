@@ -59,22 +59,22 @@ function Guide() {
           .select('*')
           .eq('itinerary_id', itinerary.id);
 
-        // For now, we'll check if there are any phrases (guide data)
-        // In the future, you could create a separate 'guide_sections' table
+        // Check if there are any phrases (guide data)
         if (!phrases || phrases.length === 0) {
           setHasData(false);
-          setLoading(false);
-          return;
+          setSections([]);
+        } else {
+          setHasData(true);
+          // In the future, you would map phrases to sections here
+          setSections([]);
         }
-
-        // If there's data, you would map it here
-        // For now, we're just checking if data exists
-        setHasData(true);
+        
         setLoading(false);
 
       } catch (error) {
         console.error('Error loading guide data:', error);
         setHasData(false);
+        setSections([]);
         setLoading(false);
       }
     };
