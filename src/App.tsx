@@ -4,7 +4,6 @@ import RequireAuth from './components/RequireAuth';
 import MobileTabs from './components/MobileTabs';
 import MobileHeader from './components/MobileHeader';
 import WebSideMenu from './components/WebSideMenu';
-import TopNavBar from './components/TopNavBar';
 import ExpensesSidebar from './components/ExpensesSidebar';
 import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
@@ -37,7 +36,6 @@ function App() {
   const isMobileShell = useIsMobileShell();
   const location = useLocation();
   const showSideMenu = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
-  const showTopNav = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   const showExpensesSidebar = !isMobileShell && location.pathname === '/app' || location.search.includes('itineraryId=');
   const showMobileHeader = isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   
@@ -212,7 +210,6 @@ function App() {
         </div>
       ) : (
         <div className="min-h-screen">
-          {showTopNav && <TopNavBar />}
           <div className="mx-auto flex w-full">
             {showSideMenu && <WebSideMenu />}
             <div className="flex-1">
