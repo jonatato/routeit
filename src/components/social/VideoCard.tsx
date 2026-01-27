@@ -147,13 +147,13 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
         <CardContent className="p-0">
           {/* Video Embed */}
           <div className={`relative bg-gray-100 flex items-center justify-center ${
-            video.platform === 'youtube' ? 'aspect-[9/16] max-h-[700px]' : 'min-h-[600px]'
-          }`}>
+            video.platform === 'youtube' ? 'w-full' : 'min-h-[600px]'
+          }`} style={video.platform === 'youtube' ? { aspectRatio: '9/16', maxHeight: '800px' } : {}}>
             {!embedError ? (
               <div 
                 ref={embedRef} 
-                className="w-full h-full flex items-center justify-center"
-                style={video.platform === 'youtube' ? { height: '100%' } : { minHeight: '600px' }}
+                className={`w-full h-full ${video.platform === 'youtube' ? 'relative' : 'flex items-center justify-center'}`}
+                style={video.platform === 'youtube' ? { position: 'relative', width: '100%', height: '100%' } : { minHeight: '600px' }}
               />
             ) : (
               <div className="flex flex-col items-center gap-4 p-8">

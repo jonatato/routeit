@@ -66,7 +66,7 @@ export function generateEmbedCode(platform: 'tiktok' | 'instagram' | 'youtube', 
       // Instagram oEmbed - usaremos iframe que es más confiable
       return `<iframe src="https://www.instagram.com/p/${videoId}/embed/captioned" width="400" height="600" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;overflow:hidden;max-width:540px;width:100%;margin:0 auto;display:block;" allowfullscreen="true"></iframe>`;
     case 'youtube':
-      return `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="aspect-ratio: 9/16; max-width: 450px; max-height: 800px; margin: 0 auto; display: block; border-radius: 8px;"></iframe>`;
+      return `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"></iframe>`;
     default:
       return '';
   }
