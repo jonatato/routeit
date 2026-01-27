@@ -15,7 +15,15 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
         {/* Logo */}
         <Link to="/app" className="flex items-center gap-2">
           <PandaLogo size="sm" />
-          <span className="text-xl font-bold text-foreground">{title}</span>
+          <span className="text-xl font-bold text-foreground">
+            {title === 'Routeit' ? (
+              <>
+                Route<span className="text-primary">it</span>
+              </>
+            ) : (
+              title
+            )}
+          </span>
         </Link>
 
         {/* Actions */}

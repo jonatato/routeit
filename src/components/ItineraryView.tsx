@@ -1464,7 +1464,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       <footer className="border-t border-border bg-muted">
         <div className="mx-auto flex w-full  flex-col gap-2 px-4 py-6 text-sm text-mutedForeground md:flex-row md:items-center md:justify-between">
           <span>
-            Route<span className="text-red-500">i</span>t · Mi Itinerario
+            Route<span className="text-primary">it</span> · Mi Itinerario
           </span>
           <span>Diseñado para móvil y escritorio</span>
         </div>

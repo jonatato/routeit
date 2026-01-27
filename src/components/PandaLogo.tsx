@@ -25,7 +25,7 @@ export function PandaLogo({ className, showText = false, size = 'md' }: PandaLog
       />
       {showText && (
         <span className="text-lg font-bold">
-          Route<span className="text-red-500">i</span>t
+          Route<span className="text-primary">it</span>
         </span>
       )}
     </div>

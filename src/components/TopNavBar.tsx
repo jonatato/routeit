@@ -11,7 +11,9 @@ function TopNavBar() {
         {/* Logo */}
         <Link to="/app" className="flex items-center gap-2">
           <PandaLogo size="sm" />
-          <span className="text-xl font-bold">Routeit</span>
+          <span className="text-xl font-bold">
+            Route<span className="text-primary">it</span>
+          </span>
         </Link>
 
         {/* Navigation Menu */}
