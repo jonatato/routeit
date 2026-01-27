@@ -19,6 +19,7 @@ interface Tag {
   id: string;
   name: string;
   slug: string;
+  isCity?: boolean;
 }
 
 export function VideoUploadDialog({ 
@@ -66,7 +67,24 @@ export function VideoUploadDialog({
         .order('name');
 
       if (error) throw error;
-      setAvailableTags(data || []);
+
+      // Load cities from itinerary locations as special tags
+      const { data: locationsData } = await supabase
+        .from('locations')
+        .select('city')
+        .eq('itinerary_id', itineraryId)
+        .order('order_index');
+
+      // Combine regular tags and city tags
+      const cityTags = (locationsData || []).map(loc => ({
+        id: `city-${loc.city}`,
+        name: `📍 ${loc.city}`,
+        slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
+        isCity: true
+      }));
+
+      const allTags = [...(data || []), ...cityTags];
+      setAvailableTags(allTags);
     } catch (error) {
       console.error('Error loading tags:', error);
     }
@@ -138,9 +156,52 @@ export function VideoUploadDialog({
       // Agregar video
       const video = await addVideo(itineraryId, userId, url, description || undefined);
       
-      // Agregar tags si hay
+      // Procesar tags: los de ciudad necesitan crearse primero
       if (selectedTags.length > 0) {
-        await addVideoTags(video.id, selectedTags);
+        const tagIds: string[] = [];
+        
+        for (const tagId of selectedTags) {
+          if (tagId.startsWith('city-')) {
+            // Es un tag de ciudad, necesita crearse en la BD
+            const cityName = tagId.replace('city-', '');
+            const slug = cityName.toLowerCase().replace(/\s+/g, '-');
+            
+            // Verificar si ya existe
+            const { data: existingTag } = await supabase
+              .from('tags')
+              .select('id')
+              .eq('itinerary_id', itineraryId)
+              .eq('slug', slug)
+              .single();
+            
+            if (existingTag) {
+              tagIds.push(existingTag.id);
+            } else {
+              // Crear el tag de ciudad
+              const { data: newTag } = await supabase
+                .from('tags')
+                .insert({
+                  itinerary_id: itineraryId,
+                  name: `📍 ${cityName}`,
+                  slug,
+                })
+                .select('id')
+                .single();
+              
+              if (newTag) {
+                tagIds.push(newTag.id);
+              }
+            }
+          } else {
+            // Tag normal, ya existe en la BD
+            tagIds.push(tagId);
+          }
+        }
+        
+        // Agregar todos los tags al video
+        if (tagIds.length > 0) {
+          await addVideoTags(video.id, tagIds);
+        }
       }
 
       toast.success('¡Video agregado!');
@@ -258,7 +319,7 @@ export function VideoUploadDialog({
           </div>
 
           {/* Tags */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-medium">Tags</label>
             
             {/* Selected Tags */}
@@ -273,28 +334,52 @@ export function VideoUploadDialog({
                       className="cursor-pointer"
                       onClick={() => toggleTag(tag.id)}
                     >
-                      #{tag.name} <X className="ml-1 h-3 w-3" />
+                      {tag.isCity ? tag.name : `#${tag.name}`} <X className="ml-1 h-3 w-3" />
                     </Badge>
                   ) : null;
                 })}
               </div>
             )}
 
-            {/* Available Tags */}
-            {availableTags.length > 0 && (
-              <div className="flex gap-2 flex-wrap p-3 bg-muted rounded-md">
-                {availableTags
-                  .filter(tag => !selectedTags.includes(tag.id))
-                  .map(tag => (
-                    <Badge
-                      key={tag.id}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-primary hover:text-white"
-                      onClick={() => toggleTag(tag.id)}
-                    >
-                      #{tag.name} <Plus className="ml-1 h-3 w-3" />
-                    </Badge>
-                  ))}
+            {/* City Tags Section */}
+            {availableTags.filter(t => t.isCity).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Ciudades de la Ruta</p>
+                <div className="flex gap-2 flex-wrap p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                  {availableTags
+                    .filter(tag => tag.isCity && !selectedTags.includes(tag.id))
+                    .map(tag => (
+                      <Badge
+                        key={tag.id}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-blue-500 hover:text-white border-blue-300"
+                        onClick={() => toggleTag(tag.id)}
+                      >
+                        {tag.name} <Plus className="ml-1 h-3 w-3" />
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Regular Tags Section */}
+            {availableTags.filter(t => !t.isCity).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Tags Personalizados</p>
+                <div className="flex gap-2 flex-wrap p-3 bg-muted rounded-md">
+                  {availableTags
+                    .filter(tag => !tag.isCity && !selectedTags.includes(tag.id))
+                    .map(tag => (
+                      <Badge
+                        key={tag.id}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-primary hover:text-white"
+                        onClick={() => toggleTag(tag.id)}
+                      >
+                        #{tag.name} <Plus className="ml-1 h-3 w-3" />
+                      </Badge>
+                    ))}
+                </div>
               </div>
             )}
 
@@ -302,7 +387,7 @@ export function VideoUploadDialog({
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Crear nuevo tag..."
+                placeholder="Crear nuevo tag personalizado..."
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleCreateTag()}

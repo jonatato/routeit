@@ -13,7 +13,7 @@ function MobileTabs() {
   const location = useLocation();
 
   const tabs: Tab[] = [
-    { key: 'memories', label: 'Recuerdos', path: '/app/memories', icon: Video },
+    { key: 'memories', label: 'Info Viaje', path: '/app/memories', icon: Video },
     { key: 'split', label: 'Gastos', path: '/app/split', icon: Receipt },
     { key: 'itinerary', label: 'Ruta', path: '/app', icon: MapPin, isCentral: true },
     { key: 'bag', label: 'Maleta', path: '/app/bag', icon: ShoppingBag },

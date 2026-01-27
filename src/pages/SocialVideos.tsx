@@ -23,6 +23,7 @@ interface Tag {
   id: string;
   name: string;
   slug: string;
+  isCity?: boolean;
 }
 
 function SocialVideos() {
@@ -108,7 +109,23 @@ function SocialVideos() {
         .eq('itinerary_id', itineraryId)
         .order('name');
 
-      setTags(tagsData || []);
+      // Load cities from itinerary locations as special tags
+      const { data: locationsData } = await supabase
+        .from('locations')
+        .select('city')
+        .eq('itinerary_id', itineraryId)
+        .order('order_index');
+
+      // Combine regular tags and city tags
+      const cityTags = (locationsData || []).map((loc, idx) => ({
+        id: `city-${loc.city}`,
+        name: `📍 ${loc.city}`,
+        slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
+        isCity: true
+      }));
+
+      const allTags = [...(tagsData || []), ...cityTags];
+      setTags(allTags);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Error al cargar videos');
@@ -192,7 +209,7 @@ function SocialVideos() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <VideoIcon className="h-8 w-8 text-primary" />
-            Recuerdos del Viaje
+            Videos de la Ruta
           </h1>
           <p className="text-muted-foreground mt-1">
             {videos.length} video{videos.length !== 1 ? 's' : ''} guardado{videos.length !== 1 ? 's' : ''}

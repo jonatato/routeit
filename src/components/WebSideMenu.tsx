@@ -12,7 +12,7 @@ function WebSideMenu() {
     { path: '/app/admin', label: 'Administrar', icon: Settings },
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
-    { path: '/app/memories', label: 'Recuerdos', icon: Video },
+    { path: '/app/memories', label: 'Info Viaje', icon: Video },
     { path: '/app/favorites', label: 'Favoritos', icon: Heart },
     { path: '/app/guide', label: 'Guía', icon: MapIcon },
     { path: '/app/itineraries', label: 'Mis viajes', icon: Plane },
