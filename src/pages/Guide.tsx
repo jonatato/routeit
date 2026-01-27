@@ -89,7 +89,6 @@ function Guide() {
   }, []);
 
   if (loading) {
-    console.log('[Guide Render] Loading state');
     return (
       <div className="min-h-screen bg-background">
         <div className="border-b border-border bg-white px-4 py-4 md:hidden">
@@ -118,7 +117,6 @@ function Guide() {
   }
 
   if (!hasData) {
-    console.log('[Guide Render] No data state');
     return (
       <div className="min-h-screen bg-background">
         <div className="border-b border-border bg-white px-4 py-4 md:hidden">
@@ -157,7 +155,6 @@ function Guide() {
     );
   }
 
-  console.log('[Guide Render] Has data state, sections:', sections.length);
   return (
     <div className="min-h-screen bg-background">
       {/* Header Mobile */}
