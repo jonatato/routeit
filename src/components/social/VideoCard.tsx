@@ -146,12 +146,14 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
       <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
         <CardContent className="p-0">
           {/* Video Embed */}
-          <div className="relative bg-gray-100 flex items-center justify-center min-h-[600px]">
+          <div className={`relative bg-gray-100 flex items-center justify-center ${
+            video.platform === 'youtube' ? 'aspect-[9/16] max-h-[700px]' : 'min-h-[600px]'
+          }`}>
             {!embedError ? (
               <div 
                 ref={embedRef} 
                 className="w-full h-full flex items-center justify-center"
-                style={{ minHeight: '600px' }}
+                style={video.platform === 'youtube' ? { height: '100%' } : { minHeight: '600px' }}
               />
             ) : (
               <div className="flex flex-col items-center gap-4 p-8">
