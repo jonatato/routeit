@@ -202,7 +202,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
           <div className="flex items-center justify-between">
             <CardTitle>Gastos</CardTitle>
             <Button variant="ghost" size="sm" className="text-primary">
-              Baltar guía
+              Falta guía
             </Button>
           </div>
         </CardHeader>
@@ -221,7 +221,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
               </Button>
             ))}
             <Button variant="outline" size="sm" className="rounded-full">
-              Lista de empuje
+              Lista de la compra
             </Button>
           </div>
 

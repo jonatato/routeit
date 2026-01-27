@@ -792,7 +792,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               Filtrar por ciudad
             </Button>
             <span className="text-xs text-mutedForeground ml-auto shrink-0">
-              Marcharde actividad: {checkedItems.length}
+              Marcador de actividad: {checkedItems.length}
             </span>
           </div>
           <div
