@@ -21,145 +21,64 @@ function MobileTabs() {
   ];
   
   const isItineraryActive = () => {
+    // Considerar activo si estamos en /app con query params de itineraryId
     return location.pathname === '/app' || location.pathname.startsWith('/app?');
   };
   
   return (
-    <>
-      {/* Botón central flotante - posicionado independientemente */}
-      <div className="fixed bottom-[30px] left-1/2 -translate-x-1/2 z-[80]">
+    <nav className="fixed bottom-0 left-0 right-0 z-[70] safe-area-inset-bottom">
+      {/* Borde con muesca curva para el botón central */}
+      <div className="relative">
+        <div className="absolute inset-x-0 -top-4 h-24 bg-white/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.12)]" 
+             style={{
+               clipPath: 'polygon(0 40px, calc(50% - 55px) 40px, calc(50% - 45px) 25px, calc(50% - 35px) 12px, calc(50% - 25px) 4px, calc(50% + 25px) 4px, calc(50% + 35px) 12px, calc(50% + 45px) 25px, calc(50% + 55px) 40px, 100% 40px, 100% 100%, 0 100%)'
+             }}>
+        </div>
+      </div>
+      
+      <div className="relative mx-auto flex w-full items-end justify-around px-6 pt-2 pb-3 bg-transparent">
         {tabs.map(tab => {
-          if (!tab.isCentral) return null;
-          
-          const isActive = isItineraryActive();
+          const isActive = tab.key === 'itinerary' 
+            ? isItineraryActive()
+            : location.pathname === tab.path;
           const Icon = tab.icon;
+          
+          if (tab.isCentral) {
+            return (
+              <Link
+                key={tab.key}
+                to={tab.path}
+                className="flex flex-col items-center justify-center gap-1 -mt-14 relative z-10"
+              >
+                <div className={`rounded-full p-5 shadow-[0_8px_24px_rgba(111,99,216,0.6)] border-4 border-white ${isActive ? 'bg-primary' : 'bg-gray-100'}`}>
+                  <Icon className={`h-7 w-7 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                </div>
+                <span className={`text-xs font-medium mt-1 ${isActive ? 'text-foreground' : 'text-gray-600'}`}>
+                  {tab.label}
+                </span>
+              </Link>
+            );
+          }
           
           return (
             <Link
               key={tab.key}
               to={tab.path}
-              className="flex flex-col items-center justify-center gap-1"
+              className="flex flex-col items-center justify-center gap-1 mt-4"
             >
-              <div 
-                className={`
-                  w-[68px] h-[68px] 
-                  rounded-full 
-                  flex items-center justify-center
-                  shadow-[0_8px_32px_rgba(111,99,216,0.5)]
-                  border-[5px] border-white
-                  transition-all duration-300
-                  ${isActive ? 'bg-primary scale-105' : 'bg-gray-100'}
-                `}
-              >
-                <Icon className={`w-8 h-8 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+              <div className={`rounded-xl p-2 ${isActive ? 'bg-primary' : 'bg-transparent'}`}>
+                <Icon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-gray-600'}`} />
               </div>
-              <span 
-                className={`text-xs font-semibold mt-1 transition-colors ${
-                  isActive ? 'text-primary' : 'text-gray-600'
-                }`}
-              >
+              <span className={`text-xs font-medium ${isActive ? 'text-foreground' : 'text-gray-600'}`}>
                 {tab.label}
               </span>
             </Link>
           );
         })}
       </div>
-
-      {/* Barra de navegación con muesca circular */}
-      <nav 
-        className="fixed bottom-0 left-0 right-0 z-[70] safe-area-inset-bottom bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
-        style={{
-          height: '65px',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
-        }}
-      >
-        {/* Muesca circular para el botón central */}
-        <div 
-          className="absolute -top-[35px] left-1/2 -translate-x-1/2 w-[90px] h-[90px] bg-transparent"
-          style={{
-            clipPath: 'circle(45px at center)'
-          }}
-        >
-          <div className="w-full h-full bg-white"></div>
-        </div>
-        
-        {/* Sombras para crear profundidad en la muesca */}
-        <div 
-          className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[100px] h-[50px]"
-        >
-          {/* Círculo interior para la sombra */}
-          <div 
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[95px] h-[95px] rounded-full"
-            style={{
-              boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.1)'
-            }}
-          ></div>
-        </div>
-        
-        {/* Curvas suaves en los lados de la muesca */}
-        <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[110px] h-[25px] overflow-hidden">
-          <svg width="110" height="25" viewBox="0 0 110 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path 
-              d="M 0,25 Q 0,0 25,0 L 85,0 Q 110,0 110,25 Z" 
-              fill="white"
-            />
-          </svg>
-        </div>
-        
-        {/* Contenedor de tabs laterales */}
-        <div className="h-full flex items-center justify-between px-8">
-          {/* Tabs izquierdos */}
-          <div className="flex-1 flex justify-around items-center pr-12">
-            {tabs.slice(0, 2).map(tab => {
-              const isActive = location.pathname === tab.path;
-              const Icon = tab.icon;
-              
-              return (
-                <Link
-                  key={tab.key}
-                  to={tab.path}
-                  className="flex flex-col items-center justify-center gap-1 transition-all duration-200"
-                >
-                  <div className={`rounded-xl p-2 transition-all ${isActive ? 'bg-primary/10' : 'bg-transparent'}`}>
-                    <Icon className={`w-6 h-6 transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`} />
-                  </div>
-                  <span className={`text-xs font-medium transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`}>
-                    {tab.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-          
-          {/* Espacio central para el botón flotante */}
-          <div className="w-[68px]"></div>
-          
-          {/* Tabs derechos */}
-          <div className="flex-1 flex justify-around items-center pl-12">
-            {tabs.slice(3).map(tab => {
-              const isActive = location.pathname === tab.path;
-              const Icon = tab.icon;
-              
-              return (
-                <Link
-                  key={tab.key}
-                  to={tab.path}
-                  className="flex flex-col items-center justify-center gap-1 transition-all duration-200"
-                >
-                  <div className={`rounded-xl p-2 transition-all ${isActive ? 'bg-primary/10' : 'bg-transparent'}`}>
-                    <Icon className={`w-6 h-6 transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`} />
-                  </div>
-                  <span className={`text-xs font-medium transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`}>
-                    {tab.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
-    </>
+    </nav>
   );
 }
 
 export default MobileTabs;
+
