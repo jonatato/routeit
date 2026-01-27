@@ -25,94 +25,140 @@ function MobileTabs() {
   };
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[70] safe-area-inset-bottom">
-      {/* Fondo con SVG para crear una curva suave perfecta */}
-      <div className="relative h-[75px]">
-        {/* SVG path para la curva */}
-        <svg
-          className="absolute top-0 left-0 w-full h-full"
-          viewBox="0 0 375 75"
-          preserveAspectRatio="none"
-          xmlns="http://www.w3.org/2000/svg"
+    <>
+      {/* Botón central flotante - posicionado independientemente */}
+      <div className="fixed bottom-[30px] left-1/2 -translate-x-1/2 z-[80]">
+        {tabs.map(tab => {
+          if (!tab.isCentral) return null;
+          
+          const isActive = isItineraryActive();
+          const Icon = tab.icon;
+          
+          return (
+            <Link
+              key={tab.key}
+              to={tab.path}
+              className="flex flex-col items-center justify-center gap-1"
+            >
+              <div 
+                className={`
+                  w-[68px] h-[68px] 
+                  rounded-full 
+                  flex items-center justify-center
+                  shadow-[0_8px_32px_rgba(111,99,216,0.5)]
+                  border-[5px] border-white
+                  transition-all duration-300
+                  ${isActive ? 'bg-primary scale-105' : 'bg-gray-100'}
+                `}
+              >
+                <Icon className={`w-8 h-8 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+              </div>
+              <span 
+                className={`text-xs font-semibold mt-1 transition-colors ${
+                  isActive ? 'text-primary' : 'text-gray-600'
+                }`}
+              >
+                {tab.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Barra de navegación con muesca circular */}
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-[70] safe-area-inset-bottom bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
+        style={{
+          height: '65px',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+        }}
+      >
+        {/* Muesca circular para el botón central */}
+        <div 
+          className="absolute -top-[35px] left-1/2 -translate-x-1/2 w-[90px] h-[90px] bg-transparent"
+          style={{
+            clipPath: 'circle(45px at center)'
+          }}
         >
-          <defs>
-            <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-              <feOffset dx="0" dy="-2" result="offsetblur"/>
-              <feComponentTransfer>
-                <feFuncA type="linear" slope="0.1"/>
-              </feComponentTransfer>
-              <feMerge>
-                <feMergeNode/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <path
-            d="M 0,20 L 0,75 L 375,75 L 375,20 Q 375,20 375,20 L 235,20 Q 225,20 220,15 Q 215,10 210,7 Q 200,0 187.5,0 Q 175,0 165,7 Q 160,10 155,15 Q 150,20 140,20 L 0,20 Z"
-            fill="rgba(255,255,255,0.95)"
-            filter="url(#shadow)"
-          />
-        </svg>
+          <div className="w-full h-full bg-white"></div>
+        </div>
         
-        {/* Contenedor de tabs */}
-        <div className="absolute inset-0 flex items-end justify-around px-6 pb-4">
-          {tabs.map(tab => {
-            const isActive = tab.key === 'itinerary' 
-              ? isItineraryActive()
-              : location.pathname === tab.path;
-            const Icon = tab.icon;
-            
-            if (tab.isCentral) {
+        {/* Sombras para crear profundidad en la muesca */}
+        <div 
+          className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[100px] h-[50px]"
+        >
+          {/* Círculo interior para la sombra */}
+          <div 
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[95px] h-[95px] rounded-full"
+            style={{
+              boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.1)'
+            }}
+          ></div>
+        </div>
+        
+        {/* Curvas suaves en los lados de la muesca */}
+        <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[110px] h-[25px] overflow-hidden">
+          <svg width="110" height="25" viewBox="0 0 110 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path 
+              d="M 0,25 Q 0,0 25,0 L 85,0 Q 110,0 110,25 Z" 
+              fill="white"
+            />
+          </svg>
+        </div>
+        
+        {/* Contenedor de tabs laterales */}
+        <div className="h-full flex items-center justify-between px-8">
+          {/* Tabs izquierdos */}
+          <div className="flex-1 flex justify-around items-center pr-12">
+            {tabs.slice(0, 2).map(tab => {
+              const isActive = location.pathname === tab.path;
+              const Icon = tab.icon;
+              
               return (
                 <Link
                   key={tab.key}
                   to={tab.path}
-                  className="flex flex-col items-center justify-center gap-1 relative"
-                  style={{ marginTop: '-45px' }}
+                  className="flex flex-col items-center justify-center gap-1 transition-all duration-200"
                 >
-                  <div 
-                    className={`rounded-full p-5 shadow-[0_8px_24px_rgba(111,99,216,0.6)] border-[6px] border-white transition-all duration-300 ${
-                      isActive ? 'bg-primary scale-105' : 'bg-gray-100'
-                    }`}
-                    style={{ 
-                      width: '70px',
-                      height: '70px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <Icon className={`h-8 w-8 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                  <div className={`rounded-xl p-2 transition-all ${isActive ? 'bg-primary/10' : 'bg-transparent'}`}>
+                    <Icon className={`w-6 h-6 transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`} />
                   </div>
-                  <span 
-                    className={`text-xs font-semibold transition-colors duration-200 ${isActive ? 'text-primary' : 'text-gray-600'}`}
-                    style={{ marginTop: '6px' }}
-                  >
+                  <span className={`text-xs font-medium transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`}>
                     {tab.label}
                   </span>
                 </Link>
               );
-            }
-            
-            return (
-              <Link
-                key={tab.key}
-                to={tab.path}
-                className="flex flex-col items-center justify-center gap-1 transition-all duration-200"
-              >
-                <div className={`rounded-xl p-2.5 transition-all duration-200 ${isActive ? 'bg-primary/10' : 'bg-transparent'}`}>
-                  <Icon className={`h-6 w-6 transition-colors duration-200 ${isActive ? 'text-primary' : 'text-gray-600'}`} />
-                </div>
-                <span className={`text-xs font-medium transition-colors duration-200 ${isActive ? 'text-primary' : 'text-gray-600'}`}>
-                  {tab.label}
-                </span>
-              </Link>
-            );
-          })}
+            })}
+          </div>
+          
+          {/* Espacio central para el botón flotante */}
+          <div className="w-[68px]"></div>
+          
+          {/* Tabs derechos */}
+          <div className="flex-1 flex justify-around items-center pl-12">
+            {tabs.slice(3).map(tab => {
+              const isActive = location.pathname === tab.path;
+              const Icon = tab.icon;
+              
+              return (
+                <Link
+                  key={tab.key}
+                  to={tab.path}
+                  className="flex flex-col items-center justify-center gap-1 transition-all duration-200"
+                >
+                  <div className={`rounded-xl p-2 transition-all ${isActive ? 'bg-primary/10' : 'bg-transparent'}`}>
+                    <Icon className={`w-6 h-6 transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`} />
+                  </div>
+                  <span className={`text-xs font-medium transition-colors ${isActive ? 'text-primary' : 'text-gray-600'}`}>
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   );
 }
 
