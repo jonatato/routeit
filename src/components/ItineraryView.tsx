@@ -10,11 +10,13 @@ import { PandaLogo } from './PandaLogo';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Tabs as UITabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { fetchSectionPreferences, type SectionPreference } from '../services/sections';
 import { supabase } from '../lib/supabase';
 import { exportItineraryToPDF } from '../services/pdfExport';
 import { PDFExportDialog } from './PDFExportDialog';
 import { MapModal } from './MapModal';
+import { useIsMobileShell } from '../hooks/useIsMobileShell';
 
 const kindLabels = {
   flight: 'Vuelo',
@@ -45,6 +47,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const travelCount = allDays.filter(day => day.kind === 'travel').length;
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
   const [currentDayIndex, setCurrentDayIndex] = useState(0);
+  const [activeTabValue, setActiveTabValue] = useState('0');
+  const isMobile = useIsMobileShell();
   const [sectionPreferences, setSectionPreferences] = useState<SectionPreference[]>([]);
   const [sliderHeight, setSliderHeight] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -279,8 +283,15 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 
   const goToIndex = (index: number) => {
     if (visibleDays === 0) return;
-    setCurrentDayIndex(Math.min(Math.max(0, index), visibleDays - 1));
+    const newIndex = Math.min(Math.max(0, index), visibleDays - 1);
+    setCurrentDayIndex(newIndex);
+    setActiveTabValue(String(newIndex));
   };
+
+  // Sincronizar tab con índice del día
+  useEffect(() => {
+    setActiveTabValue(String(currentDayIndex));
+  }, [currentDayIndex]);
 
   // Cargar preferencias de secciones
   useEffect(() => {
@@ -809,237 +820,405 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               Marcador de actividad: {checkedItems.length}
             </span>
           </div>
-          <div
-            className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-[height] duration-300 ease-out"
-            style={sliderHeight ? { height: `${sliderHeight}px` } : undefined}
-            role="region"
-            aria-live="polite"
-          >
-            <div
-              ref={sliderRef}
-              className="flex items-start touch-pan-y transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${currentDayIndex * 100}%)` }}
-              onPointerDown={event => {
-                swipeState.current = { startX: event.clientX, deltaX: 0, isDragging: true };
-                if (sliderRef.current) {
-                  sliderRef.current.setPointerCapture(event.pointerId);
-                }
-              }}
-              onPointerMove={event => {
-                if (!swipeState.current.isDragging) return;
-                swipeState.current.deltaX = event.clientX - swipeState.current.startX;
-              }}
-              onPointerUp={() => {
-                if (!swipeState.current.isDragging) return;
-                const { deltaX } = swipeState.current;
-                swipeState.current.isDragging = false;
-                if (Math.abs(deltaX) > 50) {
-                  goToIndex(currentDayIndex + (deltaX < 0 ? 1 : -1));
-                }
-              }}
-              onPointerLeave={() => {
-                if (!swipeState.current.isDragging) return;
-                const { deltaX } = swipeState.current;
-                swipeState.current.isDragging = false;
-                if (Math.abs(deltaX) > 50) {
-                  goToIndex(currentDayIndex + (deltaX < 0 ? 1 : -1));
-                }
-              }}
-              onPointerCancel={() => {
-                swipeState.current.isDragging = false;
-              }}
-            >
-              {filteredDays.map((day, index) => {
-                const status =
-                  index === currentDayIndex ? 'today' : index < currentDayIndex ? 'past' : 'future';
-                return (
-                  <div
-                    key={day.id}
-                    ref={el => {
-                      slideRefs.current[index] = el;
-                    }}
-                    className={`w-full shrink-0 self-start p-2 transition-opacity duration-500 ease-out sm:p-2 ${
-                      index === currentDayIndex ? 'opacity-100' : 'opacity-40'
-                    }`}
-                  >
+          
+          {/* Desktop: Tabs + Contenido + Mapa lateral */}
+          {!isMobile && (
+            <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
+              <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full">
+                <div className="overflow-x-auto no-scrollbar">
+                  <TabsList className="inline-flex w-auto min-w-full">
+                    {filteredDays.map((day, index) => (
+                      <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap">
+                        <span className="flex items-center gap-2">
+                          <Badge variant={kindVariants[day.kind]} className="text-[10px] py-0 px-1.5">{kindLabels[day.kind]}</Badge>
+                          Día {day.dayLabel}
+                        </span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
+                
+                {filteredDays.map((day, index) => (
+                  <TabsContent key={day.id} value={String(index)} className="mt-4">
                     <Card className="w-full border border-border/60 shadow-sm">
                       <CardHeader className="gap-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant={kindVariants[day.kind]}>{kindLabels[day.kind]}</Badge>
-                          <Badge variant="secondary">
-                            {`Día ${day.dayLabel}`}
-                          </Badge>
+                          <Badge variant="secondary">Día {day.dayLabel}</Badge>
                           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
                             {day.date}
                           </span>
-                          <span
-                            className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                              status === 'today'
-                                ? 'bg-primary text-primaryForeground'
-                                : status === 'past'
-                                ? 'bg-muted text-mutedForeground'
-                                : 'bg-accent text-accentForeground'
-                            }`}
-                          >
-                            {status === 'today' ? 'Hoy' : status === 'past' ? 'Pasado' : 'Próximo'}
-                          </span>
-                        {editable && (
-                          <Link
-                            to={`/app/admin?section=days&dayId=${day.id}`}
-                            className="ml-0 inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-600 transition hover:bg-emerald-100 sm:ml-auto"
-                            aria-label="Editar día"
-                          >
-                            +
-                          </Link>
-                        )}
+                          {editable && (
+                            <Link
+                              to={`/app/admin?section=days&dayId=${day.id}`}
+                              className="ml-auto inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-600 transition hover:bg-emerald-100"
+                              aria-label="Editar día"
+                            >
+                              +
+                            </Link>
+                          )}
                         </div>
                         <CardTitle className="text-xl">{day.city}</CardTitle>
                         <CardDescription>{day.plan}</CardDescription>
                       </CardHeader>
-                    <CardContent className="space-y-4">
-                      {shouldShowDayMap && (
-                        <div 
-                          className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
-                          onClick={() => {
-                            setDayMapModalData({
-                              center: dayMapCenter,
-                              points: dayMapPoints.map(point => ({
-                                lat: point.position[0],
-                                lng: point.position[1],
-                                time: point.time,
-                                label: point.label,
-                                city: day.city,
-                                region: day.city,
-                              })),
-                            });
-                            setIsDayMapModalOpen(true);
-                          }}
-                        >
-                          <div className="h-56 w-full sm:h-64">
-                            <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
-                              <TileLayer
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                              />
-                              {dayMapPoints.map(point => (
-                                <Marker key={`${point.time}-${point.label}`} position={point.position}>
-                                  <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                    {point.time} · {point.label}
-                                  </Tooltip>
-                                  <Popup>
-                                    {point.time} · {point.label}
-                                  </Popup>
-                                </Marker>
-                              ))}
-                            </MapContainer>
-                          </div>
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
-                              <Maximize2 className="h-6 w-6 text-primary" />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      <div className="relative space-y-4">
-                        <div className="absolute left-3 top-2 h-[calc(100%-16px)] w-px bg-border" />
-                        {day.schedule.map((item, itemIndex) => (
-                          <div
-                            key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
-                            className="relative flex flex-col gap-2 pl-8 text-sm sm:flex-row sm:items-center"
+                      <CardContent className="space-y-4">
+                        {/* Mapa del día */}
+                        {dayMapPoints.length > 0 && index === currentDayIndex && (
+                          <div 
+                            className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
+                            onClick={() => {
+                              setDayMapModalData({
+                                center: dayMapCenter,
+                                points: dayMapPoints.map(point => ({
+                                  lat: point.position[0],
+                                  lng: point.position[1],
+                                  time: point.time,
+                                  label: point.label,
+                                  city: day.city,
+                                  region: day.city,
+                                })),
+                              });
+                              setIsDayMapModalOpen(true);
+                            }}
                           >
-                            <span className="absolute left-1.5 top-2 h-3 w-3 rounded-full bg-primary" />
-                            <span className="w-auto font-semibold text-foreground sm:w-20">{item.time}</span>
-                            <div className="flex flex-col gap-1 text-mutedForeground sm:flex-row sm:items-center sm:gap-3">
-                              <span>{item.activity}</span>
-                              {item.link && (
-                                <a
-                                  href={item.link}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
-                                >
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    aria-hidden="true"
-                                    className="h-3 w-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
+                            <div className="h-56 w-full">
+                              <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
+                                <TileLayer
+                                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                />
+                                {dayMapPoints.map(point => (
+                                  <Marker key={`${point.time}-${point.label}`} position={point.position}>
+                                    <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                                      {point.time} · {point.label}
+                                    </Tooltip>
+                                    <Popup>
+                                      {point.time} · {point.label}
+                                    </Popup>
+                                  </Marker>
+                                ))}
+                              </MapContainer>
+                            </div>
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                                <Maximize2 className="h-6 w-6 text-primary" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Timeline de actividades */}
+                        <div className="relative space-y-4">
+                          <div className="absolute left-3 top-2 h-[calc(100%-16px)] w-px bg-border" />
+                          {day.schedule.map((item, itemIndex) => (
+                            <div
+                              key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
+                              className="relative flex flex-col gap-2 pl-8 text-sm sm:flex-row sm:items-center"
+                            >
+                              <span className="absolute left-1.5 top-2 h-3 w-3 rounded-full bg-primary" />
+                              <span className="w-auto font-semibold text-foreground sm:w-20">{item.time}</span>
+                              <div className="flex flex-col gap-1 text-mutedForeground sm:flex-row sm:items-center sm:gap-3">
+                                <span>{item.activity}</span>
+                                {item.link && (
+                                  <a
+                                    href={item.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
                                   >
-                                    <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
-                                    <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
-                                  </svg>
-                                  Entradas
-                                </a>
-                              )}
-                              {item.mapLink && (
-                                <a
-                                  href={item.mapLink}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                                >
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    aria-hidden="true"
-                                    className="h-3 w-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
+                                      <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
+                                    </svg>
+                                    Entradas
+                                  </a>
+                                )}
+                                {item.mapLink && (
+                                  <a
+                                    href={item.mapLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
                                   >
-                                    <path d="M3 6l8-3 10 4-8 3-10-4z" />
-                                    <path d="M14 10l7-3v11l-7 3" />
-                                    <path d="M3 6v11l8 3" />
-                                  </svg>
-                                  Maps
-                                </a>
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M3 6l8-3 10 4-8 3-10-4z" />
+                                      <path d="M14 10l7-3v11l-7 3" />
+                                      <path d="M3 6v11l8 3" />
+                                    </svg>
+                                    Maps
+                                  </a>
+                                )}
+                              </div>
+                              {item.lat !== undefined && item.lng !== undefined && (
+                                <span className="text-xs text-mutedForeground sm:ml-auto">
+                                  {item.lat.toFixed(4)}, {item.lng.toFixed(4)}
+                                </span>
                               )}
                             </div>
-                            {item.lat !== undefined && item.lng !== undefined && (
-                              <span className="text-xs text-mutedForeground sm:ml-auto">
-                                {item.lat.toFixed(4)}, {item.lng.toFixed(4)}
-                              </span>
+                          ))}
+                        </div>
+                        
+                        {/* Notas y estadísticas */}
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                              Notas clave
+                            </p>
+                            {day.notes.length > 0 ? (
+                              <div className="mt-2 flex flex-wrap gap-2 text-xs text-mutedForeground">
+                                {day.notes.map(note => (
+                                  <span key={note} className="rounded-full border border-border px-3 py-1">
+                                    {note}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-xs text-mutedForeground">Sin notas adicionales.</p>
                             )}
                           </div>
-                        ))}
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                            Notas clave
-                          </p>
-                          {day.notes.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-mutedForeground">
-                              {day.notes.map(note => (
-                                <span key={note} className="rounded-full border border-border px-3 py-1">
-                                  {note}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-2 text-xs text-mutedForeground">Sin notas adicionales.</p>
-                          )}
+                          <div className="rounded-xl border border-border bg-background p-4 text-sm">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                              Bloques del día
+                            </p>
+                            <p className="mt-2 text-base font-semibold text-foreground">
+                              {day.schedule.length} momentos planificados
+                            </p>
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-border bg-background p-4 text-sm">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                            Bloques del día
-                          </p>
-                          <p className="mt-2 text-base font-semibold text-foreground">
-                            {day.schedule.length} momentos planificados
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
+                      </CardContent>
                     </Card>
-                  </div>
+                  </TabsContent>
+                ))}
+              </UITabs>
+              
+              {/* Mapa general fijo en desktop */}
+              <div className="hidden lg:block">
+                <Card className="sticky top-4">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Mapa general</CardTitle>
+                    <CardDescription>Visualiza toda tu ruta</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div 
+                      className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
+                      onClick={() => setIsMapModalOpen(true)}
+                    >
+                      <div className="h-96 w-full">
+                        <MapContainer center={mapCenter} zoom={4} className="h-full w-full" ref={mapRef}>
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          {routePositions.length > 1 && (
+                            <Polyline positions={routePositions} pathOptions={{ color: '#9b87f5', weight: 3 }} />
+                          )}
+                          {visibleLocations.map(location => (
+                            <Marker key={location.city} position={[location.lat, location.lng]}>
+                              <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                                {location.city}
+                              </Tooltip>
+                              <Popup>{location.city}</Popup>
+                            </Marker>
+                          ))}
+                        </MapContainer>
+                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                          <Maximize2 className="h-6 w-6 text-primary" />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+          
+          {/* Mobile: Tabs con mapas */}
+          {isMobile && (
+            <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full">
+              <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
+                <TabsList className="inline-flex w-auto min-w-full">
+                  {filteredDays.map((day, index) => (
+                    <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap text-xs">
+                      Día {day.dayLabel}
+                    </TabsTrigger>
+                  ))}
+                  <TabsTrigger value="general" className="whitespace-nowrap text-xs">
+                    Mapa general
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              {filteredDays.map((day, index) => {
+                const dayPoints = day.schedule
+                  .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number')
+                  .map(item => ({
+                    position: [item.lat as number, item.lng as number] as [number, number],
+                    label: item.activity,
+                    time: item.time,
+                  }));
+                const dayCenter = dayPoints.length > 0 
+                  ? dayPoints[0].position 
+                  : (currentDayLocation ? [currentDayLocation.lat, currentDayLocation.lng] as [number, number] : mapCenter);
+                
+                return (
+                  <TabsContent key={day.id} value={String(index)} className="mt-4 space-y-4">
+                    {/* Mapa del día */}
+                    {dayPoints.length > 0 && (
+                      <div 
+                        className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
+                        onClick={() => {
+                          setDayMapModalData({
+                            center: dayCenter,
+                            points: dayPoints.map(point => ({
+                              lat: point.position[0],
+                              lng: point.position[1],
+                              time: point.time,
+                              label: point.label,
+                              city: day.city,
+                              region: day.city,
+                            })),
+                          });
+                          setIsDayMapModalOpen(true);
+                        }}
+                      >
+                        <div className="h-64 w-full">
+                          <MapContainer center={dayCenter} zoom={12} className="h-full w-full">
+                            <TileLayer
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
+                            {dayPoints.map(point => (
+                              <Marker key={`${point.time}-${point.label}`} position={point.position}>
+                                <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                                  {point.time} · {point.label}
+                                </Tooltip>
+                                <Popup>
+                                  {point.time} · {point.label}
+                                </Popup>
+                              </Marker>
+                            ))}
+                          </MapContainer>
+                        </div>
+                        <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                          <div className="opacity-0 group-active:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                            <Maximize2 className="h-6 w-6 text-primary" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Info del día */}
+                    <Card>
+                      <CardHeader>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={kindVariants[day.kind]}>{kindLabels[day.kind]}</Badge>
+                          <Badge variant="secondary">Día {day.dayLabel}</Badge>
+                          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                            {day.date}
+                          </span>
+                        </div>
+                        <CardTitle>{day.city}</CardTitle>
+                        <CardDescription>{day.plan}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Timeline de actividades */}
+                        <div className="relative space-y-4">
+                          <div className="absolute left-3 top-2 h-[calc(100%-16px)] w-px bg-border" />
+                          {day.schedule.map((item, itemIndex) => (
+                            <div
+                              key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
+                              className="relative flex flex-col gap-2 pl-8 text-sm"
+                            >
+                              <span className="absolute left-1.5 top-2 h-3 w-3 rounded-full bg-primary" />
+                              <span className="w-auto font-semibold text-foreground">{item.time}</span>
+                              <div className="flex flex-col gap-1 text-mutedForeground">
+                                <span>{item.activity}</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {item.link && (
+                                    <a
+                                      href={item.link}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition active:bg-primary/30"
+                                    >
+                                      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
+                                        <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
+                                      </svg>
+                                      Entradas
+                                    </a>
+                                  )}
+                                  {item.mapLink && (
+                                    <a
+                                      href={item.mapLink}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition active:bg-emerald-200"
+                                    >
+                                      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 6l8-3 10 4-8 3-10-4z" />
+                                        <path d="M14 10l7-3v11l-7 3" />
+                                        <path d="M3 6v11l8 3" />
+                                      </svg>
+                                      Maps
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
                 );
               })}
-            </div>
-          </div>
+              
+              {/* Tab del mapa general en mobile */}
+              <TabsContent value="general" className="mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Mapa general</CardTitle>
+                    <CardDescription>Visualiza toda tu ruta</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div 
+                      className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
+                      onClick={() => setIsMapModalOpen(true)}
+                    >
+                      <div className="h-96 w-full">
+                        <MapContainer center={mapCenter} zoom={4} className="h-full w-full">
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          {routePositions.length > 1 && (
+                            <Polyline positions={routePositions} pathOptions={{ color: '#9b87f5', weight: 3 }} />
+                          )}
+                          {visibleLocations.map(location => (
+                            <Marker key={location.city} position={[location.lat, location.lng]}>
+                              <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                                {location.city}
+                              </Tooltip>
+                              <Popup>{location.city}</Popup>
+                            </Marker>
+                          ))}
+                        </MapContainer>
+                      </div>
+                      <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                        <div className="opacity-0 group-active:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                          <Maximize2 className="h-6 w-6 text-primary" />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </UITabs>
+          )}
+          
           {visibleDays === 0 && (
             <Card>
               <CardContent className="space-y-2 p-6 text-sm text-mutedForeground">
@@ -1057,24 +1236,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               </CardContent>
             </Card>
           )}
-          <div className="flex items-center gap-3 overflow-x-auto pb-2">
-            {filteredDays.map((day, index) => (
-              <button
-                key={day.id}
-                type="button"
-                onClick={() => goToIndex(index)}
-                className={`flex h-10 min-w-[2.5rem] items-center justify-center rounded-full border text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                  index === currentDayIndex
-                    ? 'border-primary bg-primary text-primaryForeground'
-                    : 'border-border bg-background text-mutedForeground hover:text-foreground'
-                }`}
-                aria-label={`Ir al día ${day.dayLabel}`}
-              >
-                {day.dayLabel}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-mutedForeground">Usa flechas, swipe o puntos para avanzar día por día.</p>
         </section>
         )}
 
