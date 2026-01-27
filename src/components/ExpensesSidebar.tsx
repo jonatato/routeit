@@ -5,7 +5,7 @@ import { MapPin, Plus, Receipt } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { fetchExpenses } from '../services/split';
+import { fetchSplit } from '../services/split';
 
 interface ExpenseUser {
   name: string;
@@ -40,8 +40,24 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Fetch all expenses from the split_expenses table
-        const allExpenses = await fetchExpenses();
+        // Fetch user's split groups
+        const { data: groups, error: groupsError } = await supabase
+          .from('split_groups')
+          .select('*')
+          .or(`owner_id.eq.${user.id},itinerary_id.not.is.null`)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (groupsError) throw groupsError;
+
+        if (!groups || groups.length === 0) {
+          setRealExpenses(null);
+          return;
+        }
+
+        // Fetch expenses for the most recent group
+        const splitData = await fetchSplit(groups[0].id);
+        const allExpenses = splitData.expenses;
         
         if (allExpenses.length === 0) {
           setRealExpenses(null);
@@ -68,7 +84,8 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         // Group by user (payer)
         const userMap = new Map<string, { name: string; amount: number }>();
         allExpenses.forEach(exp => {
-          const userName = exp.payer_name || 'Usuario';
+          const payerMember = splitData.members.find(m => m.id === exp.payer_id);
+          const userName = payerMember?.name || 'Usuario';
           if (userMap.has(exp.payer_id)) {
             userMap.get(exp.payer_id)!.amount += exp.amount;
           } else {
@@ -81,7 +98,8 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         // Group by category
         const categoryMap = new Map<string, number>();
         allExpenses.forEach(exp => {
-          const categoryName = exp.category_name || 'Otros';
+          const categoryData = splitData.categories.find(c => c.id === exp.category_id);
+          const categoryName = categoryData?.name || 'Otros';
           categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + exp.amount);
         });
 
