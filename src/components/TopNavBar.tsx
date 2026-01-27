@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, Receipt, ShoppingBag, Plane, Settings, Heart } from 'lucide-react';
+import { Search, Receipt, ShoppingBag, Plane, Settings, Heart, Map as MapIcon } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { Button } from './ui/button';
 import { NotificationBell } from './NotificationBell';
@@ -50,7 +50,7 @@ function TopNavBar() {
           </Link>
           <Link to="/app/guide">
             <Button variant="ghost" size="sm" className="gap-2">
-              <Map className="h-4 w-4" />
+              <MapIcon className="h-4 w-4" />
               Guía
             </Button>
           </Link>

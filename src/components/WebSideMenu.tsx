@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
-import { Home, Receipt, Heart, Map, Plane, ShoppingBag, Settings } from 'lucide-react';
+import { Home, Receipt, Heart, Map as MapIcon, Plane, ShoppingBag, Settings } from 'lucide-react';
 
 function WebSideMenu() {
   const location = useLocation();
@@ -11,7 +11,7 @@ function WebSideMenu() {
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
     { path: '/app/favorites', label: 'Favoritos', icon: Heart },
-    { path: '/app/guide', label: 'Guía', icon: Map },
+    { path: '/app/guide', label: 'Guía', icon: MapIcon },
     { path: '/app/itineraries', label: 'Mis viajes', icon: Plane },
   ];
   
