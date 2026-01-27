@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, Receipt, ShoppingBag, Plane, Settings } from 'lucide-react';
+import { Search, Receipt, ShoppingBag, Plane, Settings, Heart } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { Button } from './ui/button';
 import { NotificationBell } from './NotificationBell';
