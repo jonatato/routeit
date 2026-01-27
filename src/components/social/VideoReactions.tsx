@@ -43,7 +43,7 @@ export function VideoReactions({
   const [selectedReaction, setSelectedReaction] = useState<'like' | 'love' | 'fire' | 'laugh' | null>(null);
   const [reactionStats, setReactionStats] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
-  const { showToast } = useToast();
+  const toast = useToast();
 
   useEffect(() => {
     loadReactionStats();
@@ -60,7 +60,7 @@ export function VideoReactions({
 
   const handleReactionClick = async (reactionType: 'like' | 'love' | 'fire' | 'laugh') => {
     if (!currentUserId) {
-      showToast('Debes iniciar sesión para reaccionar', 'error');
+      toast.error('Debes iniciar sesión para reaccionar');
       return;
     }
 
@@ -75,19 +75,19 @@ export function VideoReactions({
       if (existingReaction) {
         await deleteReaction(existingReaction.id);
         setSelectedReaction(null);
-        showToast('Reacción eliminada', 'success');
+        toast.success('Reacción eliminada');
       } else {
         // Agregar nueva reacción
         await addReaction(videoId, currentUserId, reactionType);
         setSelectedReaction(reactionType);
-        showToast('¡Reacción agregada!', 'success');
+        toast.success('¡Reacción agregada!');
       }
       
       if (onReactionAdded) onReactionAdded();
       await loadReactionStats();
     } catch (error) {
       console.error('Error toggling reaction:', error);
-      showToast('Error al reaccionar', 'error');
+      toast.error('Error al reaccionar');
     } finally {
       setLoading(false);
     }
@@ -95,12 +95,12 @@ export function VideoReactions({
 
   const handleAddComment = async () => {
     if (!currentUserId) {
-      showToast('Debes iniciar sesión para comentar', 'error');
+      toast.error('Debes iniciar sesión para comentar');
       return;
     }
 
     if (!newComment.trim()) {
-      showToast('Escribe un comentario', 'error');
+      toast.error('Escribe un comentario');
       return;
     }
 
@@ -108,13 +108,13 @@ export function VideoReactions({
       setLoading(true);
       await addReaction(videoId, currentUserId, selectedReaction || 'like', newComment);
       setNewComment('');
-      showToast('Comentario agregado', 'success');
+      toast.success('Comentario agregado');
       
       if (onReactionAdded) onReactionAdded();
       await loadReactionStats();
     } catch (error) {
       console.error('Error adding comment:', error);
-      showToast('Error al comentar', 'error');
+      toast.error('Error al comentar');
     } finally {
       setLoading(false);
     }
@@ -124,13 +124,13 @@ export function VideoReactions({
     try {
       setLoading(true);
       await deleteReaction(reactionId);
-      showToast('Comentario eliminado', 'success');
+      toast.success('Comentario eliminado');
       
       if (onReactionAdded) onReactionAdded();
       await loadReactionStats();
     } catch (error) {
       console.error('Error deleting comment:', error);
-      showToast('Error al eliminar comentario', 'error');
+      toast.error('Error al eliminar comentario');
     } finally {
       setLoading(false);
     }

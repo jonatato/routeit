@@ -38,7 +38,7 @@ function SocialVideos() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [itineraryId, setItineraryId] = useState<string | null>(null);
-  const { showToast } = useToast();
+  const toast = useToast();
 
   useEffect(() => {
     loadCurrentUser();
@@ -111,7 +111,7 @@ function SocialVideos() {
       setTags(tagsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      showToast('Error al cargar videos', 'error');
+      toast.error('Error al cargar videos');
     } finally {
       setLoading(false);
     }
@@ -141,11 +141,11 @@ function SocialVideos() {
 
     try {
       await deleteVideo(videoToDelete);
-      showToast('Video eliminado', 'success');
+      toast.success('Video eliminado');
       await loadData();
     } catch (error) {
       console.error('Error deleting video:', error);
-      showToast('Error al eliminar video', 'error');
+      toast.error('Error al eliminar video');
     } finally {
       setShowDeleteConfirm(false);
       setVideoToDelete(null);

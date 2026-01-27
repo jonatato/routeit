@@ -40,7 +40,7 @@ export function VideoUploadDialog({
   const [newTagName, setNewTagName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { showToast } = useToast();
+  const toast = useToast();
 
   useEffect(() => {
     if (open) {
@@ -111,10 +111,10 @@ export function VideoUploadDialog({
       setAvailableTags([...availableTags, data]);
       setSelectedTags([...selectedTags, data.id]);
       setNewTagName('');
-      showToast('Tag creado', 'success');
+      toast.success('Tag creado');
     } catch (error) {
       console.error('Error creating tag:', error);
-      showToast('Error al crear tag', 'error');
+      toast.error('Error al crear tag');
     }
   };
 
@@ -128,7 +128,7 @@ export function VideoUploadDialog({
 
   const handleSubmit = async () => {
     if (!url || !preview) {
-      showToast('Ingresa una URL válida', 'error');
+      toast.error('Ingresa una URL válida');
       return;
     }
 
@@ -143,7 +143,7 @@ export function VideoUploadDialog({
         await addVideoTags(video.id, selectedTags);
       }
 
-      showToast('¡Video agregado!', 'success');
+      toast.success('¡Video agregado!');
       
       // Resetear form
       setUrl('');
@@ -156,7 +156,7 @@ export function VideoUploadDialog({
       onClose();
     } catch (error: any) {
       console.error('Error adding video:', error);
-      showToast(error.message || 'Error al agregar video', 'error');
+      toast.error(error.message || 'Error al agregar video');
     } finally {
       setLoading(false);
     }
