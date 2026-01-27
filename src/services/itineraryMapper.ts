@@ -6,6 +6,9 @@ export type DbItinerary = {
   title: string;
   date_range: string;
   intro: string;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
 };
 
 export type DbDay = {

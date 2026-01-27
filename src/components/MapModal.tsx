@@ -9,7 +9,7 @@ type Location = {
   lat: number;
   lng: number;
   label: string;
-  region: string;
+  region?: string;
 };
 
 type MapModalProps = {

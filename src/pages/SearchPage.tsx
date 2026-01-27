@@ -34,7 +34,7 @@ function SearchPage({ onClose }: SearchPageProps) {
 
       const itinerary = await fetchUserItinerary(user.id);
       if (itinerary) {
-        setItineraryId(itinerary.id);
+        setItineraryId(itinerary.id || null);
       }
     };
     loadItinerary();
