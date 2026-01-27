@@ -27,10 +27,13 @@ function Guide() {
   const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
+    console.log('[Guide] useEffect starting');
     const loadGuideData = async () => {
       try {
+        console.log('[Guide] loadGuideData starting');
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('[Guide] User:', user?.id || 'NO USER');
         if (!user) {
           setHasData(false);
           setLoading(false);
@@ -38,7 +41,7 @@ function Guide() {
         }
 
         // Get user's most recent itinerary
-        const { data: itinerary } = await supabase
+        const { data: itinerary, error: itineraryError } = await supabase
           .from('itineraries')
           .select('id')
           .eq('user_id', user.id)
@@ -47,28 +50,31 @@ function Guide() {
           .limit(1)
           .maybeSingle();
 
+        console.log('[Guide] Itinerary query result:', { itinerary, itineraryError });
+
         if (!itinerary) {
+          console.log('[Guide] No itinerary, setting hasData=false');
           setHasData(false);
           setLoading(false);
           return;
         }
 
         // Fetch phrases from the itinerary (this is where guide data could be stored)
-        const { data: phrases } = await supabase
+        const { data: phrases, error: phrasesError } = await supabase
           .from('phrases')
           .select('*')
           .eq('itinerary_id', itinerary.id);
 
+        console.log('[Guide] Phrases query result:', { phrasesCount: phrases?.length || 0, phrasesError });
+
+        // For now, we don't have structured guide sections, only phrases
+        // We'll consider "no data" until we implement proper guide section formatting
         // Check if there are any phrases (guide data)
-        if (!phrases || phrases.length === 0) {
-          setHasData(false);
-          setSections([]);
-        } else {
-          setHasData(true);
-          // In the future, you would map phrases to sections here
-          setSections([]);
-        }
+        console.log('[Guide] No structured guide sections, setting hasData=false');
+        setHasData(false);
+        setSections([]);
         
+        console.log('[Guide] Setting loading=false');
         setLoading(false);
 
       } catch (error) {
@@ -83,6 +89,7 @@ function Guide() {
   }, []);
 
   if (loading) {
+    console.log('[Guide Render] Loading state');
     return (
       <div className="min-h-screen bg-background">
         <div className="border-b border-border bg-white px-4 py-4 md:hidden">
@@ -111,6 +118,7 @@ function Guide() {
   }
 
   if (!hasData) {
+    console.log('[Guide Render] No data state');
     return (
       <div className="min-h-screen bg-background">
         <div className="border-b border-border bg-white px-4 py-4 md:hidden">
@@ -149,6 +157,7 @@ function Guide() {
     );
   }
 
+  console.log('[Guide Render] Has data state, sections:', sections.length);
   return (
     <div className="min-h-screen bg-background">
       {/* Header Mobile */}
