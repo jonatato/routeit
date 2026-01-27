@@ -536,7 +536,14 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                           <p className="text-sm text-mutedForeground">{tab.data.toCity}</p>
                         </div>
                       </div>
-                      <Button variant="outline" className="w-full border-2 text-base font-semibold">
+                      <Button
+                        variant="outline"
+                        className="w-full border-2 text-base font-semibold"
+                        onClick={() => {
+                          // Scroll a la sección del mapa interactivo
+                          mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                      >
                         Detalles del viaje
                       </Button>
                       <div className="flex items-center gap-3 rounded-2xl bg-purple-50 px-4 py-3 text-sm text-purple-700">
@@ -605,6 +612,10 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       onMouseLeave={() => setHoveredCity(null)}
                       onFocus={() => setHoveredCity(location.city)}
                       onBlur={() => setHoveredCity(null)}
+                      onClick={() => {
+                        // Centrar el mapa en la ciudad seleccionada
+                        mapRef.current?.setView([location.lat, location.lng], 9);
+                      }}
                       className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                         isActive ? 'border-primary bg-muted' : 'border-border hover:bg-muted'
                       }`}
