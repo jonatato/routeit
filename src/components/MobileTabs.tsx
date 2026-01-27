@@ -26,14 +26,17 @@ function MobileTabs() {
   };
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[70] bg-white/95 backdrop-blur-md safe-area-inset-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-      {/* Borde superior con forma curvada para el botón central */}
-      <div className="absolute inset-x-0 -top-[1px] h-[1px] bg-gradient-to-r from-border/20 via-transparent to-border/20">
-        {/* Curva/muesca para el botón central */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-5 w-24 h-6 bg-white/95 backdrop-blur-md rounded-t-full"></div>
+    <nav className="fixed bottom-0 left-0 right-0 z-[70] safe-area-inset-bottom">
+      {/* Borde con muesca curva para el botón central */}
+      <div className="relative">
+        <div className="absolute inset-x-0 top-0 h-20 bg-white/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.08)]" 
+             style={{
+               clipPath: 'polygon(0 30px, calc(50% - 50px) 30px, calc(50% - 40px) 15px, calc(50% - 30px) 5px, calc(50% - 20px) 0, calc(50% + 20px) 0, calc(50% + 30px) 5px, calc(50% + 40px) 15px, calc(50% + 50px) 30px, 100% 30px, 100% 100%, 0 100%)'
+             }}>
+        </div>
       </div>
       
-      <div className="mx-auto flex w-full items-end justify-around px-6 pt-4 pb-3">
+      <div className="relative mx-auto flex w-full items-end justify-around px-6 pt-2 pb-3 bg-white/95 backdrop-blur-md">
         {tabs.map(tab => {
           const isActive = tab.key === 'itinerary' 
             ? isItineraryActive()
@@ -45,12 +48,12 @@ function MobileTabs() {
               <Link
                 key={tab.key}
                 to={tab.path}
-                className="flex flex-col items-center justify-center gap-1 -mt-10"
+                className="flex flex-col items-center justify-center gap-1 -mt-12 relative z-10"
               >
-                <div className={`rounded-full p-4 shadow-[0_4px_16px_rgba(111,99,216,0.4)] ${isActive ? 'bg-primary' : 'bg-gray-100'}`}>
-                  <Icon className={`h-8 w-8 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                <div className={`rounded-full p-5 shadow-[0_4px_20px_rgba(111,99,216,0.5)] border-4 border-white ${isActive ? 'bg-primary' : 'bg-gray-100'}`}>
+                  <Icon className={`h-7 w-7 ${isActive ? 'text-white' : 'text-gray-600'}`} />
                 </div>
-                <span className={`text-xs font-medium ${isActive ? 'text-foreground' : 'text-gray-600'}`}>
+                <span className={`text-xs font-medium mt-1 ${isActive ? 'text-foreground' : 'text-gray-600'}`}>
                   {tab.label}
                 </span>
               </Link>
@@ -61,7 +64,7 @@ function MobileTabs() {
             <Link
               key={tab.key}
               to={tab.path}
-              className="flex flex-col items-center justify-center gap-1"
+              className="flex flex-col items-center justify-center gap-1 mt-4"
             >
               <div className={`rounded-xl p-2 ${isActive ? 'bg-primary' : 'bg-transparent'}`}>
                 <Icon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-gray-600'}`} />
