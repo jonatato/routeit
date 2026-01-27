@@ -40,18 +40,39 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Fetch user's split groups
+        // Get user's itinerary
+        const { data: itinerary } = await supabase
+          .from('itineraries')
+          .select('id')
+          .eq('owner_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!itinerary) {
+          setRealExpenses(null);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch split groups for this itinerary
         const { data: groups, error: groupsError } = await supabase
           .from('split_groups')
           .select('*')
-          .or(`owner_id.eq.${user.id},itinerary_id.not.is.null`)
+          .eq('itinerary_id', itinerary.id)
           .order('created_at', { ascending: false })
           .limit(1);
 
-        if (groupsError) throw groupsError;
+        if (groupsError) {
+          console.error('Error fetching groups:', groupsError);
+          setRealExpenses(null);
+          setLoading(false);
+          return;
+        }
 
         if (!groups || groups.length === 0) {
           setRealExpenses(null);
+          setLoading(false);
           return;
         }
 
@@ -61,6 +82,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         
         if (allExpenses.length === 0) {
           setRealExpenses(null);
+          setLoading(false);
           return;
         }
 
