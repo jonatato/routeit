@@ -57,11 +57,11 @@ export function generateEmbedCode(platform: 'tiktok' | 'instagram' | 'youtube', 
   switch (platform) {
     case 'tiktok':
       // TikTok requiere el script externo y usa blockquote
-      return `<blockquote class="tiktok-embed" cite="${videoUrl}" data-video-id="${videoId}" style="max-width: 605px; min-width: 325px;"><section></section></blockquote>`;
+      return `<blockquote class="tiktok-embed" cite="${videoUrl}" data-video-id="${videoId}" style="max-width: 605px; min-width: 325px; margin: 0 auto;"><section><a target="_blank" title="TikTok" href="${videoUrl}">Ver en TikTok</a></section></blockquote>`;
     case 'instagram':
-      return `<iframe src="https://www.instagram.com/reel/${videoId}/embed" width="400" height="600" frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen="true"></iframe>`;
+      return `<blockquote class="instagram-media" data-instgrm-permalink="${videoUrl}" data-instgrm-version="14" style="max-width:540px; min-width:326px; width:99.375%; margin: 0 auto;"></blockquote>`;
     case 'youtube':
-      return `<iframe width="400" height="600" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      return `<iframe width="100%" height="600" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="max-width: 605px; margin: 0 auto; display: block;"></iframe>`;
     default:
       return '';
   }

@@ -17,33 +17,54 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
   const [embedLoaded, setEmbedLoaded] = useState(false);
   const [embedError, setEmbedError] = useState(false);
   const embedRef = useRef<HTMLDivElement>(null);
+  const retryCountRef = useRef(0);
   const isOwner = currentUserId === video.user_id;
 
   useEffect(() => {
     if (mode === 'embed' && video.embed_code && embedRef.current) {
+      // Resetear contador de reintentos
+      retryCountRef.current = 0;
+      
       // Limpiar contenido previo
       embedRef.current.innerHTML = '';
       
       try {
         embedRef.current.innerHTML = video.embed_code;
         setEmbedLoaded(true);
+        setEmbedError(false);
         
         // Función para procesar embeds según la plataforma
         const processEmbed = () => {
+          // Límite de 10 reintentos (5 segundos)
+          if (retryCountRef.current >= 10) {
+            console.warn(`Embed script not loaded after 10 attempts for ${video.platform}`);
+            return;
+          }
+          
           if (video.platform === 'tiktok') {
             const tiktokEmbed = (window as any).tiktokEmbed;
             if (tiktokEmbed && typeof tiktokEmbed.process === 'function') {
-              tiktokEmbed.process();
+              try {
+                tiktokEmbed.process();
+              } catch (e) {
+                console.error('Error processing TikTok embed:', e);
+              }
             } else {
               // Reintentar si el script aún no está cargado
+              retryCountRef.current++;
               setTimeout(processEmbed, 500);
             }
           } else if (video.platform === 'instagram') {
             const instagramEmbed = (window as any).instgrm;
             if (instagramEmbed && typeof instagramEmbed.Embeds?.process === 'function') {
-              instagramEmbed.Embeds.process();
+              try {
+                instagramEmbed.Embeds.process();
+              } catch (e) {
+                console.error('Error processing Instagram embed:', e);
+              }
             } else {
               // Reintentar si el script aún no está cargado
+              retryCountRef.current++;
               setTimeout(processEmbed, 500);
             }
           }
