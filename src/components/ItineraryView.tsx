@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import { Link } from 'react-router-dom';
-import { Plus, Settings, Search } from 'lucide-react';
+import { Plus, Settings, Search, Maximize2 } from 'lucide-react';
 import type { TravelItinerary } from '../data/itinerary';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { Tabs } from 'flowbite-react';
@@ -14,6 +14,7 @@ import { fetchSectionPreferences, type SectionPreference } from '../services/sec
 import { supabase } from '../lib/supabase';
 import { exportItineraryToPDF } from '../services/pdfExport';
 import { PDFExportDialog } from './PDFExportDialog';
+import { MapModal } from './MapModal';
 
 const kindLabels = {
   flight: 'Vuelo',
@@ -54,6 +55,12 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const [showAllMarkers, setShowAllMarkers] = useState(true);
   const mapRef = useRef<LeafletMap | null>(null);
   const [isMapVisible, setIsMapVisible] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isDayMapModalOpen, setIsDayMapModalOpen] = useState(false);
+  const [dayMapModalData, setDayMapModalData] = useState<{
+    center: [number, number];
+    points: Array<{ lat: number; lng: number; time: string; label: string; city: string; region: string }>;
+  } | null>(null);
   const sliderRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const swipeState = useRef({ startX: 0, deltaX: 0, isDragging: false });
@@ -630,23 +637,30 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
             </Card>
             <Card className="relative z-0 overflow-hidden">
               <CardContent className="p-0">
-                <div className="relative z-0 h-[420px] w-full">
+                <div className="relative z-0 h-[420px] w-full cursor-pointer group" onClick={() => setIsMapModalOpen(true)}>
                   {isMapVisible && (
-                    <MapContainer center={mapCenter} zoom={5} className="h-full w-full" ref={mapRef}>
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                      <Polyline positions={routePositions} pathOptions={{ color: '#2563eb', weight: 3 }} />
-                      {visibleLocations.map(location => (
-                        <Marker key={location.city} position={[location.lat, location.lng]}>
-                          <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                            {location.label}
-                          </Tooltip>
-                          <Popup>{location.label}</Popup>
-                        </Marker>
-                      ))}
-                    </MapContainer>
+                    <>
+                      <MapContainer center={mapCenter} zoom={5} className="h-full w-full" ref={mapRef}>
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <Polyline positions={routePositions} pathOptions={{ color: '#2563eb', weight: 3 }} />
+                        {visibleLocations.map(location => (
+                          <Marker key={location.city} position={[location.lat, location.lng]}>
+                            <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                              {location.label}
+                            </Tooltip>
+                            <Popup>{location.label}</Popup>
+                          </Marker>
+                        ))}
+                      </MapContainer>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                          <Maximize2 className="h-6 w-6 text-primary" />
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -884,7 +898,23 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       </CardHeader>
                     <CardContent className="space-y-4">
                       {shouldShowDayMap && (
-                        <div className="overflow-hidden rounded-xl border border-border">
+                        <div 
+                          className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
+                          onClick={() => {
+                            setDayMapModalData({
+                              center: dayMapCenter,
+                              points: dayMapPoints.map(point => ({
+                                lat: point.position[0],
+                                lng: point.position[1],
+                                time: point.time,
+                                label: point.label,
+                                city: day.city,
+                                region: day.city,
+                              })),
+                            });
+                            setIsDayMapModalOpen(true);
+                          }}
+                        >
                           <div className="h-56 w-full sm:h-64">
                             <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
                               <TileLayer
@@ -902,6 +932,11 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                                 </Marker>
                               ))}
                             </MapContainer>
+                          </div>
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                              <Maximize2 className="h-6 w-6 text-primary" />
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1258,6 +1293,33 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         </div>
       </footer>
     </div>
+    
+    {/* Main Map Modal */}
+    <MapModal
+      isOpen={isMapModalOpen}
+      onClose={() => setIsMapModalOpen(false)}
+      center={mapCenter}
+      zoom={5}
+      locations={itinerary.locations}
+      routePositions={routePositions}
+      title="Mapa del recorrido"
+    />
+
+    {/* Day Map Modal */}
+    {dayMapModalData && (
+      <MapModal
+        isOpen={isDayMapModalOpen}
+        onClose={() => {
+          setIsDayMapModalOpen(false);
+          setDayMapModalData(null);
+        }}
+        center={dayMapModalData.center}
+        zoom={12}
+        locations={dayMapModalData.points}
+        routePositions={[]}
+        title={`Mapa del día - ${dayMapModalData.points[0]?.city || 'Día'}`}
+      />
+    )}
     </>
   );
 }
