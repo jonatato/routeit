@@ -44,7 +44,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         const { data: itinerary } = await supabase
           .from('itineraries')
           .select('id')
-          .eq('owner_id', user.id)
+          .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
