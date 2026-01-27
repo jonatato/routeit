@@ -40,14 +40,31 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Get user's itinerary
-        const { data: itinerary } = await supabase
+        // Get user's most recent itinerary (owned or collaborated)
+        // First try owned itineraries
+        let { data: ownedItinerary } = await supabase
           .from('itineraries')
           .select('id')
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
+
+        // If no owned itinerary, try collaborated itineraries
+        let itinerary = ownedItinerary;
+        if (!itinerary) {
+          const { data: collaboratedItineraries } = await supabase
+            .from('itinerary_collaborators')
+            .select('itinerary_id, itineraries!inner(id, updated_at)')
+            .eq('user_id', user.id)
+            .order('itineraries.updated_at', { ascending: false, foreignTable: 'itineraries' })
+            .limit(1)
+            .maybeSingle();
+
+          if (collaboratedItineraries) {
+            itinerary = { id: collaboratedItineraries.itinerary_id };
+          }
+        }
 
         if (!itinerary) {
           setRealExpenses(null);
