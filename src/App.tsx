@@ -314,6 +314,18 @@ function App() {
                   }
                 />
                 <Route
+                  path="/app/admin/sections"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <AdminSections />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
                   path="/app/profile"
                   element={
                     <RequireAuth>
