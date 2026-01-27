@@ -3,44 +3,44 @@
 @tailwind utilities;
 
 :root {
-  /* Panda Ninja Theme - Verde pastel, morado oscuro, amarillo dorado */
-  --background: 140 25% 98%;
-  --foreground: 0 0% 12%;
+  /* Soft lavender UI theme */
+  --background: 255 100% 98%;
+  --foreground: 240 15% 20%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 12%;
+  --card-foreground: 240 15% 18%;
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 12%;
-  --primary: 270 55% 28%;
+  --popover-foreground: 240 15% 18%;
+  --primary: 258 70% 60%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 140 40% 85%;
-  --secondary-foreground: 0 0% 15%;
-  --muted: 140 20% 94%;
-  --muted-foreground: 0 0% 40%;
-  --accent: 48 85% 58%;
-  --accent-foreground: 0 0% 12%;
-  --border: 140 15% 88%;
-  --ring: 270 55% 28%;
-  --radius: 14px;
+  --secondary: 255 60% 93%;
+  --secondary-foreground: 240 15% 22%;
+  --muted: 255 30% 94%;
+  --muted-foreground: 240 12% 45%;
+  --accent: 270 80% 88%;
+  --accent-foreground: 240 18% 20%;
+  --border: 255 30% 88%;
+  --ring: 258 70% 60%;
+  --radius: 18px;
 }
 
 .dark {
-  /* Panda Ninja Theme - Dark Mode */
-  --background: 0 0% 8%;
-  --foreground: 0 0% 95%;
-  --card: 0 0% 12%;
-  --card-foreground: 0 0% 95%;
-  --popover: 0 0% 12%;
-  --popover-foreground: 0 0% 95%;
-  --primary: 270 55% 65%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 140 30% 25%;
-  --secondary-foreground: 0 0% 95%;
-  --muted: 0 0% 18%;
-  --muted-foreground: 0 0% 65%;
-  --accent: 48 85% 65%;
-  --accent-foreground: 0 0% 8%;
-  --border: 0 0% 20%;
-  --ring: 270 55% 65%;
+  /* Soft lavender UI theme - Dark Mode */
+  --background: 240 16% 10%;
+  --foreground: 0 0% 96%;
+  --card: 240 18% 14%;
+  --card-foreground: 0 0% 96%;
+  --popover: 240 18% 14%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 258 80% 70%;
+  --primary-foreground: 240 16% 10%;
+  --secondary: 240 18% 20%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 240 12% 18%;
+  --muted-foreground: 240 8% 70%;
+  --accent: 260 50% 30%;
+  --accent-foreground: 0 0% 96%;
+  --border: 240 14% 22%;
+  --ring: 258 80% 70%;
 }
 
 * {
@@ -48,7 +48,7 @@
 }
 
 body {
-  background-color: hsl(var(--background));
+  background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
   color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

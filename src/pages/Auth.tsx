@@ -37,7 +37,7 @@ function Auth() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center gap-6 px-4 py-12 bg-gradient-to-br from-[hsl(140,40%,85%)] via-[hsl(270,30%,90%)] to-[hsl(140,25%,95%)]">
+    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center gap-6 px-4 py-12 bg-gradient-to-br from-[hsl(255,100%,98%)] via-[hsl(255,60%,96%)] to-[hsl(258,70%,94%)]">
       <div className="mb-6">
         <PandaLogo size="2xl" showText className="text-3xl" />
       </div>
@@ -54,7 +54,7 @@ function Auth() {
               onChange={event => setEmail(event.target.value)}
               type="email"
               placeholder="tu@email.com"
-              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </div>
           <div className="space-y-2">
@@ -64,7 +64,7 @@ function Auth() {
               onChange={event => setPassword(event.target.value)}
               type="password"
               placeholder="••••••••"
-              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </div>
           {status && <p className="text-sm text-mutedForeground">{status}</p>}

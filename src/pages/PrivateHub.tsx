@@ -93,7 +93,7 @@ function PrivateHub() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Título del viaje" error={errors.title} required>
-                <input
+                      <input
                   type="text"
                   value={newTitle}
                   onChange={e => {
@@ -103,7 +103,7 @@ function PrivateHub() {
                     }
                   }}
                   placeholder="Ej: Viaje a Japón 2024"
-                  className={`w-full rounded-lg border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 ${
+                        className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 ${
                     errors.title
                       ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
                       : 'border-border focus:border-primary focus:ring-primary/20'
@@ -112,7 +112,7 @@ function PrivateHub() {
                 />
               </FormField>
               <FormField label="Rango de fechas" error={errors.dateRange} required>
-                <input
+                      <input
                   type="text"
                   value={newDateRange}
                   onChange={e => {
@@ -122,7 +122,7 @@ function PrivateHub() {
                     }
                   }}
                   placeholder="Ej: 15-30 de marzo 2024"
-                  className={`w-full rounded-lg border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 ${
+                        className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 ${
                     errors.dateRange
                       ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
                       : 'border-border focus:border-primary focus:ring-primary/20'
