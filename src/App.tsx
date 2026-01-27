@@ -36,8 +36,15 @@ function App() {
   const isMobileShell = useIsMobileShell();
   const location = useLocation();
   const showSideMenu = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
-  const showExpensesSidebar = !isMobileShell && location.pathname === '/app' || location.search.includes('itineraryId=');
+  const showExpensesSidebar = !isMobileShell && (location.pathname === '/app' || location.search.includes('itineraryId='));
   const showMobileHeader = isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
+  
+  console.log('App.tsx - Debug:', {
+    isMobileShell,
+    pathname: location.pathname,
+    search: location.search,
+    showExpensesSidebar
+  });
   
   return (
     <>
