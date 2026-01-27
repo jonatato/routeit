@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Search, Bell } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 
 interface MobileHeaderProps {
   title?: string;
@@ -26,14 +25,7 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
               <Search className="h-5 w-5 text-gray-600" />
             </Button>
           </Link>
-          <div className="relative">
-            <Button variant="ghost" size="icon" className="relative h-9 w-9">
-              <Bell className="h-5 w-5 text-gray-600" />
-            </Button>
-            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-red-500 p-0 text-[10px] flex items-center justify-center">
-              3
-            </Badge>
-          </div>
+          <NotificationBell />
           <Link to="/app/profile">
             <Button variant="ghost" size="icon" className="relative h-9 w-9">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">

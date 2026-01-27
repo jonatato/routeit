@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Search, Bell, Heart, Receipt, Map, Plane } from 'lucide-react';
+import { Search, Heart, Receipt, Map, Plane, ShoppingBag } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { NotificationBell } from './NotificationBell';
 
 function TopNavBar() {
@@ -27,6 +26,12 @@ function TopNavBar() {
             <Button variant="ghost" size="sm" className="gap-2">
               <Receipt className="h-4 w-4" />
               Gastos
+            </Button>
+          </Link>
+          <Link to="/app/bag">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ShoppingBag className="h-4 w-4" />
+              Maleta
             </Button>
           </Link>
           <Link to="/app/favorites">

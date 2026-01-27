@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { List, MapPin, Receipt, Map, ShoppingBag } from 'lucide-react';
+import { List, MapPin, Receipt, Map, ShoppingBag, Heart, Plane } from 'lucide-react';
 
 type Tab = {
   key: string;
@@ -33,11 +33,11 @@ function MobileTabs() {
   };
 
   const tabs: Tab[] = [
-    { key: 'itinerary', label: 'Itinerario', path: '/app', icon: List },
-    { key: 'map', label: 'Mapa', action: handleMapClick, icon: MapPin },
-    { key: 'bag', label: 'Maleta', path: '/app/bag', icon: ShoppingBag },
+    { key: 'itinerary', label: 'Inicio', path: '/app', icon: List },
     { key: 'split', label: 'Gastos', path: '/app/split', icon: Receipt },
-    { key: 'guide', label: 'Guía', path: '/app/guide', icon: Map },
+    { key: 'bag', label: 'Maleta', path: '/app/bag', icon: ShoppingBag },
+    { key: 'favorites', label: 'Favoritos', path: '/app/favorites', icon: Heart },
+    { key: 'itineraries', label: 'Mis viajes', path: '/app/itineraries', icon: Plane },
   ];
   
   return (
