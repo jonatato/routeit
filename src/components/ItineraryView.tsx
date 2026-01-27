@@ -162,10 +162,9 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 
   const filteredDays = useMemo(() => {
     const normalizedQuery = normalizeText(searchQuery.trim());
-    // Primero filtrar días de vuelo y aplicar búsqueda/filtros
+    // Aplicar búsqueda/filtros
     const filtered = allDays.filter(day => {
-      // Excluir días de vuelo
-      if (day.kind === 'flight') return false;
+      // Incluir todos los días (flight, travel, city)
       
       const haystack = [
         day.city,
