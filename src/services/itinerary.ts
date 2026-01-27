@@ -60,8 +60,8 @@ async function fetchSingleItinerary(userId: string) {
 
   // Ordenar por updated_at o created_at (el más reciente primero)
   allItineraries.sort((a, b) => {
-    const dateA = new Date(a.updated_at ?? a.created_at).getTime();
-    const dateB = new Date(b.updated_at ?? b.created_at).getTime();
+    const dateA = new Date(a.updated_at || a.created_at || 0).getTime();
+    const dateB = new Date(b.updated_at || b.created_at || 0).getTime();
     return dateB - dateA; // Más reciente primero
   });
 
