@@ -269,6 +269,10 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
     lat: item.lat,
     lng: item.lng,
     order_index: item.order_index,
+    cost: item.cost,
+    cost_currency: item.cost_currency,
+    cost_payer_id: item.cost_payer_id,
+    cost_split_expense_id: item.cost_split_expense_id,
   }));
   const notePayload = seed.dayNotes.map(item => ({
     day_id: dayIdByOrder.get(item.dayOrder) ?? '',
@@ -284,6 +288,33 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
       .select('*');
     if (scheduleError) throw scheduleError;
     insertedScheduleItems = (data ?? []) as DbScheduleItem[];
+    
+    // Procesar gastos automáticos para actividades con costo
+    for (const item of insertedScheduleItems) {
+      if (item.cost && item.cost_payer_id && !item.cost_split_expense_id) {
+        try {
+          const { createExpenseFromActivity } = await import('./activityExpense');
+          const expenseId = await createExpenseFromActivity(
+            item.id,
+            itineraryId,
+            item.activity,
+            item.cost,
+            item.cost_currency ?? 'EUR',
+            item.cost_payer_id,
+            'equal',
+          );
+          
+          // Actualizar el schedule_item con el expense_id
+          await supabase
+            .from('schedule_items')
+            .update({ cost_split_expense_id: expenseId })
+            .eq('id', item.id);
+        } catch (err) {
+          console.error(`Error creando gasto para actividad "${item.activity}":`, err);
+          // No lanzamos el error para no bloquear el guardado del itinerario
+        }
+      }
+    }
   }
   if (notePayload.length > 0) {
     const { error: notesError } = await supabase.from('day_notes').insert(notePayload);
@@ -483,6 +514,10 @@ export async function saveUserItinerary(
     lat: item.lat,
     lng: item.lng,
     order_index: item.order_index,
+    cost: item.cost,
+    cost_currency: item.cost_currency,
+    cost_payer_id: item.cost_payer_id,
+    cost_split_expense_id: item.cost_split_expense_id,
   }));
   const notePayload = seed.dayNotes.map(item => ({
     day_id: dayIdByOrder.get(item.dayOrder) ?? '',
@@ -498,6 +533,33 @@ export async function saveUserItinerary(
       .select('*');
     if (scheduleError) throw scheduleError;
     insertedScheduleItems = (data ?? []) as DbScheduleItem[];
+    
+    // Procesar gastos automáticos para actividades con costo
+    for (const item of insertedScheduleItems) {
+      if (item.cost && item.cost_payer_id && !item.cost_split_expense_id) {
+        try {
+          const { createExpenseFromActivity } = await import('./activityExpense');
+          const expenseId = await createExpenseFromActivity(
+            item.id,
+            itineraryIdResolved,
+            item.activity,
+            item.cost,
+            item.cost_currency ?? 'EUR',
+            item.cost_payer_id,
+            'equal',
+          );
+          
+          // Actualizar el schedule_item con el expense_id
+          await supabase
+            .from('schedule_items')
+            .update({ cost_split_expense_id: expenseId })
+            .eq('id', item.id);
+        } catch (err) {
+          console.error(`Error creando gasto para actividad "${item.activity}":`, err);
+          // No lanzamos el error para no bloquear el guardado del itinerario
+        }
+      }
+    }
   }
   if (notePayload.length > 0) {
     const { error: notesError } = await supabase.from('day_notes').insert(notePayload);

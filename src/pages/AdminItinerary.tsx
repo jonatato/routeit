@@ -10,7 +10,6 @@ import { supabase } from '../lib/supabase';
 import { resolveMapsUrl } from '../services/maps';
 import { fetchItineraryById, fetchUserItinerary, saveUserItinerary, checkUserRole } from '../services/itinerary';
 import { ensureSplitGroup, fetchSplit, type SplitMember } from '../services/split';
-import { createExpenseFromActivity, syncActivityToExpense, deleteExpenseFromActivity } from '../services/activityExpense';
 import { useToast } from '../hooks/useToast';
 
 const listSections = [
@@ -380,37 +379,6 @@ function AdminItinerary() {
     }
     try {
       const saved = await saveUserItinerary(user.id, draft, draft.id);
-      
-      // Procesar gastos de actividades
-      if (saved.id) {
-        for (const day of saved.days) {
-          for (const item of day.schedule) {
-            // Si tiene costo y pagador, gestionar el gasto
-            if (item.cost && item.costPayerId) {
-              try {
-                if (item.costSplitExpenseId) {
-                  // Actualizar gasto existente
-                  await syncActivityToExpense(
-                    item.costSplitExpenseId,
-                    item.activity,
-                    item.cost,
-                    item.costPayerId,
-                  );
-                } else {
-                  // Crear nuevo gasto
-                  // Necesitamos el ID del schedule_item, que está en la BD
-                  // Por ahora, lo manejamos en el backend o lo creamos aquí
-                  console.log('Necesita crear gasto para:', item.activity);
-                }
-              } catch (err) {
-                console.error('Error gestionando gasto:', err);
-                toast.error(`No se pudo sincronizar el gasto de "${item.activity}"`);
-              }
-            }
-          }
-        }
-      }
-      
       setDraft(saved);
       setStatus('Cambios guardados.');
       toast.success('Cambios guardados correctamente');
