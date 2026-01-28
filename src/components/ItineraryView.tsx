@@ -336,7 +336,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       });
     } else {
       // Orden por defecto si no hay preferencias
-      ['overview', 'map', 'itinerary', 'foods', 'budget', 'guide'].forEach((key, index) => {
+      ['overview', 'map', 'itinerary', 'foods', 'budget'].forEach((key, index) => {
         config.set(key, { visible: true, order: index });
       });
     }
@@ -514,32 +514,34 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
             </div>
           </div>
 
-          <Card className="mt-2 bg-gradient-to-br from-white to-muted hidden lg:block">
-            <CardHeader>
-              <CardTitle>Resumen rápido</CardTitle>
-              <CardDescription>Todo lo esencial a un vistazo.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
-                <p className="text-sm text-mutedForeground">Total de días</p>
-                <p className="text-3xl font-semibold">{totalDays}</p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
-                <p className="text-sm text-mutedForeground">Ciudades</p>
-                <p className="text-3xl font-semibold">{itinerary.locations.length}</p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
-                <p className="text-sm text-mutedForeground">Traslados</p>
-                <p className="text-3xl font-semibold">{travelCount}</p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
-                <p className="text-sm text-mutedForeground">Vuelos</p>
-                <p className="text-3xl font-semibold">
-                  {itinerary.days.filter(day => day.kind === 'flight').length}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {shouldShowSection('overview') && (
+            <Card className="mt-2 bg-gradient-to-br from-white to-muted hidden lg:block">
+              <CardHeader>
+                <CardTitle>Resumen rápido</CardTitle>
+                <CardDescription>Todo lo esencial a un vistazo.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                  <p className="text-sm text-mutedForeground">Total de días</p>
+                  <p className="text-3xl font-semibold">{totalDays}</p>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                  <p className="text-sm text-mutedForeground">Ciudades</p>
+                  <p className="text-3xl font-semibold">{itinerary.locations.length}</p>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                  <p className="text-sm text-mutedForeground">Traslados</p>
+                  <p className="text-3xl font-semibold">{travelCount}</p>
+                </div>
+                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                  <p className="text-sm text-mutedForeground">Vuelos</p>
+                  <p className="text-3xl font-semibold">
+                    {itinerary.days.filter(day => day.kind === 'flight').length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </section>
 
         <section className="space-y-6" style={{ order: -1 }}>
@@ -651,7 +653,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                         mapRef.current?.setView([location.lat, location.lng], 9);
                       }}
                       className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                        isActive ? 'border-primary bg-muted' : 'border-border hover:bg-muted'
+                        isActive ? 'border-primary bg-primary/5' : 'border-border hover:bg-primary/5 hover:border-primary/30'
                       }`}
                       aria-pressed={isActive}
                     >
@@ -964,6 +966,18 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                                     Maps
                                   </a>
                                 )}
+                                {item.cost && (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                    title={`Gasto registrado en Split${item.costSplitExpenseId ? ' (sincronizado)' : ''}`}
+                                  >
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="12" y1="1" x2="12" y2="23" />
+                                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                    </svg>
+                                    {item.cost.toFixed(2)} {item.costCurrency ?? 'EUR'}
+                                  </span>
+                                )}
                               </div>
                               {item.lat !== undefined && item.lng !== undefined && (
                                 <span className="text-xs text-mutedForeground sm:ml-auto">
@@ -1006,65 +1020,23 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                   </TabsContent>
                 ))}
               </UITabs>
-              
-              {/* Mapa general fijo en desktop */}
-              <div className="hidden lg:block">
-                <Card className="sticky top-4">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Mapa general</CardTitle>
-                    <CardDescription>Visualiza toda tu ruta</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div 
-                      className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
-                      onClick={() => setIsMapModalOpen(true)}
-                    >
-                      <div className="h-96 w-full">
-                        <MapContainer center={mapCenter} zoom={4} className="h-full w-full" ref={mapRef}>
-                          <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          />
-                          {routePositions.length > 1 && (
-                            <Polyline positions={routePositions} pathOptions={{ color: '#9b87f5', weight: 3 }} />
-                          )}
-                          {visibleLocations.map(location => (
-                            <Marker key={location.city} position={[location.lat, location.lng]}>
-                              <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                {location.city}
-                              </Tooltip>
-                              <Popup>{location.city}</Popup>
-                            </Marker>
-                          ))}
-                        </MapContainer>
-                      </div>
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
-                          <Maximize2 className="h-6 w-6 text-primary" />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </div>
           )}
           
-          {/* Mobile: Tabs con mapas */}
+          {/* Mobile: Tabs con los días */}
           {isMobile && (
-            <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full">
-              <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
-                <TabsList className="inline-flex w-auto min-w-full">
-                  {filteredDays.map((day, index) => (
-                    <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap text-xs">
-                      Día {day.dayLabel}
-                    </TabsTrigger>
-                  ))}
-                  <TabsTrigger value="general" className="whitespace-nowrap text-xs">
-                    Mapa general
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+            <>
+              {/* Tabs solo con los días */}
+              <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full">
+                <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
+                  <TabsList className="inline-flex w-auto min-w-full">
+                    {filteredDays.map((day, index) => (
+                      <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap text-xs">
+                        Día {day.dayLabel}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
               
               {filteredDays.map((day, index) => {
                 const dayPoints = day.schedule
@@ -1191,48 +1163,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                   </TabsContent>
                 );
               })}
-              
-              {/* Tab del mapa general en mobile */}
-              <TabsContent value="general" className="mt-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Mapa general</CardTitle>
-                    <CardDescription>Visualiza toda tu ruta</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div 
-                      className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
-                      onClick={() => setIsMapModalOpen(true)}
-                    >
-                      <div className="h-96 w-full">
-                        <MapContainer center={mapCenter} zoom={4} className="h-full w-full">
-                          <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          />
-                          {routePositions.length > 1 && (
-                            <Polyline positions={routePositions} pathOptions={{ color: '#9b87f5', weight: 3 }} />
-                          )}
-                          {visibleLocations.map(location => (
-                            <Marker key={location.city} position={[location.lat, location.lng]}>
-                              <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                {location.city}
-                              </Tooltip>
-                              <Popup>{location.city}</Popup>
-                            </Marker>
-                          ))}
-                        </MapContainer>
-                      </div>
-                      <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
-                        <div className="opacity-0 group-active:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
-                          <Maximize2 className="h-6 w-6 text-primary" />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </UITabs>
+              </UITabs>
+            </>
           )}
           
           {visibleDays === 0 && (
@@ -1336,127 +1268,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               ))}
             </CardContent>
           </Card>
-        </section>
-        )}
-
-        {shouldShowSection('guide') && (
-          <section id="guide" className="space-y-6" style={{ order: getSectionOrder('guide') }}>
-          <div className="flex flex-col gap-2">
-            <h2 className="text-3xl font-semibold">Guía práctica completa</h2>
-            <p className="text-mutedForeground">Todo lo que necesitas para moverte y viajar sin estrés.</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle>Checklist de maleta</CardTitle>
-                <CardDescription>Imprescindibles y básicos.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.packing))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Dinero y pagos</CardTitle>
-                <CardDescription>Cómo pagar sin problemas.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.money))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Conectividad</CardTitle>
-                <CardDescription>Internet, VPN y mapas.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.connectivity))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Transporte</CardTitle>
-                <CardDescription>Trenes, metros y taxis.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.transport))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Seguridad</CardTitle>
-                <CardDescription>Precauciones básicas.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.safety))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Etiqueta local</CardTitle>
-                <CardDescription>Costumbres importantes.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.etiquette))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Clima en octubre</CardTitle>
-                <CardDescription>Qué esperar cada día.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.weather))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Estafas comunes</CardTitle>
-                <CardDescription>Cosas a evitar.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.scams))} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Presupuesto inteligente</CardTitle>
-                <CardDescription>Cómo ahorrar sin perder calidad.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.budgetTips))} />
-              </CardContent>
-            </Card>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card data-section="phrases">
-              <CardHeader>
-                <CardTitle>Frases útiles</CardTitle>
-                <CardDescription>Para moverte sin barreras.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-mutedForeground">
-                {itinerary.phrases.map(item => (
-                  <div
-                    key={item.spanish}
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3"
-                  >
-                    <span className="font-medium text-foreground">{item.spanish}</span>
-                    <span className="text-xs">{item.pinyin}</span>
-                    <span className="text-base font-semibold text-primary">{item.chinese}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Emergencias y ayuda</CardTitle>
-                <CardDescription>Números clave de emergencia.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.emergency))} />
-            </CardContent>
-          </Card>
-          </div>
         </section>
         )}
       </main>

@@ -8,6 +8,10 @@ export interface ScheduleItem {
   lat?: number;
   lng?: number;
   tags?: string[];
+  cost?: number;
+  costCurrency?: string;
+  costPayerId?: string;
+  costSplitExpenseId?: string;
 }
 
 export interface ItineraryDay {

@@ -101,7 +101,7 @@ function DynamicItinerary() {
             Crea tu primer itinerario personalizado y comienza a planificar tu viaje perfecto.
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link to="/app/private">
+            <Link to="/app/itineraries">
               <Button size="lg" className="w-full sm:w-auto">
                 Crear mi primer itinerario
               </Button>

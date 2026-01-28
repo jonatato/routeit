@@ -1,23 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Plus, Grid3x3, List, Filter, Video as VideoIcon } from 'lucide-react';
+import { Plus, Filter, Video as VideoIcon } from 'lucide-react';
 import { VideoCard } from '../components/social/VideoCard';
+import { VideoPreview } from '../components/social/VideoPreview';
+import { VideoFullscreenModal } from '../components/social/VideoFullscreenModal';
 import { VideoReactions } from '../components/social/VideoReactions';
 import { VideoUploadDialog } from '../components/social/VideoUploadDialog';
+import { VideoFilters } from '../components/social/VideoFilters';
 import type { SocialVideo } from '../services/socialVideos';
-import { 
-  fetchVideos, 
-  filterVideosByTags, 
-  deleteVideo
-} from '../services/socialVideos';
+import { fetchVideos, deleteVideo } from '../services/socialVideos';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../hooks/useToast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Skeleton } from '../components/ui/skeleton';
 import { PandaLogo } from '../components/PandaLogo';
+import { useIsMobileShell } from '../hooks/useIsMobileShell';
+import { useLocation } from 'react-router-dom';
 
 interface Tag {
   id: string;
@@ -28,6 +27,7 @@ interface Tag {
 
 function SocialVideos() {
   const location = useLocation();
+  const isMobile = useIsMobileShell();
   const [videos, setVideos] = useState<SocialVideo[]>([]);
   const [filteredVideos, setFilteredVideos] = useState<SocialVideo[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -39,6 +39,9 @@ function SocialVideos() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [itineraryId, setItineraryId] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedVideoForComments, setSelectedVideoForComments] = useState<string | null>(null);
+  const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -68,23 +71,34 @@ function SocialVideos() {
 
   const loadItineraryId = async () => {
     try {
-      // Get itinerary ID from URL or fetch the most recent one
       const params = new URLSearchParams(location.search);
       const urlItineraryId = params.get('itineraryId');
       
       if (urlItineraryId) {
         setItineraryId(urlItineraryId);
       } else {
-        // Fetch most recent itinerary
-        const { data: itineraries } = await supabase
+        const { data: ownedItineraries } = await supabase
           .from('itineraries')
           .select('id')
           .eq('user_id', currentUser.id)
+          .is('deleted_at', null)
           .order('updated_at', { ascending: false })
           .limit(1);
 
-        if (itineraries && itineraries.length > 0) {
-          setItineraryId(itineraries[0].id);
+        if (ownedItineraries && ownedItineraries.length > 0) {
+          setItineraryId(ownedItineraries[0].id);
+        } else {
+          const { data: sharedItineraries } = await supabase
+            .from('itinerary_collaborators')
+            .select('itinerary_id, itineraries!inner(id, deleted_at)')
+            .eq('user_id', currentUser.id)
+            .is('itineraries.deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (sharedItineraries && sharedItineraries.length > 0) {
+            setItineraryId(sharedItineraries[0].itinerary_id);
+          }
         }
       }
     } catch (error) {
@@ -98,31 +112,29 @@ function SocialVideos() {
     try {
       setLoading(true);
 
-      // Load videos
       const videosData = await fetchVideos(itineraryId);
       setVideos(videosData);
 
-      // Load tags
       const { data: tagsData } = await supabase
         .from('tags')
         .select('*')
         .eq('itinerary_id', itineraryId)
         .order('name');
 
-      // Load cities from itinerary locations as special tags
       const { data: locationsData } = await supabase
         .from('locations')
         .select('city')
         .eq('itinerary_id', itineraryId)
         .order('order_index');
 
-      // Combine regular tags and city tags
-      const cityTags = (locationsData || []).map((loc, idx) => ({
-        id: `city-${loc.city}`,
-        name: `📍 ${loc.city}`,
-        slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
-        isCity: true
-      }));
+      const cityTags = (locationsData || [])
+        .filter((loc, idx, self) => self.findIndex(l => l.city === loc.city) === idx)
+        .map((loc) => ({
+          id: `city-${loc.city}`,
+          name: `📍 ${loc.city}`,
+          slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
+          isCity: true
+        }));
 
       const allTags = [...(tagsData || []), ...cityTags];
       setTags(allTags);
@@ -174,6 +186,24 @@ function SocialVideos() {
     setShowDeleteConfirm(true);
   };
 
+  const handleCommentsOpen = (videoId: string) => {
+    setSelectedVideoForComments(videoId);
+  };
+
+  const handleNavigate = (direction: 'prev' | 'next') => {
+    if (selectedVideoIndex === null) return;
+    
+    if (direction === 'prev' && selectedVideoIndex > 0) {
+      setSelectedVideoIndex(selectedVideoIndex - 1);
+    } else if (direction === 'next' && selectedVideoIndex < filteredVideos.length - 1) {
+      setSelectedVideoIndex(selectedVideoIndex + 1);
+    }
+  };
+
+  const selectedVideo = selectedVideoIndex !== null 
+    ? filteredVideos[selectedVideoIndex] 
+    : null;
+
   if (loading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
@@ -203,121 +233,107 @@ function SocialVideos() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <VideoIcon className="h-8 w-8 text-primary" />
-            Videos de la Ruta
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {videos.length} video{videos.length !== 1 ? 's' : ''} guardado{videos.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+    <div className={isMobile ? '' : 'container mx-auto p-6 space-y-6'}>
+      {/* Desktop Header */}
+      {!isMobile && (
+        <>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <VideoIcon className="h-8 w-8 text-primary" />
+                Videos de la Ruta
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {videos.length} video{videos.length !== 1 ? 's' : ''} guardado{videos.length !== 1 ? 's' : ''}
+              </p>
+            </div>
 
-        <div className="flex gap-2">
-          {/* View Mode Toggle */}
-          <div className="flex gap-1 p-1 bg-muted rounded-lg">
-            <Button
-              variant={viewMode === 'embed' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('embed')}
-              className="h-8"
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'thumbnail' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('thumbnail')}
-              className="h-8"
-            >
-              <List className="h-4 w-4" />
+            <Button onClick={() => setShowUploadDialog(true)} className="shadow-lg">
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar Video
             </Button>
           </div>
 
-          {/* Add Video Button */}
-          <Button onClick={() => setShowUploadDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar Video
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      {tags.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Filtrar por tags
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2 flex-wrap">
-              {tags.map(tag => (
-                <Badge
-                  key={tag.id}
-                  variant={selectedTags.includes(tag.id) ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => toggleTag(tag.id)}
-                >
-                  #{tag.name}
-                </Badge>
-              ))}
-              {selectedTags.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedTags([])}
-                  className="h-6 text-xs"
-                >
-                  Limpiar filtros
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          {/* Desktop Filters */}
+          {tags.length > 0 && (
+            <VideoFilters
+              tags={tags}
+              selectedTags={selectedTags}
+              onToggleTag={toggleTag}
+              onClearFilters={() => setSelectedTags([])}
+            />
+          )}
+        </>
       )}
 
-      {/* Videos Grid/List */}
+      {/* Mobile Floating Buttons */}
+      {isMobile && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+          {tags.length > 0 && (
+            <button
+              onClick={() => setShowFilters(true)}
+              className="relative h-10 w-10 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-primary/10 hover:border-primary/50 dark:hover:bg-primary/20 active:scale-95 transition-all shadow-lg"
+              aria-label="Abrir filtros"
+            >
+              <Filter className="h-5 w-5 text-gray-700 dark:text-gray-200" />
+              {selectedTags.length > 0 && (
+                <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center">
+                  <span className="text-xs font-bold text-white">{selectedTags.length}</span>
+                </div>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => setShowUploadDialog(true)}
+            className="h-10 w-10 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center hover:bg-primary active:scale-95 transition-all shadow-lg"
+            aria-label="Agregar video"
+          >
+            <Plus className="h-5 w-5 text-white" />
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Filters Modal */}
+      {isMobile && (
+        <VideoFilters
+          tags={tags}
+          selectedTags={selectedTags}
+          onToggleTag={toggleTag}
+          onClearFilters={() => setSelectedTags([])}
+          onClose={() => setShowFilters(false)}
+          isOpen={showFilters}
+        />
+      )}
+
+      {/* Videos Container */}
       {filteredVideos.length > 0 ? (
         <div className={
-          viewMode === 'embed'
-            ? 'grid gap-6 md:grid-cols-2 lg:grid-cols-3'
-            : 'space-y-4'
+          isMobile
+            ? 'grid grid-cols-2 gap-2 p-2 pb-20' // Mobile: grid 2 columns
+            : 'grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' // Desktop: grid 2-4 columns
         }>
-          {filteredVideos.map(video => (
-            <div key={video.id} className="space-y-4">
-              <VideoCard
-                video={video}
-                mode={viewMode}
-                onDelete={initiateDelete}
-                currentUserId={currentUser?.id}
-              />
-              <VideoReactions
-                videoId={video.id}
-                reactions={video.reactions || []}
-                currentUserId={currentUser?.id}
-                onReactionAdded={loadData}
-              />
-            </div>
+          {filteredVideos.map((video, index) => (
+            // Both mobile and desktop: Preview that opens fullscreen modal
+            <VideoPreview
+              key={video.id}
+              video={video}
+              onClick={() => setSelectedVideoIndex(index)}
+            />
           ))}
         </div>
       ) : (
-        <Card className="p-12">
-          <div className="flex flex-col items-center text-center space-y-4">
+        <div className={isMobile ? 'min-h-screen flex items-center justify-center p-6' : ''}>
+          <div className="flex flex-col items-center text-center space-y-4 max-w-md mx-auto">
             <VideoIcon className="h-16 w-16 text-muted-foreground" />
             <div>
               <h3 className="text-lg font-semibold mb-2">
                 {selectedTags.length > 0
-                  ? 'No hay videos con estos tags'
+                  ? 'No hay videos con estos filtros'
                   : 'Aún no hay videos'}
               </h3>
               <p className="text-muted-foreground mb-4">
                 {selectedTags.length > 0
-                  ? 'Prueba con otros filtros'
+                  ? 'Prueba con otros filtros o agrega nuevos videos'
                   : 'Agrega tus primeros TikToks, Reels o YouTube Shorts del viaje'}
               </p>
               {selectedTags.length === 0 && (
@@ -328,7 +344,23 @@ function SocialVideos() {
               )}
             </div>
           </div>
-        </Card>
+        </div>
+      )}
+
+      {/* Fullscreen Video Modal - Both Mobile and Desktop */}
+      {selectedVideo && selectedVideoIndex !== null && (
+        <VideoFullscreenModal
+          video={selectedVideo}
+          currentUserId={currentUser?.id}
+          isOwner={currentUser?.id === selectedVideo.user_id}
+          onClose={() => setSelectedVideoIndex(null)}
+          onDelete={initiateDelete}
+          onReactionUpdate={loadData}
+          onCommentsOpen={() => handleCommentsOpen(selectedVideo.id)}
+          videos={filteredVideos}
+          currentIndex={selectedVideoIndex}
+          onNavigate={handleNavigate}
+        />
       )}
 
       {/* Upload Dialog */}
@@ -355,6 +387,29 @@ function SocialVideos() {
         }}
         variant="destructive"
       />
+
+      {/* Comments Modal for Mobile */}
+      {isMobile && selectedVideoForComments && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-end"
+          onClick={() => setSelectedVideoForComments(null)}
+        >
+          <div 
+            className="bg-background rounded-t-3xl w-full max-h-[70vh] overflow-y-auto p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-4" />
+            <VideoReactions
+              videoId={selectedVideoForComments}
+              reactions={videos.find(v => v.id === selectedVideoForComments)?.reactions || []}
+              currentUserId={currentUser?.id}
+              onReactionAdded={() => {
+                loadData();
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

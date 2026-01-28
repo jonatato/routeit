@@ -195,7 +195,7 @@ function SearchPage({ onClose }: SearchPageProps) {
               const Icon = typeIcons[result.type];
               return (
                 <Link key={result.id} to="/app">
-                  <Card className="transition-colors hover:bg-muted/50">
+                  <Card className="transition-colors hover:bg-primary/5 hover:border-primary/30">
                     <CardHeader className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="rounded-lg bg-primary/10 p-2">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -8,7 +8,9 @@ import RichTextEditor from '../components/RichTextEditor';
 import type { ItineraryDay, TravelItinerary } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
 import { resolveMapsUrl } from '../services/maps';
-import { fetchItineraryById, fetchUserItinerary, saveUserItinerary } from '../services/itinerary';
+import { fetchItineraryById, fetchUserItinerary, saveUserItinerary, checkUserRole } from '../services/itinerary';
+import { ensureSplitGroup, fetchSplit, type SplitMember } from '../services/split';
+import { createExpenseFromActivity, syncActivityToExpense, deleteExpenseFromActivity } from '../services/activityExpense';
 import { useToast } from '../hooks/useToast';
 
 const listSections = [
@@ -121,6 +123,8 @@ function AdminItinerary() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [splitMembers, setSplitMembers] = useState<SplitMember[]>([]);
   const [activeSection, setActiveSection] = useState<
     'general' | 'flights' | 'budget' | 'lists' | 'phrases' | 'map' | 'days' | 'tags'
   >('general');
@@ -129,6 +133,7 @@ function AdminItinerary() {
   const [dayCoordInputs, setDayCoordInputs] = useState<Record<string, string>>({});
   const [mapResolveStatus, setMapResolveStatus] = useState<Record<string, boolean>>({});
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -150,6 +155,18 @@ function AdminItinerary() {
           setStatus('No se encontró ningún itinerario. Por favor, crea uno nuevo.');
           return;
         }
+        
+        // Verificar permisos del usuario
+        const role = await checkUserRole(user.id, dataItinerary.id || '');
+        setUserRole(role);
+        
+        // Si es viewer, redirigir a la vista del itinerario
+        if (role === 'viewer') {
+          toast.error('No tienes permisos para editar este itinerario');
+          navigate(`/app?itineraryId=${dataItinerary.id}`);
+          return;
+        }
+        
         setDraft(dataItinerary);
       } catch (err) {
         setStatus(err instanceof Error ? err.message : 'No se pudo cargar el itinerario.');
@@ -158,7 +175,21 @@ function AdminItinerary() {
       }
     };
     load();
-  }, [location.search]);
+  }, [location.search, navigate]);
+
+  useEffect(() => {
+    if (!draft?.id) return;
+    const loadSplitMembers = async () => {
+      try {
+        const group = await ensureSplitGroup(draft.id!);
+        const { members } = await fetchSplit(group.id);
+        setSplitMembers(members);
+      } catch (err) {
+        console.error('Error cargando miembros de Split:', err);
+      }
+    };
+    loadSplitMembers();
+  }, [draft?.id]);
 
   useEffect(() => {
     if (!draft) return;
@@ -330,6 +361,13 @@ function AdminItinerary() {
 
   const handleSave = async () => {
     if (!draft) return;
+    
+    // Verificar permisos antes de guardar
+    if (userRole === 'viewer') {
+      toast.error('No tienes permisos para guardar cambios');
+      return;
+    }
+    
     setIsSaving(true);
     setStatus(null);
     const { data } = await supabase.auth.getUser();
@@ -342,6 +380,37 @@ function AdminItinerary() {
     }
     try {
       const saved = await saveUserItinerary(user.id, draft, draft.id);
+      
+      // Procesar gastos de actividades
+      if (saved.id) {
+        for (const day of saved.days) {
+          for (const item of day.schedule) {
+            // Si tiene costo y pagador, gestionar el gasto
+            if (item.cost && item.costPayerId) {
+              try {
+                if (item.costSplitExpenseId) {
+                  // Actualizar gasto existente
+                  await syncActivityToExpense(
+                    item.costSplitExpenseId,
+                    item.activity,
+                    item.cost,
+                    item.costPayerId,
+                  );
+                } else {
+                  // Crear nuevo gasto
+                  // Necesitamos el ID del schedule_item, que está en la BD
+                  // Por ahora, lo manejamos en el backend o lo creamos aquí
+                  console.log('Necesita crear gasto para:', item.activity);
+                }
+              } catch (err) {
+                console.error('Error gestionando gasto:', err);
+                toast.error(`No se pudo sincronizar el gasto de "${item.activity}"`);
+              }
+            }
+          }
+        }
+      }
+      
       setDraft(saved);
       setStatus('Cambios guardados.');
       toast.success('Cambios guardados correctamente');
@@ -431,78 +500,101 @@ function AdminItinerary() {
         </div>
 
         {/* Tabs Navigation */}
-        <div className="mb-6 flex gap-2 overflow-x-auto no-scrollbar">
-          <Button
-            variant={activeSection === 'general' ? 'default' : 'outline'}
-            size="sm"
+        <div className="flex gap-0.5 overflow-x-auto no-scrollbar bg-muted/30 p-1 rounded-t-lg">
+          <button
             onClick={() => setActiveSection('general')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'general'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             General
-          </Button>
-          <Button
-            variant={activeSection === 'days' ? 'default' : 'outline'}
-            size="sm"
+          </button>
+          <button
             onClick={() => setActiveSection('days')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'days'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             Días
-          </Button>
-          <Button
-            variant={activeSection === 'flights' ? 'default' : 'outline'}
-            size="sm"
+          </button>
+          <button
             onClick={() => setActiveSection('flights')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'flights'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             Vuelos
-          </Button>
-          <Button
-            variant={activeSection === 'budget' ? 'default' : 'outline'}
-            size="sm"
+          </button>
+          <button
             onClick={() => setActiveSection('budget')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'budget'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             Presupuesto
-          </Button>
-          <Button
-            variant={activeSection === 'lists' ? 'default' : 'outline'}
-            size="sm"
+          </button>
+          <button
             onClick={() => setActiveSection('lists')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'lists'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             Listas
-          </Button>
-          <Button
-            variant={activeSection === 'map' ? 'default' : 'outline'}
-            size="sm"
+          </button>
+          <button
             onClick={() => setActiveSection('map')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'map'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             Mapa
-          </Button>
-          <Button
-            variant={activeSection === 'phrases' ? 'default' : 'outline'}
-            size="sm"
+          </button>
+          <button
             onClick={() => setActiveSection('phrases')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'phrases'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             Frases
-          </Button>
-          <Button
-            variant={activeSection === 'tags' ? 'default' : 'outline'}
-            size="sm"
+          </button>
+          <button
             onClick={() => setActiveSection('tags')}
-            className="rounded-full shrink-0"
+            className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
+              activeSection === 'tags'
+                ? 'bg-background text-primary border-t border-x border-border shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
           >
             Etiquetas
-          </Button>
+          </button>
+          <Link to="/app/admin/sections">
+            <button
+              className="px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10"
+            >
+              Secciones →
+            </button>
+          </Link>
         </div>
-      {status && <p className="text-sm text-mutedForeground">{status}</p>}
+      {status && <p className="text-sm text-mutedForeground mb-6">{status}</p>}
 
       {/* Content Sections */}
-      <div className="space-y-6">
+      <div className="space-y-6 -mt-px">
           {activeSection === 'general' && (
-            <Card>
+            <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Información general</CardTitle>
           <CardDescription>Título, rango de fechas y descripción.</CardDescription>
@@ -533,7 +625,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'flights' && (
-            <Card>
+            <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Vuelos</CardTitle>
           <CardDescription>Salida y regreso.</CardDescription>
@@ -577,7 +669,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'budget' && (
-            <Card>
+            <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Presupuesto</CardTitle>
           <CardDescription>Configura los tiers diarios.</CardDescription>
@@ -677,7 +769,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'lists' && (
-            <Card>
+            <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Listas principales</CardTitle>
           <CardDescription>Un elemento por línea.</CardDescription>
@@ -700,7 +792,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'phrases' && (
-            <Card>
+            <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Frases útiles</CardTitle>
           <CardDescription>Editar, añadir o eliminar frases.</CardDescription>
@@ -779,7 +871,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'map' && (
-            <Card>
+            <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Mapa</CardTitle>
           <CardDescription>Ciudades y ruta.</CardDescription>
@@ -835,7 +927,7 @@ function AdminItinerary() {
                         const text = await navigator.clipboard.readText();
                         if (text) handleLocationMapInput(index, text);
                       }}
-                      className="rounded border border-border bg-background p-1 text-mutedForeground hover:text-foreground"
+                      className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
                     >
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
@@ -851,7 +943,7 @@ function AdminItinerary() {
                         next[index] = { ...next[index], lat: 0, lng: 0 };
                         updateDraft({ locations: next });
                       }}
-                      className="rounded border border-border bg-background p-1 text-mutedForeground hover:text-foreground"
+                      className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
                     >
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="18" y1="6" x2="6" y2="18" />
@@ -876,7 +968,7 @@ function AdminItinerary() {
                     };
                     updateDraft({ locations: next });
                   }}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  className="hidden rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
                 <input
                   value={String(location.lng)}
@@ -891,7 +983,7 @@ function AdminItinerary() {
                     };
                     updateDraft({ locations: next });
                   }}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  className="hidden rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
                 <div className="flex items-center gap-2">
                   <Button
@@ -943,7 +1035,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'tags' && (
-            <Card>
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>Etiquetas</CardTitle>
                 <CardDescription>Crea etiquetas para actividades.</CardDescription>
@@ -1025,7 +1117,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'days' && (
-            <Card>
+            <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Días del itinerario</CardTitle>
           <CardDescription>Editar detalles, horarios, notas y etiquetas.</CardDescription>
@@ -1182,7 +1274,7 @@ function AdminItinerary() {
                                     const text = await navigator.clipboard.readText();
                                     if (text) handleScheduleLinkInput(scheduleIndex, text);
                                   }}
-                                  className="rounded border border-border bg-background p-1 text-mutedForeground hover:text-foreground"
+                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
                                 >
                                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
@@ -1193,7 +1285,7 @@ function AdminItinerary() {
                                   type="button"
                                   title="Borrar"
                                   onClick={() => handleScheduleLinkInput(scheduleIndex, '')}
-                                  className="rounded border border-border bg-background p-1 text-mutedForeground hover:text-foreground"
+                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
                                 >
                                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                                     <line x1="18" y1="6" x2="6" y2="18" />
@@ -1239,7 +1331,7 @@ function AdminItinerary() {
                                     const text = await navigator.clipboard.readText();
                                     if (text) handleScheduleMapInput(scheduleIndex, text);
                                   }}
-                                  className="rounded border border-border bg-background p-1 text-mutedForeground hover:text-foreground"
+                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
                                 >
                                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
@@ -1256,7 +1348,7 @@ function AdminItinerary() {
                                     next[scheduleIndex] = { ...next[scheduleIndex], lat: undefined, lng: undefined, mapLink: '' };
                                     updateDay(activeDayIndex, { schedule: next });
                                   }}
-                                  className="rounded border border-border bg-background p-1 text-mutedForeground hover:text-foreground"
+                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
                                 >
                                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                                     <line x1="18" y1="6" x2="6" y2="18" />
@@ -1284,7 +1376,7 @@ function AdminItinerary() {
                                 updateDay(activeDayIndex, { schedule: next });
                               }}
                               placeholder="Lat"
-                              className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              className="hidden min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
                             <input
                               value={item.lng ?? ''}
@@ -1300,8 +1392,88 @@ function AdminItinerary() {
                                 updateDay(activeDayIndex, { schedule: next });
                               }}
                               placeholder="Lng"
-                              className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              className="hidden min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
+                            
+                            {/* Campos de costo */}
+                            <div className="md:col-span-3 space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                              <h5 className="text-xs font-semibold text-mutedForeground flex items-center gap-2">
+                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <line x1="12" y1="1" x2="12" y2="23" />
+                                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                </svg>
+                                Gasto (opcional - se añade automáticamente a Split)
+                              </h5>
+                              <div className="grid gap-2 md:grid-cols-3">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={item.cost ?? ''}
+                                  onChange={event => {
+                                    const next = [...activeDay.schedule];
+                                    const value = event.target.value;
+                                    next[scheduleIndex] = {
+                                      ...item,
+                                      cost: value ? parseFloat(value) : undefined,
+                                    };
+                                    updateDay(activeDayIndex, { schedule: next });
+                                  }}
+                                  placeholder="Precio total (ej: 60)"
+                                  className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                />
+                                <select
+                                  value={item.costPayerId ?? ''}
+                                  onChange={event => {
+                                    const next = [...activeDay.schedule];
+                                    next[scheduleIndex] = {
+                                      ...item,
+                                      costPayerId: event.target.value || undefined,
+                                    };
+                                    updateDay(activeDayIndex, { schedule: next });
+                                  }}
+                                  className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                  disabled={!item.cost}
+                                >
+                                  <option value="">Quién pagó?</option>
+                                  {splitMembers.map(member => (
+                                    <option key={member.id} value={member.id}>
+                                      {member.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={item.costCurrency ?? 'EUR'}
+                                  onChange={event => {
+                                    const next = [...activeDay.schedule];
+                                    next[scheduleIndex] = {
+                                      ...item,
+                                      costCurrency: event.target.value,
+                                    };
+                                    updateDay(activeDayIndex, { schedule: next });
+                                  }}
+                                  className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                  disabled={!item.cost}
+                                >
+                                  <option value="EUR">EUR (€)</option>
+                                  <option value="USD">USD ($)</option>
+                                  <option value="GBP">GBP (£)</option>
+                                  <option value="JPY">JPY (¥)</option>
+                                  <option value="CNY">CNY (¥)</option>
+                                </select>
+                              </div>
+                              {item.cost && item.costPayerId && splitMembers.length > 0 && (
+                                <p className="text-xs text-mutedForeground">
+                                  💡 Se dividirá entre {splitMembers.length} personas ({(item.cost / splitMembers.length).toFixed(2)} {item.costCurrency ?? 'EUR'} por persona)
+                                </p>
+                              )}
+                              {splitMembers.length === 0 && item.cost && (
+                                <p className="text-xs text-orange-600">
+                                  ⚠️ Añade miembros en la sección de Gastos primero
+                                </p>
+                              )}
+                            </div>
+                            
                             <div className="flex items-center gap-1.5 md:gap-2 md:col-span-3 flex-wrap">
                               <Button
                                 variant="outline"

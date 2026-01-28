@@ -32,6 +32,10 @@ export type DbScheduleItem = {
   lat: number | null;
   lng: number | null;
   order_index: number;
+  cost: number | null;
+  cost_currency: string | null;
+  cost_payer_id: string | null;
+  cost_split_expense_id: string | null;
 };
 
 export type DbDayNote = {
@@ -287,6 +291,10 @@ export function mapDbToItinerary(args: {
           lat: item.lat ?? undefined,
           lng: item.lng ?? undefined,
           tags: tagsByScheduleItem.get(item.id) ?? [],
+          cost: item.cost ?? undefined,
+          costCurrency: item.cost_currency ?? undefined,
+          costPayerId: item.cost_payer_id ?? undefined,
+          costSplitExpenseId: item.cost_split_expense_id ?? undefined,
         })),
         tags: tagsByDayId.get(day.id) ?? [],
       })),

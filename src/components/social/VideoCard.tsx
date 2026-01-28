@@ -11,38 +11,34 @@ interface VideoCardProps {
   onDelete?: (videoId: string) => void;
   onEdit?: (videoId: string) => void;
   currentUserId?: string;
+  onReactionUpdate?: () => void;
+  onCommentsOpen?: () => void;
 }
 
-export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: VideoCardProps) {
+export function VideoCard({ 
+  video, 
+  mode, 
+  onDelete, 
+  onEdit, 
+  currentUserId,
+}: VideoCardProps) {
   const [embedError, setEmbedError] = useState(false);
   const embedRef = useRef<HTMLDivElement>(null);
   const retryCountRef = useRef(0);
   const isOwner = currentUserId === video.user_id;
 
   useEffect(() => {
-    console.log('VideoCard useEffect - mode:', mode, 'platform:', video.platform, 'embed_code:', video.embed_code?.substring(0, 100));
-    
     if (mode === 'embed' && video.embed_code && embedRef.current) {
-      // Resetear contador de reintentos
       retryCountRef.current = 0;
-      
-      // Limpiar contenido previo
       embedRef.current.innerHTML = '';
       
       try {
-        console.log('Setting innerHTML for', video.platform);
         embedRef.current.innerHTML = video.embed_code;
-        console.log('innerHTML set successfully, embedRef content:', embedRef.current.innerHTML.substring(0, 100));
         setEmbedError(false);
         
-        // Solo procesar TikTok embeds si el código contiene blockquote de TikTok
         if (video.platform === 'tiktok' && video.embed_code.includes('tiktok-embed')) {
-          // Función para procesar embeds de TikTok
           const processTikTok = () => {
-            // Límite de 10 reintentos (5 segundos)
             if (retryCountRef.current >= 10) {
-              console.log('TikTok embed script not loaded after 5 seconds');
-              // Para TikTok en localhost, mostrar una vista previa amigable
               if (embedRef.current && video.platform === 'tiktok') {
                 embedRef.current.innerHTML = `
                   <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 600px; padding: 2rem; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -57,11 +53,6 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
                          onmouseover="this.style.transform='scale(1.05)'"
                          onmouseout="this.style.transform='scale(1)'">
                         <span>Ver en TikTok</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                          <polyline points="15 3 21 3 21 9"></polyline>
-                          <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
                       </a>
                     </div>
                   </div>
@@ -74,12 +65,10 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
             if (tiktokEmbed && typeof tiktokEmbed.process === 'function') {
               try {
                 tiktokEmbed.process();
-                console.log('TikTok embed processed successfully');
               } catch (e) {
                 console.error('Error processing TikTok embed:', e);
               }
             } else {
-              // Reintentar si el script aún no está cargado
               retryCountRef.current++;
               setTimeout(processTikTok, 500);
             }
@@ -88,19 +77,14 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
           setTimeout(processTikTok, 100);
         }
         
-        // Para Instagram, si usa blockquote procesamos con su script
         if (video.platform === 'instagram' && video.embed_code.includes('instagram-media')) {
           const processInstagram = () => {
-            if (retryCountRef.current >= 10) {
-              console.log('Instagram embed script not loaded');
-              return;
-            }
+            if (retryCountRef.current >= 10) return;
             
             const instagramEmbed = (window as any).instgrm;
             if (instagramEmbed && typeof instagramEmbed.Embeds?.process === 'function') {
               try {
                 instagramEmbed.Embeds.process();
-                console.log('Instagram embed processed successfully');
               } catch (e) {
                 console.error('Error processing Instagram embed:', e);
               }
@@ -117,7 +101,7 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
         setEmbedError(true);
       }
     }
-  }, [mode, video.embed_code, video.platform]);
+  }, [mode, video.embed_code, video.platform, video.video_url]);
 
   const getPlatformColor = (platform: string) => {
     switch (platform) {
@@ -146,11 +130,11 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
   };
 
   if (mode === 'embed') {
-    // Altura específica por plataforma
     const containerHeight = video.platform === 'youtube' ? '700px' : '600px';
     
+    // Desktop: Card style with hover effects
     return (
-      <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+      <Card className="overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]">
         <CardContent className="p-0">
           {/* Video Embed */}
           <div 
@@ -185,35 +169,35 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
           </div>
 
           {/* Video Info */}
-          <div className="p-4 space-y-3">
-            {/* Platform Badge */}
-            <div className="flex items-center gap-2">
-              <Badge className={`${getPlatformColor(video.platform)} text-xs`}>
+          <div className="p-4 space-y-3 bg-gradient-to-b from-muted/30 to-background">
+            {/* Platform Badge & Tags */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className={`${getPlatformColor(video.platform)} text-xs shadow-md`}>
                 {getPlatformIcon(video.platform)} {video.platform.toUpperCase()}
               </Badge>
               {video.tags && video.tags.length > 0 && (
-                <div className="flex gap-1 flex-wrap">
+                <>
                   {video.tags.map((tag) => (
-                    <Badge key={tag.id} variant="outline" className="text-xs">
+                    <Badge key={tag.id} variant="outline" className="text-xs border-primary/30 text-primary">
                       #{tag.name}
                     </Badge>
                   ))}
-                </div>
+                </>
               )}
             </div>
 
             {/* Description */}
             {video.description && (
-              <p className="text-sm text-foreground">{video.description}</p>
+              <p className="text-sm text-foreground leading-relaxed">{video.description}</p>
             )}
 
             {/* Actions */}
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between pt-2 border-t border-border">
               <a
                 href={video.video_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+                className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1 transition-colors"
               >
                 <ExternalLink className="h-3 w-3" />
                 Ver original
@@ -226,7 +210,7 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
                       variant="ghost"
                       size="sm"
                       onClick={() => onEdit(video.id)}
-                      className="h-8 px-2"
+                      className="h-8 px-2 hover:bg-accent"
                     >
                       <Edit3 className="h-4 w-4" />
                     </Button>
@@ -236,7 +220,7 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
                       variant="ghost"
                       size="sm"
                       onClick={() => onDelete(video.id)}
-                      className="h-8 px-2 text-destructive hover:text-destructive"
+                      className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -252,7 +236,7 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
 
   // Thumbnail mode
   return (
-    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:scale-[1.01]">
       <CardContent className="p-0">
         <div className="flex gap-4 p-4">
           {/* Thumbnail */}
@@ -260,13 +244,13 @@ export function VideoCard({ video, mode, onDelete, onEdit, currentUserId }: Vide
             href={video.video_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0"
+            className="flex-shrink-0 group"
           >
             <div className="relative w-32 h-48 bg-gray-200 rounded-lg overflow-hidden">
               <img
                 src={video.thumbnail_url || 'https://placehold.co/400x600/9b87f5/ffffff?text=Video'}
                 alt="Video thumbnail"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition-colors">
                 <ExternalLink className="h-8 w-8 text-white" />

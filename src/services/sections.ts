@@ -17,7 +17,6 @@ export const DEFAULT_SECTIONS = [
   { key: 'itinerary', label: 'Itinerario' },
   { key: 'foods', label: 'Comidas típicas' },
   { key: 'budget', label: 'Presupuesto' },
-  { key: 'guide', label: 'Guía práctica' },
 ] as const;
 
 export async function fetchSectionPreferences() {

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { supabase } from '../lib/supabase';
 import { acceptShareLink, createShareLink, deleteItinerary, listCollaborators, listUserItineraries, removeCollaborator } from '../services/sharing';
+import { createEmptyItinerary } from '../services/itinerary';
 import { useToast } from '../hooks/useToast';
 
 type ShareRole = 'editor' | 'viewer';
@@ -23,10 +24,23 @@ function MyItineraries() {
   const [shareTarget, setShareTarget] = useState<string | null>(null);
   const [shareRole, setShareRole] = useState<ShareRole>('viewer');
   const [shareLink, setShareLink] = useState<string | null>(null);
-  const [collaborators, setCollaborators] = useState<Array<{ id: string; user_id: string; role: string }>>([]);
+  const [collaborators, setCollaborators] = useState<Array<{ 
+    id: string; 
+    user_id: string; 
+    role: string;
+    identifier: string;
+    email: string;
+    has_accepted: boolean;
+    is_pending: boolean;
+    token?: string;
+  }>>([]);
   const [acceptToken, setAcceptToken] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDateRange, setNewDateRange] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -122,6 +136,34 @@ function MyItineraries() {
     }
   };
 
+  const handleCreateItinerary = async () => {
+    if (!newTitle.trim() || !newDateRange.trim()) {
+      toast.error('Por favor, completa todos los campos');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Debes estar autenticado para crear un itinerario.');
+        return;
+      }
+
+      const newItineraryId = await createEmptyItinerary(user.id, newTitle, newDateRange);
+      toast.success(`Itinerario "${newTitle}" creado correctamente`);
+      setShowCreateModal(false);
+      setNewTitle('');
+      setNewDateRange('');
+      await load();
+      navigate(`/app/admin?itineraryId=${newItineraryId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo crear el itinerario.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
@@ -142,7 +184,7 @@ function MyItineraries() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link to="/app/private" aria-label="Volver">
+          <Link to="/app" aria-label="Volver">
             <Button variant="ghost" size="sm" className="rounded-full">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -152,6 +194,10 @@ function MyItineraries() {
             <p className="text-sm text-mutedForeground">Crea, comparte y gestiona.</p>
           </div>
         </div>
+        <Button onClick={() => setShowCreateModal(true)} size="lg">
+          <Plus className="h-5 w-5 mr-2" />
+          Crear Nuevo Itinerario
+        </Button>
       </div>
 
       <Card>
@@ -177,7 +223,7 @@ function MyItineraries() {
               <CardTitle>{itinerary.title}</CardTitle>
               <CardDescription>{itinerary.dateRange}</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
+            <CardContent className="flex flex-wrap items-center gap-2">
               <Link to={`/app?itineraryId=${itinerary.id}`}>
                 <Button variant="outline">Abrir</Button>
               </Link>
@@ -198,7 +244,7 @@ function MyItineraries() {
                   </Button>
                 </>
               )}
-              <span className="ml-auto rounded-full border border-border px-3 py-1 text-xs text-mutedForeground">
+              <span className="ml-auto rounded-full border border-border px-3 py-1 text-xs text-mutedForeground capitalize flex items-center">
                 {itinerary.role}
               </span>
             </CardContent>
@@ -248,16 +294,47 @@ function MyItineraries() {
                   Colaboradores
                 </p>
                 {collaborators.map(item => (
-                  <div key={item.id} className="flex items-center justify-between rounded-xl border border-border/70 bg-white/80 px-3 py-2 text-sm shadow-sm">
-                    <span>{item.user_id}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-mutedForeground">{item.role}</span>
+                  <div key={item.id} className="flex items-center gap-3 rounded-xl border border-border/70 bg-white/80 px-3 py-2 text-sm shadow-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`truncate ${item.is_pending ? 'text-mutedForeground italic' : ''}`}>
+                          {item.is_pending ? item.identifier : item.email}
+                        </span>
+                        {item.is_pending && (
+                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700 whitespace-nowrap">
+                            Pendiente
+                          </span>
+                        )}
+                        {!item.is_pending && (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 whitespace-nowrap">
+                            Aceptado
+                          </span>
+                        )}
+                      </div>
+                      {item.is_pending && item.token && (
+                        <p className="text-xs text-mutedForeground mt-1">
+                          Token: {item.token.substring(0, 8)}...
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary capitalize whitespace-nowrap">{item.role}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
                           if (!shareTarget) return;
-                          void removeCollaborator(item.id).then(() => openShare(shareTarget));
+                          if (item.is_pending) {
+                            // Eliminar el link de invitación
+                            void supabase
+                              .from('itinerary_share_links')
+                              .delete()
+                              .eq('id', item.id)
+                              .then(() => openShare(shareTarget));
+                          } else {
+                            // Eliminar colaborador
+                            void removeCollaborator(item.id).then(() => openShare(shareTarget));
+                          }
                         }}
                       >
                         Quitar
@@ -276,6 +353,63 @@ function MyItineraries() {
 
       {ownedItineraries.length === 0 && (
         <p className="text-sm text-mutedForeground">Aún no tienes itinerarios.</p>
+      )}
+
+      {/* Modal de creación */}
+      {showCreateModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowCreateModal(false)} />
+          <Card className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg z-50 shadow-2xl">
+            <CardHeader>
+              <CardTitle>Crear Nuevo Itinerario</CardTitle>
+              <CardDescription>Ingresa los detalles básicos para comenzar</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Título del viaje</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Viaje a Japón 2026"
+                  value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={isCreating}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Fechas del viaje</label>
+                <input
+                  type="text"
+                  placeholder="Ej: 15-30 Marzo 2026"
+                  value={newDateRange}
+                  onChange={e => setNewDateRange(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={isCreating}
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  onClick={handleCreateItinerary} 
+                  disabled={isCreating || !newTitle.trim() || !newDateRange.trim()}
+                  className="flex-1"
+                >
+                  {isCreating ? 'Creando...' : 'Crear Itinerario'}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewTitle('');
+                    setNewDateRange('');
+                  }}
+                  disabled={isCreating}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       <ConfirmDialog

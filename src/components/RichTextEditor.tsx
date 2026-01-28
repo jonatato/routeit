@@ -9,7 +9,7 @@ type RichTextEditorProps = {
 };
 
 const buttonBase =
-  'rounded-md border border-border px-2 py-1 text-xs font-medium transition hover:bg-muted';
+  'rounded-md border border-border px-2 py-1 text-xs font-medium transition hover:bg-primary/10 hover:border-primary/50';
 
 function RichTextEditor({ value, onChange }: RichTextEditorProps) {
   const editor = useEditor({

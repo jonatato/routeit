@@ -66,11 +66,12 @@ export function generateEmbedCode(platform: 'tiktok' | 'instagram' | 'youtube', 
       </blockquote>`;
       break;
     case 'instagram':
-      // Instagram oEmbed - usaremos iframe que es más confiable
-      embedCode = `<iframe src="https://www.instagram.com/p/${videoId}/embed/captioned" width="400" height="600" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;overflow:hidden;max-width:540px;width:100%;margin:0 auto;display:block;" allowfullscreen="true"></iframe>`;
+      // Instagram oEmbed - iframe responsive con controles mejorados
+      embedCode = `<iframe src="https://www.instagram.com/p/${videoId}/embed/captioned" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;overflow:hidden;width:100%;height:100%;min-height:600px;max-width:540px;margin:0 auto;display:block;background:white;" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" loading="lazy"></iframe>`;
       break;
     case 'youtube':
-      embedCode = `<iframe width="420" height="700" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="border: none; display: block; margin: 0 auto;"></iframe>`;
+      // YouTube iframe responsive con controles y autoplay deshabilitado
+      embedCode = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0&modestbranding=1" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="border: none; display: block; margin: 0 auto; width: 100%; height: 100%; min-height: 600px;" loading="lazy"></iframe>`;
       break;
     default:
       embedCode = '';
@@ -116,15 +117,16 @@ export async function fetchOEmbedHtml(platform: 'tiktok' | 'instagram' | 'youtub
 export function generateThumbnailUrl(platform: 'tiktok' | 'instagram' | 'youtube', videoId: string): string {
   switch (platform) {
     case 'tiktok':
-      // TikTok no tiene URLs de thumbnail públicas fáciles, retornar placeholder
-      return 'https://placehold.co/400x600/9b87f5/ffffff?text=TikTok';
+      // TikTok - placeholder con estilo mejorado
+      return 'https://placehold.co/400x600/000000/ffffff?text=TikTok+%F0%9F%8E%B5&font=roboto';
     case 'instagram':
-      // Instagram no permite thumbnails externos fácilmente
-      return 'https://placehold.co/400x600/E1306C/ffffff?text=Instagram';
+      // Instagram - placeholder con estilo mejorado
+      return 'https://placehold.co/400x600/E1306C/ffffff?text=Instagram+%F0%9F%93%B7&font=roboto';
     case 'youtube':
-      return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      // YouTube - intenta thumbnail de alta calidad, fallback a default
+      return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
     default:
-      return 'https://placehold.co/400x600/6b7280/ffffff?text=Video';
+      return 'https://placehold.co/400x600/6b7280/ffffff?text=Video&font=roboto';
   }
 }
 

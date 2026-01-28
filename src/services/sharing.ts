@@ -93,13 +93,54 @@ export async function listUserItineraries(userId: string): Promise<ItinerarySumm
 }
 
 export async function listCollaborators(itineraryId: string) {
-  const { data, error } = await supabase
+  // Primero obtener los colaboradores que ya aceptaron
+  const { data: acceptedCollabs, error: collabError } = await supabase
     .from('itinerary_collaborators')
-    .select('id, user_id, role, created_at')
+    .select('id, user_id, user_email, role, created_at')
     .eq('itinerary_id', itineraryId)
     .order('created_at', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  
+  if (collabError) throw collabError;
+  
+  // Obtener los enlaces pendientes
+  const { data: pendingLinks, error: linksError } = await supabase
+    .from('itinerary_share_links')
+    .select('id, token, role, created_at, expires_at')
+    .eq('itinerary_id', itineraryId)
+    .order('created_at', { ascending: true });
+  
+  if (linksError) throw linksError;
+  
+  // Para cada colaborador aceptado, usar el email guardado
+  const collaboratorsWithInfo = (acceptedCollabs ?? []).map((collab) => {
+    const email = collab.user_email || collab.user_id; // Fallback al user_id si no hay email
+    
+    return {
+      ...collab,
+      identifier: email,
+      email: email,
+      has_accepted: true,
+      is_pending: false,
+    };
+  });
+  
+  // Agregar enlaces pendientes
+  const pendingCollaborators = (pendingLinks ?? [])
+    .filter(link => !link.expires_at || new Date(link.expires_at) > new Date())
+    .map(link => ({
+      id: link.id,
+      user_id: link.token,
+      user_email: '',
+      role: link.role,
+      created_at: link.created_at,
+      identifier: 'Invitación pendiente',
+      email: '',
+      has_accepted: false,
+      is_pending: true,
+      token: link.token,
+    }));
+  
+  return [...collaboratorsWithInfo, ...pendingCollaborators];
 }
 
 export async function removeCollaborator(collaboratorId: string) {

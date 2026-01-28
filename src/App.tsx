@@ -16,14 +16,11 @@ const AdminSections = lazy(() => import('./pages/AdminSections'));
 const DynamicItinerary = lazy(() => import('./pages/DynamicItinerary'));
 const MyBag = lazy(() => import('./pages/MyBag'));
 const MyItineraries = lazy(() => import('./pages/MyItineraries'));
-const PrivateHub = lazy(() => import('./pages/PrivateHub'));
 const ShareAccept = lazy(() => import('./pages/ShareAccept'));
 const Split = lazy(() => import('./pages/Split'));
 const StaticItinerary = lazy(() => import('./pages/StaticItinerary'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Analytics = lazy(() => import('./pages/Analytics'));
-const Favorites = lazy(() => import('./pages/Favorites'));
-const Guide = lazy(() => import('./pages/Guide'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const SocialVideos = lazy(() => import('./pages/SocialVideos'));
 
@@ -63,18 +60,6 @@ function App() {
                   <Suspense fallback={<LoadingFallback />}>
                     <PageTransition>
                       <DynamicItinerary />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/private"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <PrivateHub />
                     </PageTransition>
                   </Suspense>
                 </RequireAuth>
@@ -177,30 +162,6 @@ function App() {
               }
             />
             <Route
-              path="/app/favorites"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <Favorites />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/guide"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <Guide />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
               path="/app/memories"
               element={
                 <RequireAuth>
@@ -253,18 +214,6 @@ function App() {
                       <Suspense fallback={<LoadingFallback />}>
                         <PageTransition>
                           <DynamicItinerary />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/private"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <PrivateHub />
                         </PageTransition>
                       </Suspense>
                     </RequireAuth>
@@ -361,30 +310,6 @@ function App() {
                       <Suspense fallback={<LoadingFallback />}>
                         <PageTransition>
                           <Analytics />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/favorites"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <Favorites />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/guide"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <Guide />
                         </PageTransition>
                       </Suspense>
                     </RequireAuth>

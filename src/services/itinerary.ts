@@ -184,7 +184,7 @@ export async function fetchItineraryById(itineraryId: string): Promise<TravelIti
   return fetchItineraryData(data as DbItinerary);
 }
 
-async function getUserRole(userId: string, itineraryId: string) {
+async function getUserRole(userId: string, itineraryId: string): Promise<string | null> {
   const { data: owner } = await supabase
     .from('itineraries')
     .select('id')
@@ -200,6 +200,10 @@ async function getUserRole(userId: string, itineraryId: string) {
     .maybeSingle();
   if (error) throw error;
   return collaborator?.role ?? null;
+}
+
+export async function checkUserRole(userId: string, itineraryId: string): Promise<string | null> {
+  return getUserRole(userId, itineraryId);
 }
 
 export async function createEmptyItinerary(userId: string, title: string, dateRange: string): Promise<string> {

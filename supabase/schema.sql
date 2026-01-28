@@ -65,6 +65,7 @@ create table if not exists itinerary_collaborators (
   id uuid primary key default gen_random_uuid(),
   itinerary_id uuid not null references itineraries(id) on delete cascade,
   user_id uuid not null,
+  user_email text,
   role text not null check (role in ('owner','editor','viewer')),
   created_at timestamp with time zone default now(),
   unique (itinerary_id, user_id)
@@ -501,7 +502,14 @@ returns table (itinerary_id uuid, role text)
 language plpgsql
 security definer
 as $$
+declare
+  user_email_val text;
 begin
+  -- Obtener el email del usuario actual
+  select email into user_email_val
+  from auth.users
+  where id = auth.uid();
+
   return query
   with link as (
     select * from itinerary_share_links
@@ -510,10 +518,10 @@ begin
     limit 1
   ),
   inserted as (
-    insert into itinerary_collaborators (itinerary_id, user_id, role)
-    select link.itinerary_id, auth.uid(), link.role
+    insert into itinerary_collaborators (itinerary_id, user_id, user_email, role)
+    select link.itinerary_id, auth.uid(), user_email_val, link.role
     from link
-    on conflict (itinerary_id, user_id) do update set role = excluded.role
+    on conflict (itinerary_id, user_id) do update set role = excluded.role, user_email = user_email_val
     returning itinerary_id, role
   )
   select itinerary_id, role from inserted;
@@ -982,4 +990,176 @@ create policy "budget_tiers_write" on budget_tiers
     has_itinerary_write_access(itinerary_id)
   ) with check (
     has_itinerary_write_access(itinerary_id)
+  );
+
+-- Función para obtener el email de un usuario (solo accesible por usuarios autenticados)
+create or replace function get_user_email(user_uuid uuid)
+returns text
+language plpgsql
+security definer
+as $$
+declare
+  user_email text;
+begin
+  -- Obtener el email del usuario desde auth.users
+  select email into user_email
+  from auth.users
+  where id = user_uuid;
+  
+  return user_email;
+end;
+$$;
+
+revoke all on function get_user_email(uuid) from public;
+grant execute on function get_user_email(uuid) to authenticated;
+
+-- Función para actualizar emails de colaboradores existentes
+create or replace function update_collaborator_emails()
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  collab_record record;
+  email_val text;
+begin
+  for collab_record in 
+    select id, user_id 
+    from itinerary_collaborators 
+    where user_email is null
+  loop
+    -- Obtener email del usuario
+    select email into email_val
+    from auth.users
+    where id = collab_record.user_id;
+    
+    -- Actualizar el registro
+    if email_val is not null then
+      update itinerary_collaborators
+      set user_email = email_val
+      where id = collab_record.id;
+    end if;
+  end loop;
+end;
+$$;
+
+-- Ejecutar la función de migración una vez
+select update_collaborator_emails();
+
+-- Tablas para videos sociales
+create table if not exists social_videos (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  user_id uuid not null,
+  platform text not null check (platform in ('tiktok', 'instagram', 'youtube')),
+  video_url text not null,
+  embed_code text,
+  thumbnail_url text,
+  description text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+create table if not exists video_reactions (
+  id uuid primary key default gen_random_uuid(),
+  video_id uuid not null references social_videos(id) on delete cascade,
+  user_id uuid not null,
+  reaction_type text not null check (reaction_type in ('like', 'love', 'fire', 'laugh')),
+  comment text,
+  created_at timestamp with time zone default now(),
+  unique (video_id, user_id)
+);
+
+create table if not exists video_tags (
+  video_id uuid not null references social_videos(id) on delete cascade,
+  tag_id uuid not null references tags(id) on delete cascade,
+  primary key (video_id, tag_id)
+);
+
+create index if not exists social_videos_itinerary_id_idx on social_videos (itinerary_id);
+create index if not exists video_reactions_video_id_idx on video_reactions (video_id);
+create index if not exists video_tags_video_id_idx on video_tags (video_id);
+
+alter table social_videos enable row level security;
+alter table video_reactions enable row level security;
+alter table video_tags enable row level security;
+
+-- Políticas RLS para social_videos
+-- Cualquier persona con acceso al itinerario puede ver los videos
+create policy "social_videos_read" on social_videos
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+-- Solo usuarios con permisos de escritura pueden agregar videos
+create policy "social_videos_insert" on social_videos
+  for insert
+  with check (has_itinerary_write_access(itinerary_id));
+
+-- Solo el creador del video puede actualizar o eliminar
+create policy "social_videos_update" on social_videos
+  for update
+  using (user_id = auth.uid());
+
+create policy "social_videos_delete" on social_videos
+  for delete
+  using (user_id = auth.uid());
+
+-- Políticas RLS para video_reactions
+-- Cualquier persona con acceso al itinerario puede ver reacciones
+create policy "video_reactions_read" on video_reactions
+  for select
+  using (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = video_reactions.video_id
+        and has_itinerary_access(social_videos.itinerary_id)
+    )
+  );
+
+-- Usuarios con acceso al itinerario pueden agregar reacciones
+create policy "video_reactions_insert" on video_reactions
+  for insert
+  with check (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = video_reactions.video_id
+        and has_itinerary_access(social_videos.itinerary_id)
+    )
+  );
+
+-- Solo el creador de la reacción puede actualizarla o eliminarla
+create policy "video_reactions_update" on video_reactions
+  for update
+  using (user_id = auth.uid());
+
+create policy "video_reactions_delete" on video_reactions
+  for delete
+  using (user_id = auth.uid());
+
+-- Políticas RLS para video_tags
+create policy "video_tags_read" on video_tags
+  for select
+  using (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = video_tags.video_id
+        and has_itinerary_access(social_videos.itinerary_id)
+    )
+  );
+
+create policy "video_tags_write" on video_tags
+  for all
+  using (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = video_tags.video_id
+        and has_itinerary_write_access(social_videos.itinerary_id)
+    )
+  )
+  with check (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = video_tags.video_id
+        and has_itinerary_write_access(social_videos.itinerary_id)
+    )
   );

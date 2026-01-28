@@ -112,7 +112,7 @@ function Profile() {
           <h1 className="text-3xl font-semibold">{t('profile.title')}</h1>
           <p className="text-sm text-mutedForeground">Gestiona tu cuenta y preferencias</p>
         </div>
-        <Link to="/app/private">
+        <Link to="/app">
           <Button variant="outline">{t('common.cancel')}</Button>
         </Link>
       </div>
@@ -129,7 +129,7 @@ function Profile() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div>
             <label className="mb-1 block text-sm font-medium">Email</label>
             <input
@@ -137,15 +137,6 @@ function Profile() {
               value={user.email || ''}
               disabled
               className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-mutedForeground"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">ID de usuario</label>
-            <input
-              type="text"
-              value={user.id}
-              disabled
-              className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-mutedForeground font-mono text-xs"
             />
           </div>
         </CardContent>
@@ -156,7 +147,7 @@ function Profile() {
           <CardTitle className="text-destructive">Zona de peligro</CardTitle>
           <CardDescription>Acciones que no se pueden deshacer</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex justify-center sm:justify-start">
           <Button variant="destructive" onClick={handleSignOut} className="w-full sm:w-auto">
             <LogOut className="mr-2 h-4 w-4" />
             {t('auth.logout')}
