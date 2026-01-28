@@ -381,6 +381,10 @@ export function buildSeedPayloads(itinerary: TravelItinerary, itineraryId: strin
         lat: item.lat ?? null,
         lng: item.lng ?? null,
         order_index: index,
+        cost: item.cost ?? null,
+        cost_currency: item.costCurrency ?? null,
+        cost_payer_id: item.costPayerId ?? null,
+        cost_split_expense_id: item.costSplitExpenseId ?? null,
       });
     });
     day.notes.forEach((note, index) => {
