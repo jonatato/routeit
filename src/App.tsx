@@ -4,7 +4,7 @@ import RequireAuth from './components/RequireAuth';
 import MobileTabs from './components/MobileTabs';
 import MobileHeader from './components/MobileHeader';
 import WebSideMenu from './components/WebSideMenu';
-import ExpensesSidebar from './components/ExpensesSidebar';
+import WidgetsSidebar from './components/WidgetsSidebar';
 import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
 import { Skeleton } from './components/ui/skeleton';
@@ -34,14 +34,14 @@ function App() {
   const isMobileShell = useIsMobileShell();
   const location = useLocation();
   const showSideMenu = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
-  const showExpensesSidebar = !isMobileShell && (location.pathname === '/app' || location.search.includes('itineraryId='));
+  const showWidgetsSidebar = !isMobileShell && (location.pathname === '/app' || location.search.includes('itineraryId='));
   const showMobileHeader = isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
   
   console.log('App.tsx - Debug:', {
     isMobileShell,
     pathname: location.pathname,
     search: location.search,
-    showExpensesSidebar
+    showWidgetsSidebar
   });
   
   return (
@@ -342,7 +342,7 @@ function App() {
                 <Route path="*" element={<Navigate to="/static" replace />} />
               </Routes>
             </div>
-            {showExpensesSidebar && <ExpensesSidebar />}
+            {showWidgetsSidebar && <WidgetsSidebar />}
           </div>
         </div>
       )}

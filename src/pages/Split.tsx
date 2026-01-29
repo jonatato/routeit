@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { HeroBalance } from '../components/split/HeroBalance';
+import { ExpenseCard } from '../components/split/ExpenseCard';
+import { BalanceCard } from '../components/split/BalanceCard';
+import { SettleDebtsDialog } from '../components/split/SettleDebtsDialog';
+import { FloatingActionButton } from '../components/split/FloatingActionButton';
 import { supabase } from '../lib/supabase';
 import { listUserItineraries } from '../services/sharing';
 import { useNotifications } from '../context/NotificationContext';
@@ -345,7 +350,8 @@ function Split() {
   }
 
   return (
-    <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 overflow-x-hidden px-4 py-10 pb-24 md:pb-10">
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link to="/app" aria-label="Volver">
@@ -355,7 +361,7 @@ function Split() {
           </Link>
           <div>
             <h1 className="text-2xl font-semibold">División de gastos</h1>
-            <p className="text-sm text-mutedForeground">Divide gastos del itinerario.</p>
+            <p className="text-sm text-mutedForeground">Gestiona los gastos compartidos del viaje.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -368,16 +374,17 @@ function Split() {
         </div>
       </div>
 
-      <Card>
+      {/* Itinerary Selector */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader>
-          <CardTitle>Itinerario</CardTitle>
-          <CardDescription>Selecciona el itinerario del split.</CardDescription>
+          <CardTitle className="text-lg">🌍 Itinerario</CardTitle>
+          <CardDescription>Selecciona el viaje para gestionar sus gastos.</CardDescription>
         </CardHeader>
         <CardContent>
           <select
             value={activeItineraryId ?? ''}
             onChange={event => setActiveItineraryId(event.target.value)}
-            className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm shadow-sm"
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm shadow-sm transition-colors hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {itineraries.map(itinerary => (
               <option key={itinerary.id} value={itinerary.id}>
@@ -388,8 +395,24 @@ function Split() {
         </CardContent>
       </Card>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 gap-2 bg-white/80 p-2">
+      {/* Hero Balance */}
+      <HeroBalance balances={balances} currentUserId={currentUserId} />
+
+      {/* Settle Debts Button */}
+      {currentUserId && (
+        <SettleDebtsDialog
+          currentUserId={currentUserId}
+          balances={balances}
+          onSettle={async (fromId, toId, amount) => {
+            if (!groupId) return;
+            await addPayment(groupId, fromId, toId, amount);
+            await reloadData();
+          }}
+        />
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5 gap-2 bg-muted/50 p-2">
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="expenses">Gastos</TabsTrigger>
           <TabsTrigger value="payments">Pagos</TabsTrigger>
@@ -397,45 +420,41 @@ function Split() {
           <TabsTrigger value="reports">Reportes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="overview" className="space-y-6">
           {groupId && currentUserId && (
             <PaymentReminderNotification groupId={groupId} userId={currentUserId} />
           )}
-          <div className="grid gap-4 md:grid-cols-2">
+          
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2">
+            {/* Participantes */}
             <Card>
               <CardHeader>
-                <CardTitle>Participantes</CardTitle>
-                <CardDescription>Quién está en el split.</CardDescription>
+                <CardTitle>👥 Participantes</CardTitle>
+                <CardDescription>Personas que comparten los gastos</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {members.map(member => (
-                  <div key={member.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                    <span className="text-sm">{member.name}</span>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const newName = prompt('Nuevo nombre:', member.name);
-                          if (newName && newName.trim() && newName !== member.name) {
-                            void handleUpdateMember(member.id, newName.trim());
-                          }
-                        }}
-                      >
-                        Editar
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => void handleDeleteMember(member.id)}>
-                        Eliminar
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex flex-col gap-2 sm:flex-row">
+                {members.map(member => {
+                  const memberBalance = balances.find(b => b.member.id === member.id);
+                  return (
+                    <BalanceCard
+                      key={member.id}
+                      balance={memberBalance || { member, balance: 0 }}
+                      onEdit={() => {
+                        const newName = prompt('Nuevo nombre:', member.name);
+                        if (newName && newName.trim() && newName !== member.name) {
+                          void handleUpdateMember(member.id, newName.trim());
+                        }
+                      }}
+                      onDelete={() => void handleDeleteMember(member.id)}
+                    />
+                  );
+                })}
+                <div className="flex flex-col gap-2 sm:flex-row pt-4">
                   <input
                     value={newMember}
                     onChange={event => setNewMember(event.target.value)}
                     placeholder="Nuevo participante"
-                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && groupId && newMember.trim()) {
                         void (async () => {
@@ -468,49 +487,77 @@ function Split() {
                       }
                     }}
                   >
+                    <Plus className="h-4 w-4 mr-2" />
                     Añadir
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Balances</CardTitle>
-                <CardDescription>Quién debe a quién.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {balances.map(({ member, balance }) => (
-                  <div key={member.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                    <span>{member.name}</span>
-                    <span className={balance >= 0 ? 'text-emerald-600' : 'text-red-500'}>
-                      {balance >= 0 ? '+' : ''}
-                      {balance.toFixed(2)}
-                    </span>
+            {/* Quick Stats */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>📊 Estadísticas Rápidas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-muted-foreground md:text-sm">Total Gastado</div>
+                      <div className="text-lg font-bold truncate sm:text-xl md:text-2xl">
+                        {expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)} EUR
+                      </div>
+                    </div>
+                    <div className="text-3xl md:text-4xl flex-shrink-0 ml-2">💰</div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                  
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-muted-foreground md:text-sm">Número de Gastos</div>
+                      <div className="text-lg font-bold truncate sm:text-xl md:text-2xl">{expenses.length}</div>
+                    </div>
+                    <div className="text-3xl md:text-4xl flex-shrink-0 ml-2">📝</div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-muted-foreground md:text-sm">Promedio por Gasto</div>
+                      <div className="text-lg font-bold truncate sm:text-xl md:text-2xl">
+                        {expenses.length > 0
+                          ? (expenses.reduce((sum, exp) => sum + exp.amount, 0) / expenses.length).toFixed(2)
+                          : '0.00'}{' '}
+                        EUR
+                      </div>
+                    </div>
+                    <div className="text-3xl md:text-4xl flex-shrink-0 ml-2">📈</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          <DebtSimplification members={members} balances={balances} />
-
-          <div className="grid gap-4 md:grid-cols-2">
+          {/* Categorías y Etiquetas */}
+          <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Categorías</CardTitle>
+                <CardTitle>🏷 Categorías</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {categories.map(cat => (
-                  <div key={cat.id} className="text-sm">
-                    {cat.name}
-                  </div>
-                ))}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(cat => (
+                    <div
+                      key={cat.id}
+                      className="rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary"
+                    >
+                      {cat.name}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-2">
                   <input
                     type="text"
                     placeholder="Nueva categoría"
-                    className="flex-1 rounded border border-border bg-background px-2 py-1 text-sm"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                         void handleAddCategory(e.currentTarget.value);
@@ -536,21 +583,21 @@ function Split() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Etiquetas</CardTitle>
+                <CardTitle>🔖 Etiquetas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex flex-wrap gap-2">
                   {tags.map(tag => (
-                    <span key={tag.id} className="rounded-full bg-primary/10 px-2 py-1 text-xs">
+                    <span key={tag.id} className="rounded-full bg-secondary px-3 py-1 text-xs font-medium">
                       {tag.name}
                     </span>
                   ))}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-2">
                   <input
                     type="text"
                     placeholder="Nueva etiqueta"
-                    className="flex-1 rounded border border-border bg-background px-2 py-1 text-sm"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                         void handleAddTag(e.currentTarget.value);
@@ -576,7 +623,7 @@ function Split() {
           </div>
         </TabsContent>
 
-        <TabsContent value="expenses" className="space-y-4">
+        <TabsContent value="expenses" className="space-y-6">
           {showExpenseForm ? (
             <ExpenseForm
               members={members}
@@ -602,46 +649,61 @@ function Split() {
             />
           ) : (
             <>
-              <div className="flex justify-end">
-                <Button onClick={() => setShowExpenseForm(true)}>Nuevo gasto</Button>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">Lista de Gastos</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {expenses.length} {expenses.length === 1 ? 'gasto registrado' : 'gastos registrados'}
+                  </p>
+                </div>
+                <Button onClick={() => setShowExpenseForm(true)} size="lg">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nuevo Gasto
+                </Button>
               </div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Gastos</CardTitle>
-                  <CardDescription>Lista de todos los gastos</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {expenses.length === 0 ? (
-                    <p className="py-8 text-center text-muted-foreground">No hay gastos registrados</p>
-                  ) : (
-                    expenses.map(expense => {
-                      const payer = members.find(m => m.id === expense.payer_id);
-                      const category = categories.find(c => c.id === expense.category_id);
-                      return (
-                        <div
-                          key={expense.id}
-                          className="flex items-center justify-between rounded-lg border border-border px-3 py-2 hover:bg-muted/50 cursor-pointer"
-                          onClick={() => setViewingExpense(expense)}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{expense.title}</span>
-                              {category && (
-                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs">{category.name}</span>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(expense.expense_date || expense.created_at).toLocaleDateString('es-ES')} •{' '}
-                              {payer?.name}
-                            </div>
-                          </div>
-                          <span className="font-semibold">{Number(expense.amount).toFixed(2)}</span>
-                        </div>
-                      );
-                    })
-                  )}
-                </CardContent>
-              </Card>
+              
+              <div className="space-y-3">
+                {expenses.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-12">
+                      <div className="text-center">
+                        <div className="text-6xl mb-4">📝</div>
+                        <h3 className="text-lg font-semibold mb-2">No hay gastos registrados</h3>
+                        <p className="text-sm text-muted-foreground mb-6">
+                          Comienza añadiendo tu primer gasto compartido
+                        </p>
+                        <Button onClick={() => setShowExpenseForm(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Añadir Primer Gasto
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  expenses.map(expense => {
+                    const payer = members.find(m => m.id === expense.payer_id);
+                    const category = categories.find(c => c.id === expense.category_id);
+                    const expenseShares = shares.filter(s => s.expense_id === expense.id);
+                    
+                    return (
+                      <ExpenseCard
+                        key={expense.id}
+                        expense={expense}
+                        payer={payer}
+                        participantsCount={expenseShares.length}
+                        categoryIcon={category?.name === 'Comida' ? '🍜' : category?.name === 'Transporte' ? '🚕' : category?.name === 'Alojamiento' ? '🏨' : category?.name === 'Actividades' ? '🎫' : '📦'}
+                        categoryColor={category?.name === 'Comida' ? '#f59e0b' : category?.name === 'Transporte' ? '#3b82f6' : category?.name === 'Alojamiento' ? '#ec4899' : category?.name === 'Actividades' ? '#8b5cf6' : '#6b7280'}
+                        onClick={() => setViewingExpense(expense)}
+                        onEdit={() => {
+                          setEditingExpense(expense);
+                          setShowExpenseForm(true);
+                        }}
+                        onDelete={() => setConfirmDeleteExpense(expense.id)}
+                      />
+                    );
+                  })
+                )}
+              </div>
             </>
           )}
         </TabsContent>
@@ -746,6 +808,14 @@ function Split() {
         onConfirm={confirmDeleteMemberAction}
         onCancel={() => setConfirmDeleteMember(null)}
       />
+      
+      {/* FAB for mobile - Add expense quickly */}
+      {activeTab === 'expenses' && !showExpenseForm && (
+        <FloatingActionButton
+          onClick={() => setShowExpenseForm(true)}
+          label="Añadir gasto"
+        />
+      )}
     </div>
   );
 }

@@ -67,7 +67,7 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
               <button className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isAdminActive ? 'bg-primary/10' : 'hover:bg-gray-100'}`}>
                 <Settings className={`h-5 w-5 ${isAdminActive ? 'text-primary' : 'text-gray-600'}`} />
               </button>
-            </Link>
+          </Link>
           )}
           <NotificationBell />
           <Link to="/app/profile">

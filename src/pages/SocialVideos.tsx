@@ -130,11 +130,11 @@ function SocialVideos() {
       const cityTags = (locationsData || [])
         .filter((loc, idx, self) => self.findIndex(l => l.city === loc.city) === idx)
         .map((loc) => ({
-          id: `city-${loc.city}`,
-          name: `📍 ${loc.city}`,
-          slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
-          isCity: true
-        }));
+        id: `city-${loc.city}`,
+        name: `📍 ${loc.city}`,
+        slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
+        isCity: true
+      }));
 
       const allTags = [...(tagsData || []), ...cityTags];
       setTags(allTags);
@@ -237,22 +237,22 @@ function SocialVideos() {
       {/* Desktop Header */}
       {!isMobile && (
         <>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <VideoIcon className="h-8 w-8 text-primary" />
-                Videos de la Ruta
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {videos.length} video{videos.length !== 1 ? 's' : ''} guardado{videos.length !== 1 ? 's' : ''}
-              </p>
-            </div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <VideoIcon className="h-8 w-8 text-primary" />
+            Videos de la Ruta
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {videos.length} video{videos.length !== 1 ? 's' : ''} guardado{videos.length !== 1 ? 's' : ''}
+          </p>
+        </div>
 
             <Button onClick={() => setShowUploadDialog(true)} className="shadow-lg">
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Video
-            </Button>
-          </div>
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar Video
+          </Button>
+        </div>
 
           {/* Desktop Filters */}
           {tags.length > 0 && (
@@ -269,7 +269,7 @@ function SocialVideos() {
       {/* Mobile Floating Buttons */}
       {isMobile && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-          {tags.length > 0 && (
+      {tags.length > 0 && (
             <button
               onClick={() => setShowFilters(true)}
               className="relative h-10 w-10 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-primary/10 hover:border-primary/50 dark:hover:bg-primary/20 active:scale-95 transition-all shadow-lg"
@@ -316,9 +316,9 @@ function SocialVideos() {
             // Both mobile and desktop: Preview that opens fullscreen modal
             <VideoPreview
               key={video.id}
-              video={video}
+                video={video}
               onClick={() => setSelectedVideoIndex(index)}
-            />
+              />
           ))}
         </div>
       ) : (

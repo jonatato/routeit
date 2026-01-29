@@ -47,6 +47,14 @@
   border-color: hsl(var(--border));
 }
 
+body {
+  overflow-x: hidden;
+}
+
+#root {
+  overflow-x: hidden;
+}
+
 input,
 textarea,
 select {

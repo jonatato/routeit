@@ -26,6 +26,19 @@ export interface ItineraryDay {
   tags?: string[];
 }
 
+export interface Phrase {
+  spanish: string;
+  pinyin: string;
+  chinese: string;
+}
+
+export interface ItineraryLocation {
+  city: string;
+  label: string;
+  lat: number;
+  lng: number;
+}
+
 export interface TravelItinerary {
   id?: string;
   title: string;
@@ -48,13 +61,8 @@ export interface TravelItinerary {
   scams: string[];
   budgetTips: string[];
   emergency: string[];
-  phrases: Array<{ spanish: string; pinyin: string; chinese: string }>;
-  locations: Array<{
-    city: string;
-    label: string;
-    lat: number;
-    lng: number;
-  }>;
+  phrases: Phrase[];
+  locations: ItineraryLocation[];
   route: string[];
   flights: {
     outbound: {

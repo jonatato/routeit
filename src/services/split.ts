@@ -23,6 +23,7 @@ export type SplitExpense = {
   expense_date?: string;
   category_id?: string;
   receipt_url?: string;
+  schedule_item_id?: string; // Bidirectional link to schedule_items
   created_at: string;
 };
 
@@ -167,6 +168,7 @@ export async function addExpense(
   divisionType: 'equal' | 'percentage' | 'exact' | 'shares' = 'equal',
   expenseDate?: string,
   categoryId?: string,
+  scheduleItemId?: string, // Enlace bidireccional
 ) {
   const expenseData: any = {
     group_id: groupId,
@@ -177,6 +179,7 @@ export async function addExpense(
   };
   if (expenseDate) expenseData.expense_date = expenseDate;
   if (categoryId) expenseData.category_id = categoryId;
+  if (scheduleItemId) expenseData.schedule_item_id = scheduleItemId;
 
   const { data, error } = await supabase
     .from('split_expenses')

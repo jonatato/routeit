@@ -29,7 +29,7 @@ export async function createExpenseFromActivity(
     amount: divisionType === 'equal' ? cost / members.length : 0,
   }));
   
-  // 4. Crear el gasto en Split
+  // 4. Crear el gasto en Split con el enlace bidireccional
   const expense = await addExpense(
     group.id,
     payerId,
@@ -38,6 +38,8 @@ export async function createExpenseFromActivity(
     shares,
     divisionType,
     new Date().toISOString(),
+    undefined, // categoryId
+    scheduleItemId, // ← Enlace bidireccional
   );
   
   // 5. Actualizar el schedule_item con el ID del gasto creado

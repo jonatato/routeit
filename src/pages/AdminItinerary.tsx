@@ -5,6 +5,10 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Skeleton } from '../components/ui/skeleton';
 import RichTextEditor from '../components/RichTextEditor';
+import { AdminSidebar } from '../components/AdminSidebar';
+import { DaySelector } from '../components/DaySelector';
+import { ActivityCard } from '../components/ActivityCard';
+import { ActivityEditModal } from '../components/ActivityEditModal';
 import type { ItineraryDay, TravelItinerary } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
 import { resolveMapsUrl } from '../services/maps';
@@ -128,6 +132,7 @@ function AdminItinerary() {
     'general' | 'flights' | 'budget' | 'lists' | 'phrases' | 'map' | 'days' | 'tags'
   >('general');
   const [activeDayIndex, setActiveDayIndex] = useState(0);
+  const [editingActivity, setEditingActivity] = useState<{ dayIndex: number; activityIndex: number } | null>(null);
   const [mapCoordInputs, setMapCoordInputs] = useState<Record<number, string>>({});
   const [dayCoordInputs, setDayCoordInputs] = useState<Record<string, string>>({});
   const [mapResolveStatus, setMapResolveStatus] = useState<Record<string, boolean>>({});
@@ -1614,6 +1619,21 @@ function AdminItinerary() {
       </Card>
           )}
         </div>
+
+        <ActivityEditModal
+          isOpen={!!editingActivity}
+          onClose={() => setEditingActivity(null)}
+          item={editingActivity ? draft.days[editingActivity.dayIndex].schedule[editingActivity.activityIndex] : null}
+          onSave={(updatedItem) => {
+            if (!editingActivity) return;
+            const day = draft.days[editingActivity.dayIndex];
+            const newSchedule = [...day.schedule];
+            newSchedule[editingActivity.activityIndex] = updatedItem;
+            updateDay(editingActivity.dayIndex, { schedule: newSchedule });
+            setEditingActivity(null);
+          }}
+          splitMembers={splitMembers}
+        />
       </div>
     </div>
   );

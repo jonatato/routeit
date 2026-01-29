@@ -497,6 +497,29 @@ create policy "itinerary_section_preferences_owner" on itinerary_section_prefere
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+-- User widget preferences (persist user custom order/visibility per itinerary)
+create table if not exists user_widget_preferences (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  itinerary_id uuid references itineraries(id) on delete cascade,
+  widget_key text not null,
+  order_index integer not null default 0,
+  is_visible boolean not null default true,
+  is_pinned boolean not null default false,
+  is_collapsed boolean not null default false,
+  settings jsonb default '{}'::jsonb,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  unique (user_id, itinerary_id, widget_key)
+);
+
+alter table user_widget_preferences enable row level security;
+
+create policy "user_widget_preferences_owner" on user_widget_preferences
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 create or replace function accept_share_link(token_text text)
 returns table (itinerary_id uuid, role text)
 language plpgsql

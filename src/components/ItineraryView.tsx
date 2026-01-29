@@ -1282,6 +1282,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       </footer>
     </div>
     
+    {/* Modals - Outside main layout */}
     {/* Main Map Modal */}
     <MapModal
       isOpen={isMapModalOpen}

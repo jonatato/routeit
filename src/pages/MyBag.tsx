@@ -39,7 +39,7 @@ function MyBag() {
         grouped.set(category.id, []);
       }
       grouped.get(category.id)!.push(item);
-    });
+      });
 
     return grouped;
   }, [checklistItems]);
@@ -82,7 +82,7 @@ function MyBag() {
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
         <div className="space-y-3">
           <div className="text-6xl animate-pulse">🎒</div>
-          <p className="text-sm text-mutedForeground">Cargando maleta...</p>
+        <p className="text-sm text-mutedForeground">Cargando maleta...</p>
         </div>
       </div>
     );
@@ -122,8 +122,8 @@ function MyBag() {
           <Button onClick={() => setShowAddModal(true)} size="lg" className="mt-4">
             <Plus className="h-5 w-5 mr-2" />
             Añadir Items
-          </Button>
-        </div>
+                  </Button>
+                </div>
       ) : (
         <>
           {/* Categories */}

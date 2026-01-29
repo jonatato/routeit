@@ -57,12 +57,12 @@ function TopNavBar() {
             </Button>
           </Link>
           {canEdit && (
-            <Link to="/app/admin">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Settings className="h-4 w-4" />
-                Administrar
-              </Button>
-            </Link>
+          <Link to="/app/admin">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Administrar
+            </Button>
+          </Link>
           )}
           <Link to="/app/split">
             <Button variant="ghost" size="sm" className="gap-2">
