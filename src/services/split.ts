@@ -227,6 +227,31 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(expenseId: string) {
+  // Primero, buscar si hay un schedule_item vinculado
+  const { data: expense, error: fetchError } = await supabase
+    .from('split_expenses')
+    .select('schedule_item_id')
+    .eq('id', expenseId)
+    .single();
+  
+  if (fetchError) throw fetchError;
+  
+  // Si hay un schedule_item vinculado, limpiar sus campos de costo
+  if (expense?.schedule_item_id) {
+    const { error: updateError } = await supabase
+      .from('schedule_items')
+      .update({
+        cost: null,
+        cost_currency: null,
+        cost_payer_id: null,
+        cost_split_expense_id: null,
+      })
+      .eq('id', expense.schedule_item_id);
+    
+    if (updateError) console.error('Error limpiando campos de costo en schedule_item:', updateError);
+  }
+  
+  // Ahora borrar el gasto
   const { error } = await supabase.from('split_expenses').delete().eq('id', expenseId);
   if (error) throw error;
 }

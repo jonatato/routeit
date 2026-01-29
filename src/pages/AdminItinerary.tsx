@@ -1511,7 +1511,24 @@ function AdminItinerary() {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => {
+                                onClick={async () => {
+                                  const itemToRemove = activeDay.schedule[scheduleIndex];
+                                  
+                                  // Si tiene un gasto asociado, borrarlo de Split
+                                  if (itemToRemove.costSplitExpenseId) {
+                                    try {
+                                      const { supabase } = await import('../lib/supabase');
+                                      await supabase
+                                        .from('split_expenses')
+                                        .delete()
+                                        .eq('id', itemToRemove.costSplitExpenseId);
+                                      toast.success('Gasto asociado eliminado');
+                                    } catch (err) {
+                                      console.error('Error borrando gasto asociado:', err);
+                                      toast.error('Error al eliminar el gasto asociado');
+                                    }
+                                  }
+                                  
                                   const next = activeDay.schedule.filter((_, i) => i !== scheduleIndex);
                                   updateDay(activeDayIndex, { schedule: next });
                                 }}

@@ -466,6 +466,29 @@ export async function saveUserItinerary(
   const listIds = (listsResult.data ?? []).map(row => row.id as string);
 
   if (dayIds.length > 0) {
+    // Primero, obtener los expense_ids vinculados a schedule_items que se van a borrar
+    const { data: scheduleItems, error: fetchScheduleError } = await supabase
+      .from('schedule_items')
+      .select('cost_split_expense_id')
+      .in('day_id', dayIds)
+      .not('cost_split_expense_id', 'is', null);
+    
+    if (!fetchScheduleError && scheduleItems && scheduleItems.length > 0) {
+      const expenseIds = scheduleItems
+        .map(item => item.cost_split_expense_id)
+        .filter(id => id !== null) as string[];
+      
+      if (expenseIds.length > 0) {
+        // Borrar los gastos vinculados
+        const { error: expenseDeleteError } = await supabase
+          .from('split_expenses')
+          .delete()
+          .in('id', expenseIds);
+        
+        if (expenseDeleteError) console.error('Error borrando gastos vinculados:', expenseDeleteError);
+      }
+    }
+    
     const { error: dayTagsError } = await supabase.from('day_tags').delete().in('day_id', dayIds);
     if (dayTagsError) throw dayTagsError;
     const { error: scheduleError } = await supabase.from('schedule_items').delete().in('day_id', dayIds);
