@@ -42,7 +42,7 @@ function WebSideMenu() {
     { path: '/app', label: 'Inicio', icon: Home },
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
-    { path: '/app/memories', label: 'Info Viaje', icon: Video },
+    { path: '/app/memories', label: 'Vídeos', icon: Video },
     { path: '/app/itineraries', label: 'Mis viajes', icon: Plane },
   ];
   

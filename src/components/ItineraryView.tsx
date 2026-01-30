@@ -18,23 +18,37 @@ import { PDFExportDialog } from './PDFExportDialog';
 import { MapModal } from './MapModal';
 import { useIsMobileShell } from '../hooks/useIsMobileShell';
 
-const kindLabels = {
-  flight: 'Vuelo',
-  travel: 'Traslado',
-  city: 'Ciudad',
+const kindLabels: Record<string, string> = {
+  flight: '✈️ Vuelo',
+  travel: '🚗 Traslado',
+  city: '🏙️ Ciudad',
 };
 
-const kindVariants = {
+const kindVariants: Record<string, 'secondary' | 'accent' | 'primary'> = {
   flight: 'secondary',
   travel: 'accent',
   city: 'primary',
-} as const;
+};
 
 const budgetToneClasses = {
   secondary: 'bg-secondary',
   primary: 'bg-primary',
   accent: 'bg-accent',
 } as const;
+
+// Helper para obtener color de etiqueta del catálogo
+function getTagColor(kind: string, tagsCatalog?: Array<{ name: string; slug: string; color?: string }>): string | null {
+  if (!tagsCatalog) return null;
+  const tag = tagsCatalog.find(t => t.slug === kind);
+  return tag?.color ?? null;
+}
+
+// Helper para obtener label de etiqueta del catálogo
+function getTagLabel(kind: string, tagsCatalog?: Array<{ name: string; slug: string; color?: string }>): string | null {
+  if (!tagsCatalog) return null;
+  const tag = tagsCatalog.find(t => t.slug === kind);
+  return tag?.name ?? null;
+}
 
 type ItineraryViewProps = {
   itinerary: TravelItinerary;
@@ -43,6 +57,7 @@ type ItineraryViewProps = {
 
 function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const allDays = itinerary.days;
+  const tagsCatalog = itinerary.tagsCatalog;
   const totalDays = allDays.length;
   const travelCount = allDays.filter(day => day.kind === 'travel').length;
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
@@ -845,29 +860,54 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full min-w-0">
                 <div className="overflow-x-auto no-scrollbar">
                   <TabsList className="inline-flex w-auto min-w-full">
-                    {filteredDays.map((day, index) => (
-                      <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap">
-                        <span className="flex items-center gap-2">
-                          <Badge variant={kindVariants[day.kind]} className="text-[10px] py-0 px-1.5">{kindLabels[day.kind]}</Badge>
-                          Día {day.dayLabel}
-                        </span>
-                      </TabsTrigger>
-                    ))}
+                    {filteredDays.map((day, index) => {
+                      const customColor = getTagColor(day.kind, tagsCatalog);
+                      const customLabel = getTagLabel(day.kind, tagsCatalog);
+                      return (
+                        <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap">
+                          <span className="flex items-center gap-2">
+                            {customColor ? (
+                              <span 
+                                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                                style={{ backgroundColor: customColor }}
+                              >
+                                {customLabel ?? day.kind}
+                              </span>
+                            ) : (
+                              <Badge variant={kindVariants[day.kind] ?? 'primary'} className="text-[10px] py-0 px-1.5">{kindLabels[day.kind] ?? day.kind}</Badge>
+                            )}
+                            {day.dayLabel}
+                          </span>
+                        </TabsTrigger>
+                      );
+                    })}
                   </TabsList>
                 </div>
                 
-                {filteredDays.map((day, index) => (
-                  <TabsContent key={day.id} value={String(index)} className="mt-4">
-                    <Card className="w-full border border-border/60 shadow-sm">
-                      <CardHeader className="gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={kindVariants[day.kind]}>{kindLabels[day.kind]}</Badge>
-                          <Badge variant="secondary">Día {day.dayLabel}</Badge>
-                          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                            {day.date}
-                          </span>
-                          {editable && (
-                            <Link
+                {filteredDays.map((day, index) => {
+                  const customColor = getTagColor(day.kind, tagsCatalog);
+                  const customLabel = getTagLabel(day.kind, tagsCatalog);
+                  return (
+                    <TabsContent key={day.id} value={String(index)} className="mt-4">
+                      <Card className="w-full border border-border/60 shadow-sm">
+                        <CardHeader className="gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {customColor ? (
+                              <span 
+                                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                                style={{ backgroundColor: customColor }}
+                              >
+                                {customLabel ?? day.kind}
+                              </span>
+                            ) : (
+                              <Badge variant={kindVariants[day.kind] ?? 'primary'}>{kindLabels[day.kind] ?? day.kind}</Badge>
+                            )}
+                            <Badge variant="secondary">{day.dayLabel}</Badge>
+                            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                              {day.date}
+                            </span>
+                            {editable && (
+                              <Link
                               to={`/app/admin?section=days&dayId=${day.id}`}
                               className="ml-auto inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-600 transition hover:bg-emerald-100"
                               aria-label="Editar día"
@@ -1018,7 +1058,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       </CardContent>
                     </Card>
                   </TabsContent>
-                ))}
+                  );
+                })}
               </UITabs>
             </div>
           )}
@@ -1032,7 +1073,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                   <TabsList className="inline-flex w-auto min-w-full">
                     {filteredDays.map((day, index) => (
                       <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap text-xs">
-                        Día {day.dayLabel}
+                        {day.dayLabel}
                       </TabsTrigger>
                     ))}
                   </TabsList>
@@ -1049,6 +1090,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 const dayCenter = dayPoints.length > 0 
                   ? dayPoints[0].position 
                   : (currentDayLocation ? [currentDayLocation.lat, currentDayLocation.lng] as [number, number] : mapCenter);
+                const customColor = getTagColor(day.kind, tagsCatalog);
+                const customLabel = getTagLabel(day.kind, tagsCatalog);
                 
                 return (
                   <TabsContent key={day.id} value={String(index)} className="mt-4 space-y-4">
@@ -1101,8 +1144,17 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                     <Card>
                       <CardHeader>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={kindVariants[day.kind]}>{kindLabels[day.kind]}</Badge>
-                          <Badge variant="secondary">Día {day.dayLabel}</Badge>
+                          {customColor ? (
+                            <span 
+                              className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                              style={{ backgroundColor: customColor }}
+                            >
+                              {customLabel ?? day.kind}
+                            </span>
+                          ) : (
+                            <Badge variant={kindVariants[day.kind] ?? 'primary'}>{kindLabels[day.kind] ?? day.kind}</Badge>
+                          )}
+                          <Badge variant="secondary">{day.dayLabel}</Badge>
                           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
                             {day.date}
                           </span>

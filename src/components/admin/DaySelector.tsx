@@ -29,7 +29,7 @@ export function DaySelector({ days, activeDayIndex, onDaySelect, onDayDelete, on
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">Día {day.dayLabel}</p>
+                  <p className="font-medium text-sm">{day.dayLabel}</p>
                   <p className="text-xs text-muted-foreground truncate">{day.city}</p>
                   <p className="text-xs text-muted-foreground">{day.schedule.length} actividades</p>
                 </div>

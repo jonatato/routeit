@@ -96,7 +96,7 @@ function DynamicItinerary() {
       <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-6 px-4 text-center">
         <PandaLogo size="lg" className="mb-4" />
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold">¡Aún no tienes itinerarios!</h1>
+          <h1 className="text-3xl font-bold">¡Aún no tienes viajes!</h1>
           <p className="text-lg text-mutedForeground max-w-md">
             Crea tu primer itinerario personalizado y comienza a planificar tu viaje perfecto.
           </p>

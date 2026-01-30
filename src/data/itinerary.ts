@@ -1,4 +1,4 @@
-export type DayKind = 'flight' | 'travel' | 'city';
+export type DayKind = 'flight' | 'travel' | 'city' | (string & {});
 
 export interface ScheduleItem {
   time: string;
@@ -46,7 +46,7 @@ export interface TravelItinerary {
   intro: string;
   days: ItineraryDay[];
   budgetTiers: Array<{ label: string; daily: number; tone: 'secondary' | 'primary' | 'accent' }>;
-  tagsCatalog?: Array<{ name: string; slug: string }>;
+  tagsCatalog?: Array<{ name: string; slug: string; color?: string }>;
   foods: string[];
   tips: string[];
   avoid: string[];
@@ -97,11 +97,11 @@ export const chinaTrip: TravelItinerary = {
     { label: 'Confort', daily: 140, tone: 'accent' },
   ],
   tagsCatalog: [
-    { name: 'Comida', slug: 'comida' },
-    { name: 'Transporte', slug: 'transporte' },
-    { name: 'Cultura', slug: 'cultura' },
-    { name: 'Naturaleza', slug: 'naturaleza' },
-    { name: 'Compras', slug: 'compras' },
+    { name: 'Comida', slug: 'comida', color: '#10b981' },
+    { name: 'Transporte', slug: 'transporte', color: '#3b82f6' },
+    { name: 'Cultura', slug: 'cultura', color: '#f59e0b' },
+    { name: 'Naturaleza', slug: 'naturaleza', color: '#22c55e' },
+    { name: 'Compras', slug: 'compras', color: '#ec4899' },
   ],
   utilities: [
     'Alipay (pago y enlace con Wise)',

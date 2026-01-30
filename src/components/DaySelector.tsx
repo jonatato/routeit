@@ -20,7 +20,7 @@ export function DaySelector({ days, activeDayIndex, onDaySelect, onDayDelete, on
             className="flex-1 flex-col items-start h-auto py-2"
             onClick={() => onDaySelect(idx)}
           >
-            <div className="font-semibold">Día {day.dayLabel}</div>
+            <div className="font-semibold">{day.dayLabel}</div>
             <div className="text-xs text-muted-foreground">{day.city || 'Sin ciudad'}</div>
           </Button>
           <Button

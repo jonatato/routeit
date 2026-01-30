@@ -190,13 +190,13 @@ function MyItineraries() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold">Mis itinerarios</h1>
+            <h1 className="text-2xl font-semibold">Mis viajes</h1>
             <p className="text-sm text-mutedForeground">Crea, comparte y gestiona.</p>
           </div>
         </div>
         <Button onClick={() => setShowCreateModal(true)} size="lg">
           <Plus className="h-5 w-5 mr-2" />
-          Crear Nuevo Itinerario
+          Crear Nuevo Viaje
         </Button>
       </div>
 
@@ -352,7 +352,7 @@ function MyItineraries() {
       )}
 
       {ownedItineraries.length === 0 && (
-        <p className="text-sm text-mutedForeground">Aún no tienes itinerarios.</p>
+        <p className="text-sm text-mutedForeground">Aún no tienes viajes.</p>
       )}
 
       {/* Modal de creación */}
@@ -361,7 +361,7 @@ function MyItineraries() {
           <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowCreateModal(false)} />
           <Card className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg z-50 shadow-2xl">
             <CardHeader>
-              <CardTitle>Crear Nuevo Itinerario</CardTitle>
+              <CardTitle>Crear Nuevo Viaje</CardTitle>
               <CardDescription>Ingresa los detalles básicos para comenzar</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

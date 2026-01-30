@@ -19,7 +19,7 @@ export type DbDay = {
   date_text: string;
   city: string;
   plan: string;
-  kind: 'flight' | 'travel' | 'city';
+  kind: string;
 };
 
 export type DbScheduleItem = {
@@ -50,6 +50,7 @@ export type DbTag = {
   itinerary_id: string;
   name: string;
   slug: string;
+  color?: string;
 };
 
 export type DbDayTag = {
@@ -271,7 +272,7 @@ export function mapDbToItinerary(args: {
         daily: tier.daily,
         tone: tier.tone,
       })),
-    tagsCatalog: args.tags.map(tag => ({ name: tag.name, slug: tag.slug })),
+    tagsCatalog: args.tags.map(tag => ({ name: tag.name, slug: tag.slug, color: tag.color ?? '#6366f1' })),
     days: args.days
       .slice()
       .sort((a, b) => a.order_index - b.order_index)
@@ -474,12 +475,12 @@ export function buildSeedPayloads(itinerary: TravelItinerary, itineraryId: strin
     : defaultTagDefinitions.map(tag => tag.slug);
 
   const tags: TagSeed[] = (itinerary.tagsCatalog && itinerary.tagsCatalog.length > 0
-    ? itinerary.tagsCatalog
+    ? itinerary.tagsCatalog.map(tag => ({ name: tag.name, slug: tag.slug, color: tag.color ?? '#6366f1' }))
     : tagSlugs.map(slug => {
         const definition = defaultTagDefinitions.find(tag => tag.slug === slug);
         const label = definition?.name ?? slug.replace(/-/g, ' ');
         const name = label.charAt(0).toUpperCase() + label.slice(1);
-        return { name, slug };
+        return { name, slug, color: '#6366f1' };
       })) as TagSeed[];
 
   const dayTags: DayTagSeed[] = itinerary.days.flatMap((day, dayIndex) => {

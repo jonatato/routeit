@@ -31,7 +31,7 @@ function ShareAccept() {
     <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col items-center justify-center gap-4 px-4 text-center">
       <p className="text-sm text-mutedForeground">{status}</p>
       <Button variant="outline" onClick={() => navigate('/app/itineraries')}>
-        Ir a mis itinerarios
+        Ir a mis viajes
       </Button>
     </div>
   );

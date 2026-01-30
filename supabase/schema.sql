@@ -45,7 +45,8 @@ create table if not exists tags (
   id uuid primary key default gen_random_uuid(),
   itinerary_id uuid not null references itineraries(id) on delete cascade,
   name text not null,
-  slug text not null
+  slug text not null,
+  color text default '#6366f1'
 );
 
 create table if not exists day_tags (

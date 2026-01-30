@@ -558,7 +558,7 @@ function AdminItinerary() {
             <button
               className="px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all bg-transparent text-muted-foreground hover:text-primary hover:bg-primary/10"
             >
-              Secciones →
+              Secciones
             </button>
           </Link>
         </div>
@@ -1011,11 +1011,11 @@ function AdminItinerary() {
             <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>Etiquetas</CardTitle>
-                <CardDescription>Crea etiquetas para actividades.</CardDescription>
+                <CardDescription>Crea etiquetas para actividades y días.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {(draft.tagsCatalog ?? []).map((tag, index) => (
-                  <div key={`${tag.slug}-${index}`} className="grid gap-2 md:grid-cols-4">
+                  <div key={`${tag.slug}-${index}`} className="grid gap-2 md:grid-cols-5 items-center">
                     <input
                       value={tag.name}
                       onChange={event => {
@@ -1023,6 +1023,7 @@ function AdminItinerary() {
                         next[index] = { ...tag, name: event.target.value };
                         updateDraft({ tagsCatalog: next });
                       }}
+                      placeholder="Nombre"
                       className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
                     <input
@@ -1032,8 +1033,28 @@ function AdminItinerary() {
                         next[index] = { ...tag, slug: event.target.value };
                         updateDraft({ tagsCatalog: next });
                       }}
+                      placeholder="Slug"
                       className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={tag.color ?? '#6366f1'}
+                        onChange={event => {
+                          const next = [...(draft.tagsCatalog ?? [])];
+                          next[index] = { ...tag, color: event.target.value };
+                          updateDraft({ tagsCatalog: next });
+                        }}
+                        className="h-9 w-12 cursor-pointer rounded-lg border border-border bg-background p-1"
+                        title="Color de la etiqueta"
+                      />
+                      <span 
+                        className="px-2 py-1 rounded-full text-xs font-medium text-white"
+                        style={{ backgroundColor: tag.color ?? '#6366f1' }}
+                      >
+                        {tag.name || 'Preview'}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2 md:col-span-2">
                       <Button
                         variant="outline"
@@ -1079,7 +1100,7 @@ function AdminItinerary() {
                   variant="outline"
                   onClick={() =>
                     updateDraft({
-                      tagsCatalog: [...(draft.tagsCatalog ?? []), { name: '', slug: '' }],
+                      tagsCatalog: [...(draft.tagsCatalog ?? []), { name: '', slug: '', color: '#6366f1' }],
                     })
                   }
                 >
@@ -1108,7 +1129,7 @@ function AdminItinerary() {
                           : 'border-border bg-background text-mutedForeground'
                       }`}
                     >
-                      {day.kind === 'flight' ? '✈️' : `Día ${day.dayLabel}`}
+                      {day.kind === 'flight' ? '✈️' : day.dayLabel}
                     </button>
                   ))}
                 </div>
@@ -1175,10 +1196,22 @@ function AdminItinerary() {
                         value={activeDay.kind}
                         onChange={event => updateDay(activeDayIndex, { kind: event.target.value as ItineraryDay['kind'] })}
                         className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        style={{
+                          borderLeftWidth: '4px',
+                          borderLeftColor: (draft.tagsCatalog ?? []).find(t => t.slug === activeDay.kind)?.color ?? '#6366f1'
+                        }}
                       >
-                        <option value="city">Ciudad</option>
-                        <option value="travel">Traslado</option>
-                        <option value="flight">Vuelo</option>
+                        <option value="city">🏙️ Ciudad</option>
+                        <option value="travel">🚗 Traslado</option>
+                        <option value="flight">✈️ Vuelo</option>
+                        {(draft.tagsCatalog ?? [])
+                          .filter(tag => !['city', 'travel', 'flight'].includes(tag.slug))
+                          .map(tag => (
+                            <option key={tag.slug} value={tag.slug}>
+                              {tag.name}
+                            </option>
+                          ))
+                        }
                       </select>
                       <input
                         value={activeDay.city}
@@ -1202,12 +1235,22 @@ function AdminItinerary() {
                       />
                     </div>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="min-w-0 space-y-2">
+                      <div className="min-w-0 space-y-4">
                         <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
                           Horario
                         </h4>
+                        <div className="space-y-3">
                         {activeDay.schedule.map((item, scheduleIndex) => (
-                          <div key={`${activeDay.id}-schedule-${scheduleIndex}`} className="grid gap-2 md:grid-cols-3 min-w-0">
+                          <div 
+                            key={`${activeDay.id}-schedule-${scheduleIndex}`} 
+                            className="grid gap-2 md:grid-cols-3 min-w-0 p-4 rounded-xl border border-border bg-muted/60 dark:bg-muted/30 shadow-sm overflow-hidden"
+                          >
+                            <div className="flex items-center gap-2 md:col-span-3 pb-2 mb-2 border-b border-border/50">
+                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                {scheduleIndex + 1}
+                              </span>
+                              <span className="text-xs font-medium text-mutedForeground">Actividad {scheduleIndex + 1}</span>
+                            </div>
                             <input
                               value={item.time}
                               onChange={event => {
@@ -1221,7 +1264,8 @@ function AdminItinerary() {
                                 next[scheduleIndex] = { ...item, time: normalized };
                                 updateDay(activeDayIndex, { schedule: next });
                               }}
-                              className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              placeholder="Hora (ej: 09:00-10:30)"
+                              className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
                             <input
                               value={item.activity}
@@ -1230,14 +1274,14 @@ function AdminItinerary() {
                                 next[scheduleIndex] = { ...item, activity: event.target.value };
                                 updateDay(activeDayIndex, { schedule: next });
                               }}
-                              className="min-w-0 md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              className="min-w-0 w-full md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
                             <div className="relative min-w-0 md:col-span-3">
                               <input
                                 value={item.link ?? ''}
                                 onChange={event => handleScheduleLinkInput(scheduleIndex, event.target.value)}
                                 placeholder="Enlace entradas (opcional)"
-                                className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm overflow-x-auto"
+                                className="min-w-0 block w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm overflow-x-auto"
                               />
                               <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
                                 <button
@@ -1281,7 +1325,7 @@ function AdminItinerary() {
                                 updateDay(activeDayIndex, { schedule: next });
                               }}
                               placeholder="Etiquetas (coma)"
-                              className="min-w-0 md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              className="min-w-0 w-full md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
                             <div className="relative min-w-0 md:col-span-2">
                               <input
@@ -1294,7 +1338,7 @@ function AdminItinerary() {
                                 }
                                 onChange={event => handleScheduleMapInput(scheduleIndex, event.target.value)}
                                 placeholder="Pegar link o 'lat,lng' de Google Maps"
-                                className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm overflow-x-auto"
+                                className="min-w-0 block w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm overflow-x-auto"
                               />
                               <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
                                 <button
@@ -1369,7 +1413,7 @@ function AdminItinerary() {
                             />
                             
                             {/* Campos de costo */}
-                            <div className="md:col-span-3 space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                            <div className="md:col-span-3 min-w-0 space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
                               <h5 className="text-xs font-semibold text-mutedForeground flex items-center gap-2">
                                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                                   <line x1="12" y1="1" x2="12" y2="23" />
@@ -1377,7 +1421,7 @@ function AdminItinerary() {
                                 </svg>
                                 Gasto (opcional - se añade automáticamente a Split)
                               </h5>
-                              <div className="grid gap-2 md:grid-cols-3">
+                              <div className="grid gap-2 md:grid-cols-3 min-w-0">
                                 <input
                                   type="number"
                                   step="0.01"
@@ -1393,7 +1437,7 @@ function AdminItinerary() {
                                     updateDay(activeDayIndex, { schedule: next });
                                   }}
                                   placeholder="Precio total (ej: 60)"
-                                  className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                  className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                                 />
                                 <select
                                   value={item.costPayerId ?? ''}
@@ -1405,7 +1449,7 @@ function AdminItinerary() {
                                     };
                                     updateDay(activeDayIndex, { schedule: next });
                                   }}
-                                  className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                  className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                                   disabled={!item.cost}
                                 >
                                   <option value="">Quién pagó?</option>
@@ -1425,7 +1469,7 @@ function AdminItinerary() {
                                     };
                                     updateDay(activeDayIndex, { schedule: next });
                                   }}
-                                  className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                  className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                                   disabled={!item.cost}
                                 >
                                   <option value="EUR">EUR (€)</option>
@@ -1509,7 +1553,7 @@ function AdminItinerary() {
                                 <option value="">Mover a día...</option>
                                 {draft.days.map((day, idx) => (
                                   <option key={day.id ?? idx} value={idx} disabled={idx === activeDayIndex}>
-                                    {day.kind === 'flight' ? '✈️ Vuelo' : `Día ${day.dayLabel}`} - {day.city}
+                                    {day.kind === 'flight' ? '✈️ Vuelo' : day.dayLabel} - {day.city}
                                   </option>
                                 ))}
                               </select>
@@ -1543,6 +1587,7 @@ function AdminItinerary() {
                             </div>
                           </div>
                         ))}
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
