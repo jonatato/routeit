@@ -450,16 +450,22 @@ export async function saveUserItinerary(
   
   // Debug: Log what we're trying to save
   console.log('💾 Saving itinerary with cover_image:', updated.coverImage);
+  console.log('🔍 Type of coverImage:', typeof updated.coverImage);
+  console.log('🔍 Is undefined?', updated.coverImage === undefined);
+  console.log('🔍 Is null?', updated.coverImage === null);
+  
+  const updatePayload = {
+    title: updated.title,
+    date_range: updated.dateRange,
+    intro: updated.intro,
+    cover_image: updated.coverImage ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  console.log('📦 Full update payload:', JSON.stringify(updatePayload, null, 2));
   
   const { error: updateError } = await supabase
     .from('itineraries')
-    .update({
-      title: updated.title,
-      date_range: updated.dateRange,
-      intro: updated.intro,
-      cover_image: updated.coverImage,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', itineraryIdResolved);
   if (updateError) {
     console.error('❌ Error updating itinerary:', updateError);
