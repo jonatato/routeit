@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from './ui/button';
 import { ImagePlus } from 'lucide-react';
 
@@ -14,11 +14,41 @@ declare global {
 }
 
 export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadProps) {
-  const widgetRef = useRef<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleClick = () => {
-    if (!widgetRef.current && window.cloudinary) {
-      widgetRef.current = window.cloudinary.createUploadWidget(
+  useEffect(() => {
+    // Esperar a que Cloudinary esté disponible
+    const checkCloudinary = setInterval(() => {
+      if (window.cloudinary) {
+        setIsLoading(false);
+        clearInterval(checkCloudinary);
+      }
+    }, 100);
+
+    // Timeout de 5 segundos
+    const timeout = setTimeout(() => {
+      clearInterval(checkCloudinary);
+      if (!window.cloudinary) {
+        setError('Error cargando Cloudinary');
+        setIsLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(checkCloudinary);
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  const handleClick = useCallback(() => {
+    if (!window.cloudinary) {
+      setError('Cloudinary no está disponible');
+      return;
+    }
+
+    try {
+      const widget = window.cloudinary.createUploadWidget(
         {
           cloudName: 'dnx4veyec',
           uploadPreset: 'itinerary_images',
@@ -26,9 +56,8 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
           folder: 'itinerary-images',
           cropping: true,
           multiple: false,
-          maxFileSize: 10000000, // 10MB
+          maxFileSize: 10000000,
           resourceType: 'image',
-          tags: ['itinerary-hero'],
         },
         (error: any, result: any) => {
           if (!error && result && result.event === 'success') {
@@ -36,12 +65,13 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
           }
         }
       );
-    }
 
-    if (widgetRef.current) {
-      widgetRef.current.open();
+      widget.open();
+    } catch (err) {
+      console.error('Error opening Cloudinary widget:', err);
+      setError('Error abriendo el widget');
     }
-  };
+  }, [onUpload]);
 
   return (
     <div className="space-y-3">
@@ -50,10 +80,15 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
         onClick={handleClick}
         className="gap-2"
         variant="outline"
+        disabled={isLoading}
       >
         <ImagePlus className="w-4 h-4" />
-        {currentImage ? 'Cambiar imagen' : 'Subir imagen hero'}
+        {isLoading ? 'Cargando...' : currentImage ? 'Cambiar imagen' : 'Subir imagen hero'}
       </Button>
+
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
 
       {currentImage && (
         <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border">
