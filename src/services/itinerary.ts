@@ -447,6 +447,10 @@ export async function saveUserItinerary(
   }
 
   const itineraryIdResolved = existing.data.id as string;
+  
+  // Debug: Log what we're trying to save
+  console.log('💾 Saving itinerary with cover_image:', updated.coverImage);
+  
   const { error: updateError } = await supabase
     .from('itineraries')
     .update({
@@ -457,7 +461,11 @@ export async function saveUserItinerary(
       updated_at: new Date().toISOString(),
     })
     .eq('id', itineraryIdResolved);
-  if (updateError) throw updateError;
+  if (updateError) {
+    console.error('❌ Error updating itinerary:', updateError);
+    throw updateError;
+  }
+  console.log('✅ Itinerary updated successfully');
 
   const daysResult = await supabase.from('days').select('id').eq('itinerary_id', itineraryIdResolved);
   if (daysResult.error) throw daysResult.error;

@@ -265,7 +265,11 @@ export function mapDbToItinerary(args: {
     title: args.itinerary.title,
     dateRange: args.itinerary.date_range,
     intro: args.itinerary.intro,
-    coverImage: args.itinerary.cover_image ?? undefined,
+    coverImage: (() => {
+      const value = args.itinerary.cover_image ?? undefined;
+      console.log('📖 Reading cover_image from DB:', value);
+      return value;
+    })(),
     budgetTiers: args.budgetTiers
       .slice()
       .sort((a, b) => a.order_index - b.order_index)
