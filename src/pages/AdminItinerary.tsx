@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { CloudinaryUpload } from '../components/CloudinaryUpload';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -587,6 +588,13 @@ function AdminItinerary() {
               value={draft.dateRange}
               onChange={event => updateDraft({ dateRange: event.target.value })}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Imagen hero</label>
+            <CloudinaryUpload 
+              onUpload={(url) => updateDraft({ heroImage: url })}
+              currentImage={draft.heroImage}
             />
           </div>
         <div className="space-y-2 md:col-span-3">

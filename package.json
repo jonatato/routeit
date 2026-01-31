@@ -39,6 +39,7 @@
     "jspdf": "^4.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.563.0",
+    "next-cloudinary": "^6.17.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",

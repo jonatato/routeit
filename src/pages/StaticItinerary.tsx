@@ -1,8 +1,3 @@
-import ItineraryView from '../components/ItineraryView';
-import { chinaTrip } from '../data/itinerary';
-
-function StaticItinerary() {
-  return <ItineraryView itinerary={chinaTrip} />;
+export default function StaticItinerary() {
+  return <div>Static Itinerary</div>;
 }
-
-export default StaticItinerary;
