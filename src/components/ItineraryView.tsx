@@ -503,6 +503,15 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 
       <main className="mx-auto flex w-full flex-col gap-8 px-4 py-6 md:py-10" style={{ display: 'flex', flexDirection: 'column' }}>
         <section data-section="flights" className="grid gap-6" style={{ order: -1 }}>
+          {itinerary.heroImage && (
+            <div className="relative w-full h-64 md:h-96 rounded-lg overflow-hidden">
+              <img
+                src={itinerary.heroImage}
+                alt={itinerary.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-4">
             <h1 className="text-3xl font-bold leading-tight md:text-5xl">
               {itinerary.title}
