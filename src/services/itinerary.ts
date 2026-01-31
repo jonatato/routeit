@@ -238,6 +238,7 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
       title: base.title,
       date_range: base.dateRange,
       intro: base.intro,
+      cover_image: base.coverImage,
     })
     .select('*')
     .single();
@@ -452,6 +453,7 @@ export async function saveUserItinerary(
       title: updated.title,
       date_range: updated.dateRange,
       intro: updated.intro,
+      cover_image: updated.coverImage,
       updated_at: new Date().toISOString(),
     })
     .eq('id', itineraryIdResolved);

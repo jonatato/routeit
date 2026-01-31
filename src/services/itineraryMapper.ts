@@ -6,6 +6,7 @@ export type DbItinerary = {
   title: string;
   date_range: string;
   intro: string;
+  cover_image?: string | null;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
@@ -264,6 +265,7 @@ export function mapDbToItinerary(args: {
     title: args.itinerary.title,
     dateRange: args.itinerary.date_range,
     intro: args.itinerary.intro,
+    coverImage: args.itinerary.cover_image ?? undefined,
     budgetTiers: args.budgetTiers
       .slice()
       .sort((a, b) => a.order_index - b.order_index)

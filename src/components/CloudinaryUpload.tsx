@@ -99,14 +99,14 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
         disabled={!isReady}
       >
         <ImagePlus className="w-4 h-4" />
-        {!isReady ? 'Cargando...' : currentImage ? 'Cambiar imagen' : 'Buscar imagen hero'}
+        {!isReady ? 'Cargando...' : currentImage ? 'Cambiar portada' : 'Buscar portada'}
       </Button>
 
       {currentImage && (
         <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border">
           <img
             src={currentImage}
-            alt="Hero preview"
+            alt="Cover preview"
             className="w-full h-full object-cover"
           />
         </div>

@@ -591,10 +591,10 @@ function AdminItinerary() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Imagen hero</label>
+            <label className="text-sm font-medium">Imagen de portada</label>
             <CloudinaryUpload 
-              onUpload={(url) => updateDraft({ heroImage: url })}
-              currentImage={draft.heroImage}
+              onUpload={(url) => updateDraft({ coverImage: url })}
+              currentImage={draft.coverImage}
             />
           </div>
         <div className="space-y-2 md:col-span-3">

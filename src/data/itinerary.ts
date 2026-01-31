@@ -44,7 +44,7 @@ export interface TravelItinerary {
   title: string;
   dateRange: string;
   intro: string;
-  heroImage?: string;
+  coverImage?: string;
   days: ItineraryDay[];
   budgetTiers: Array<{ label: string; daily: number; tone: 'secondary' | 'primary' | 'accent' }>;
   tagsCatalog?: Array<{ name: string; slug: string; color?: string }>;
@@ -91,7 +91,7 @@ export const chinaTrip: TravelItinerary = {
   title: 'Mi Viaje 2026',
   dateRange: 'Vie 9 Oct → Vie 31 Oct',
   intro: 'Itinerario completo con horarios sugeridos, organizado por día y por ciudad, pensado para minimizar traslados y maximizar experiencias.',
-  heroImage: undefined,
+  coverImage: undefined,
   budgetTiers: [],
   tagsCatalog: [],
   foods: [],
