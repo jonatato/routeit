@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx tsc -b && npx vite build",
+  "buildCommand": "npx --yes -p typescript tsc -b && npx --yes -p vite vite build",
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
