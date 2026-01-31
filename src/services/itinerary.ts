@@ -466,6 +466,14 @@ export async function saveUserItinerary(
     throw updateError;
   }
   console.log('✅ Itinerary updated successfully');
+  
+  // Debug: Verify the update by reading the row
+  const { data: verifyData } = await supabase
+    .from('itineraries')
+    .select('cover_image')
+    .eq('id', itineraryIdResolved)
+    .single();
+  console.log('🔍 Verification - cover_image in DB after update:', verifyData?.cover_image);
 
   const daysResult = await supabase.from('days').select('id').eq('itinerary_id', itineraryIdResolved);
   if (daysResult.error) throw daysResult.error;
