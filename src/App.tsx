@@ -18,7 +18,6 @@ const MyBag = lazy(() => import('./pages/MyBag'));
 const MyItineraries = lazy(() => import('./pages/MyItineraries'));
 const ShareAccept = lazy(() => import('./pages/ShareAccept'));
 const Split = lazy(() => import('./pages/Split'));
-const StaticItinerary = lazy(() => import('./pages/StaticItinerary'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
@@ -33,9 +32,9 @@ const LoadingFallback = () => (
 function App() {
   const isMobileShell = useIsMobileShell();
   const location = useLocation();
-  const showSideMenu = !isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
+  const showSideMenu = !isMobileShell && location.pathname !== '/login';
   const showWidgetsSidebar = !isMobileShell && (location.pathname === '/app' || location.search.includes('itineraryId='));
-  const showMobileHeader = isMobileShell && location.pathname !== '/login' && location.pathname !== '/static';
+  const showMobileHeader = isMobileShell && location.pathname !== '/login';
   
   console.log('App.tsx - Debug:', {
     isMobileShell,
@@ -51,7 +50,6 @@ function App() {
           {showMobileHeader && <MobileHeader />}
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/static" element={<StaticItinerary />} />
             <Route path="/login" element={<Auth />} />
             <Route
               path="/app"
@@ -196,16 +194,6 @@ function App() {
             <div className="flex-1">
               <Routes>
                 <Route path="/" element={<Navigate to="/login" replace />} />
-                <Route
-                  path="/static"
-                  element={
-                    <Suspense fallback={<LoadingFallback />}>
-                      <PageTransition>
-                        <StaticItinerary />
-                      </PageTransition>
-                    </Suspense>
-                  }
-                />
                 <Route path="/login" element={<Auth />} />
                 <Route
                   path="/app"
