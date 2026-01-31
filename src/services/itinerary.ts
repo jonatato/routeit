@@ -465,18 +465,23 @@ export async function saveUserItinerary(
   const updateResult = await supabase
     .from('itineraries')
     .update(updatePayload)
-    .eq('id', itineraryIdResolved)
-    .select('*');
+    .eq('id', itineraryIdResolved);
     
-  console.log('📥 UPDATE result:', updateResult);
-  console.log('📊 Rows updated:', updateResult.data?.length || 0);
+  console.log('📥 UPDATE result (without select):', updateResult);
   
   if (updateResult.error) throw updateResult.error;
   
-  if (!updateResult.data || updateResult.data.length === 0) {
-    console.error('⚠️ WARNING: UPDATE succeeded but 0 rows affected!');
-    console.error('⚠️ This means the WHERE clause (id = ...) did not match any rows');
-    console.error('⚠️ Or RLS policy is blocking the SELECT of the updated row');
+  // Verify with a separate SELECT
+  const verifyResult = await supabase
+    .from('itineraries')
+    .select('id, title, cover_image, updated_at')
+    .eq('id', itineraryIdResolved)
+    .single();
+    
+  console.log('🔍 VERIFY SELECT after UPDATE:', verifyResult);
+  
+  if (verifyResult.data) {
+    console.log('✅ cover_image in DB:', verifyResult.data.cover_image);
   }
 
   const daysResult = await supabase.from('days').select('id').eq('itinerary_id', itineraryIdResolved);
