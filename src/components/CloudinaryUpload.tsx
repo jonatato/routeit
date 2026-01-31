@@ -16,23 +16,8 @@ declare global {
 export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadProps) {
   const widgetRef = useRef<any>(null);
 
-  useEffect(() => {
-    // Cargar el script de Cloudinary si no está ya cargado
-    if (!window.cloudinary) {
-      const script = document.createElement('script');
-      script.src = 'https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js';
-      script.async = true;
-      script.onload = () => {
-        initWidget();
-      };
-      document.body.appendChild(script);
-    } else {
-      initWidget();
-    }
-  }, []);
-
-  const initWidget = () => {
-    if (window.cloudinary) {
+  const handleClick = () => {
+    if (!widgetRef.current && window.cloudinary) {
       widgetRef.current = window.cloudinary.createUploadWidget(
         {
           cloudName: 'dnx4veyec',
@@ -40,9 +25,10 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
           sources: ['local', 'camera', 'unsplash', 'pexels'],
           folder: 'itinerary-images',
           cropping: true,
-          showAdvancedOptions: true,
           multiple: false,
           maxFileSize: 10000000, // 10MB
+          resourceType: 'image',
+          tags: ['itinerary-hero'],
         },
         (error: any, result: any) => {
           if (!error && result && result.event === 'success') {
@@ -51,9 +37,7 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
         }
       );
     }
-  };
 
-  const handleClick = () => {
     if (widgetRef.current) {
       widgetRef.current.open();
     }
