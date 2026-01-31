@@ -1201,17 +1201,11 @@ function AdminItinerary() {
                           borderLeftColor: (draft.tagsCatalog ?? []).find(t => t.slug === activeDay.kind)?.color ?? '#6366f1'
                         }}
                       >
-                        <option value="city">🏙️ Ciudad</option>
-                        <option value="travel">🚗 Traslado</option>
-                        <option value="flight">✈️ Vuelo</option>
-                        {(draft.tagsCatalog ?? [])
-                          .filter(tag => !['city', 'travel', 'flight'].includes(tag.slug))
-                          .map(tag => (
-                            <option key={tag.slug} value={tag.slug}>
-                              {tag.name}
-                            </option>
-                          ))
-                        }
+                        {(draft.tagsCatalog ?? []).map(tag => (
+                          <option key={tag.slug} value={tag.slug}>
+                            {tag.name}
+                          </option>
+                        ))}
                       </select>
                       <input
                         value={activeDay.city}
