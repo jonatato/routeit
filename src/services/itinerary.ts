@@ -448,8 +448,13 @@ export async function saveUserItinerary(
 
   const itineraryIdResolved = existing.data.id as string;
   
-  console.log('� Itinerary ID to update:', itineraryIdResolved);
-  console.log('🚀 BEFORE UPDATE - coverImage value:', updated.coverImage);
+  console.log('� Itinerary ID to update:', itineraryIdResolved);  console.log('👤 Itinerary owner (user_id from DB):', existing.data.user_id);
+  
+  // Get current authenticated user
+  const { data: authData } = await supabase.auth.getUser();
+  console.log('🔐 Current authenticated user:', authData.user?.id);
+  console.log('✅ User IDs match?', existing.data.user_id === authData.user?.id);
+    console.log('🚀 BEFORE UPDATE - coverImage value:', updated.coverImage);
   console.log('📋 Existing data from DB:', existing.data);
   
   const updatePayload = {
