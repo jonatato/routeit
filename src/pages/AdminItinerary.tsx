@@ -213,7 +213,6 @@ function AdminItinerary() {
   }, [draft, location.search]);
 
   const updateDraft = (patch: Partial<TravelItinerary>) => {
-    console.log('🔧 updateDraft called with:', patch);
     setDraft(prev => (prev ? { ...prev, ...patch } : prev));
   };
 
@@ -385,9 +384,7 @@ function AdminItinerary() {
       return;
     }
     try {
-      console.log('💾 handleSave - draft.coverImage:', draft.coverImage);
       const saved = await saveUserItinerary(user.id, draft, draft.id);
-      console.log('✅ handleSave - saved.coverImage:', saved.coverImage);
       setDraft(saved);
       setStatus('Cambios guardados.');
       toast.success('Cambios guardados correctamente');

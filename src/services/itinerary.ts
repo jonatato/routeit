@@ -448,38 +448,17 @@ export async function saveUserItinerary(
 
   const itineraryIdResolved = existing.data.id as string;
   
-  // Debug: Log what we're trying to save
-  console.log('💾 Saving itinerary with cover_image:', updated.coverImage);
-  console.log('🔍 Type of coverImage:', typeof updated.coverImage);
-  console.log('🔍 Is undefined?', updated.coverImage === undefined);
-  console.log('🔍 Is null?', updated.coverImage === null);
-  
-  const updatePayload = {
-    title: updated.title,
-    date_range: updated.dateRange,
-    intro: updated.intro,
-    cover_image: updated.coverImage ?? null,
-    updated_at: new Date().toISOString(),
-  };
-  console.log('📦 Full update payload:', JSON.stringify(updatePayload, null, 2));
-  
   const { error: updateError } = await supabase
     .from('itineraries')
-    .update(updatePayload)
+    .update({
+      title: updated.title,
+      date_range: updated.dateRange,
+      intro: updated.intro,
+      cover_image: updated.coverImage ?? null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', itineraryIdResolved);
-  if (updateError) {
-    console.error('❌ Error updating itinerary:', updateError);
-    throw updateError;
-  }
-  console.log('✅ Itinerary updated successfully');
-  
-  // Debug: Verify the update by reading the row
-  const { data: verifyData } = await supabase
-    .from('itineraries')
-    .select('cover_image')
-    .eq('id', itineraryIdResolved)
-    .single();
-  console.log('🔍 Verification - cover_image in DB after update:', verifyData?.cover_image);
+  if (updateError) throw updateError;
 
   const daysResult = await supabase.from('days').select('id').eq('itinerary_id', itineraryIdResolved);
   if (daysResult.error) throw daysResult.error;
