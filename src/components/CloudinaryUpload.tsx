@@ -1,94 +1,91 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from './ui/button';
 import { ImagePlus } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useToast } from '../hooks/useToast';
 
 interface CloudinaryUploadProps {
   onUpload: (url: string) => void;
   currentImage?: string;
 }
 
-declare global {
-  interface Window {
-    cloudinary: any;
-  }
-}
-
 export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { success, error: showError } = useToast();
 
-  useEffect(() => {
-    // Esperar a que Cloudinary esté disponible
-    const checkCloudinary = setInterval(() => {
-      if (window.cloudinary) {
-        setIsLoading(false);
-        clearInterval(checkCloudinary);
-      }
-    }, 100);
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    // Timeout de 5 segundos
-    const timeout = setTimeout(() => {
-      clearInterval(checkCloudinary);
-      if (!window.cloudinary) {
-        setError('Error cargando Cloudinary');
-        setIsLoading(false);
-      }
-    }, 5000);
-
-    return () => {
-      clearInterval(checkCloudinary);
-      clearTimeout(timeout);
-    };
-  }, []);
-
-  const handleClick = useCallback(() => {
-    if (!window.cloudinary) {
-      setError('Cloudinary no está disponible');
+    // Validar que sea imagen
+    if (!file.type.startsWith('image/')) {
+      showError('Solo se permiten imágenes');
       return;
     }
 
-    try {
-      const widget = window.cloudinary.createUploadWidget(
-        {
-          cloudName: 'dnx4veyec',
-          uploadPreset: 'itinerary_images',
-          sources: ['local', 'camera', 'unsplash', 'pexels'],
-          folder: 'itinerary-images',
-          cropping: true,
-          multiple: false,
-          maxFileSize: 10000000,
-          resourceType: 'image',
-        },
-        (error: any, result: any) => {
-          if (!error && result && result.event === 'success') {
-            onUpload(result.info.secure_url);
-          }
-        }
-      );
-
-      widget.open();
-    } catch (err) {
-      console.error('Error opening Cloudinary widget:', err);
-      setError('Error abriendo el widget');
+    // Validar tamaño (máx 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showError('La imagen debe ser menor a 10MB');
+      return;
     }
-  }, [onUpload]);
+
+    setIsLoading(true);
+    try {
+      const fileName = `hero-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${file.type.split('/')[1]}`;
+      const filePath = `itinerary-images/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
+      
+      if (urlData?.publicUrl) {
+        onUpload(urlData.publicUrl);
+        success('Imagen subida exitosamente');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      showError('Error al subir la imagen');
+    } finally {
+      setIsLoading(false);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   return (
     <div className="space-y-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={isLoading}
+      />
+
       <Button
         type="button"
-        onClick={handleClick}
+        onClick={() => fileInputRef.current?.click()}
         className="gap-2"
         variant="outline"
         disabled={isLoading}
       >
         <ImagePlus className="w-4 h-4" />
-        {isLoading ? 'Cargando...' : currentImage ? 'Cambiar imagen' : 'Subir imagen hero'}
+        {isLoading ? 'Subiendo...' : currentImage ? 'Cambiar imagen' : 'Subir imagen hero'}
       </Button>
-
-      {error && (
-        <p className="text-sm text-destructive">{error}</p>
-      )}
 
       {currentImage && (
         <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border">
