@@ -20,14 +20,21 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
   const { success, error: showError } = useToast();
 
   useEffect(() => {
-    // Cargar el script de Cloudinary
+    // Load Cloudinary widget script from official CDN
+    // Using the correct URL from official documentation
     const script = document.createElement('script');
-    script.src = 'https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js';
+    script.src = 'https://upload-widget.cloudinary.com/latest/global/all.js';
     script.type = 'text/javascript';
     script.async = true;
     
     script.onload = () => {
-      setIsReady(true);
+      // Widget is loaded and ready to use
+      if (window.cloudinary) {
+        setIsReady(true);
+      } else {
+        console.error('Cloudinary not found after script load');
+        showError('Error cargando el widget de imágenes');
+      }
     };
 
     script.onerror = () => {
