@@ -448,7 +448,9 @@ export async function saveUserItinerary(
 
   const itineraryIdResolved = existing.data.id as string;
   
+  console.log('� Itinerary ID to update:', itineraryIdResolved);
   console.log('🚀 BEFORE UPDATE - coverImage value:', updated.coverImage);
+  console.log('📋 Existing data from DB:', existing.data);
   
   const updatePayload = {
     title: updated.title,
@@ -464,11 +466,18 @@ export async function saveUserItinerary(
     .from('itineraries')
     .update(updatePayload)
     .eq('id', itineraryIdResolved)
-    .select();
+    .select('*');
     
   console.log('📥 UPDATE result:', updateResult);
+  console.log('📊 Rows updated:', updateResult.data?.length || 0);
   
   if (updateResult.error) throw updateResult.error;
+  
+  if (!updateResult.data || updateResult.data.length === 0) {
+    console.error('⚠️ WARNING: UPDATE succeeded but 0 rows affected!');
+    console.error('⚠️ This means the WHERE clause (id = ...) did not match any rows');
+    console.error('⚠️ Or RLS policy is blocking the SELECT of the updated row');
+  }
 
   const daysResult = await supabase.from('days').select('id').eq('itinerary_id', itineraryIdResolved);
   if (daysResult.error) throw daysResult.error;
