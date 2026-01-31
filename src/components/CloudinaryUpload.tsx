@@ -1,7 +1,6 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { ImagePlus } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { useToast } from '../hooks/useToast';
 
 interface CloudinaryUploadProps {
@@ -9,82 +8,91 @@ interface CloudinaryUploadProps {
   currentImage?: string;
 }
 
+declare global {
+  interface Window {
+    cloudinary: any;
+  }
+}
+
 export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isReady, setIsReady] = useState(false);
+  const widgetRef = useRef<any>(null);
   const { success, error: showError } = useToast();
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  useEffect(() => {
+    // Cargar el script de Cloudinary
+    const script = document.createElement('script');
+    script.src = 'https://upload-widget.cloudinary.com/latest/CloudinaryUploadWidget.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    
+    script.onload = () => {
+      setIsReady(true);
+    };
 
-    // Validar que sea imagen
-    if (!file.type.startsWith('image/')) {
-      showError('Solo se permiten imágenes');
+    script.onerror = () => {
+      console.error('Failed to load Cloudinary widget script');
+      showError('Error cargando el widget de imágenes');
+    };
+
+    document.head.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, [showError]);
+
+  const handleClick = () => {
+    if (!isReady) {
+      showError('El widget aún se está cargando');
       return;
     }
 
-    // Validar tamaño (máx 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      showError('La imagen debe ser menor a 10MB');
+    if (!window.cloudinary) {
+      showError('Cloudinary no disponible');
       return;
     }
 
-    setIsLoading(true);
     try {
-      const fileName = `hero-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${file.type.split('/')[1]}`;
-      const filePath = `itinerary-images/${fileName}`;
+      widgetRef.current = window.cloudinary.createUploadWidget(
+        {
+          cloudName: 'dnx4veyec',
+          uploadPreset: 'itinerary_images',
+          sources: ['local', 'url', 'camera', 'unsplash', 'pexels'],
+          folder: 'itinerary-images',
+          cropping: true,
+          multiple: false,
+          maxFileSize: 20000000,
+          resourceType: 'image',
+        },
+        (error: any, result: any) => {
+          if (!error && result && result.event === 'success') {
+            onUpload(result.info.secure_url);
+            success('Imagen seleccionada exitosamente');
+          }
+        }
+      );
 
-      const { error: uploadError, data } = await supabase.storage
-        .from('images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Obtener URL pública
-      const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
-      
-      if (urlData?.publicUrl) {
-        onUpload(urlData.publicUrl);
-        success('Imagen subida exitosamente');
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      showError('Error al subir la imagen');
-    } finally {
-      setIsLoading(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      widgetRef.current.open();
+    } catch (err) {
+      console.error('Error opening widget:', err);
+      showError('Error abriendo el widget');
     }
   };
 
   return (
     <div className="space-y-3">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        className="hidden"
-        disabled={isLoading}
-      />
-
       <Button
         type="button"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={handleClick}
         className="gap-2"
         variant="outline"
-        disabled={isLoading}
+        disabled={!isReady}
       >
         <ImagePlus className="w-4 h-4" />
-        {isLoading ? 'Subiendo...' : currentImage ? 'Cambiar imagen' : 'Subir imagen hero'}
+        {!isReady ? 'Cargando...' : currentImage ? 'Cambiar imagen' : 'Buscar imagen hero'}
       </Button>
 
       {currentImage && (
