@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import { Plus, Filter, Video as VideoIcon } from 'lucide-react';
 import { VideoCard } from '../components/social/VideoCard';
 import { VideoPreview } from '../components/social/VideoPreview';

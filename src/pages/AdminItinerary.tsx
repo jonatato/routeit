@@ -10,7 +10,7 @@ import { AdminSidebar } from '../components/AdminSidebar';
 import { DaySelector } from '../components/DaySelector';
 import { ActivityCard } from '../components/ActivityCard';
 import { ActivityEditModal } from '../components/ActivityEditModal';
-import type { ItineraryDay, TravelItinerary } from '../data/itinerary';
+import type { ItineraryDay, TravelItinerary, Flight, FlightSegment } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
 import { resolveMapsUrl } from '../services/maps';
 import { fetchItineraryById, fetchUserItinerary, saveUserItinerary, checkUserRole } from '../services/itinerary';
@@ -39,6 +39,75 @@ const createTempId = () => {
     return crypto.randomUUID();
   }
   return `tmp-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const createEmptySegment = (): FlightSegment => ({
+  id: createTempId(),
+  departureAirport: '',
+  departureCity: '',
+  departureTime: '',
+  arrivalAirport: '',
+  arrivalCity: '',
+  arrivalTime: '',
+  duration: '',
+});
+
+const createEmptyFlight = (direction: Flight['direction'] = 'outbound'): Flight => ({
+  id: createTempId(),
+  direction,
+  date: '',
+  status: 'confirmed',
+  segments: [createEmptySegment()],
+});
+
+const normalizeFlightsList = (itinerary: TravelItinerary): Flight[] => {
+  if (itinerary.flightsList && itinerary.flightsList.length > 0) return itinerary.flightsList;
+  const outbound = itinerary.flights?.outbound;
+  const inbound = itinerary.flights?.inbound;
+  const legacyFlights: Flight[] = [];
+  if (outbound) {
+    legacyFlights.push({
+      id: createTempId(),
+      direction: 'outbound',
+      date: outbound.date,
+      totalDuration: outbound.duration,
+      stops: outbound.stops === 'Directo' ? 0 : 1,
+      segments: [
+        {
+          id: createTempId(),
+          departureAirport: outbound.fromCity,
+          departureCity: outbound.fromCity,
+          departureTime: outbound.fromTime,
+          arrivalAirport: outbound.toCity,
+          arrivalCity: outbound.toCity,
+          arrivalTime: outbound.toTime,
+          duration: outbound.duration,
+        },
+      ],
+    });
+  }
+  if (inbound) {
+    legacyFlights.push({
+      id: createTempId(),
+      direction: 'inbound',
+      date: inbound.date,
+      totalDuration: inbound.duration,
+      stops: inbound.stops === 'Directo' ? 0 : 1,
+      segments: [
+        {
+          id: createTempId(),
+          departureAirport: inbound.fromCity,
+          departureCity: inbound.fromCity,
+          departureTime: inbound.fromTime,
+          arrivalAirport: inbound.toCity,
+          arrivalCity: inbound.toCity,
+          arrivalTime: inbound.toTime,
+          duration: inbound.duration,
+        },
+      ],
+    });
+  }
+  return legacyFlights.length > 0 ? legacyFlights : [createEmptyFlight()];
 };
 
 const splitLines = (value: string) =>
@@ -212,6 +281,12 @@ function AdminItinerary() {
     }
   }, [draft, location.search]);
 
+  useEffect(() => {
+    if (!draft) return;
+    if (draft.flightsList && draft.flightsList.length > 0) return;
+    updateDraft({ flightsList: normalizeFlightsList(draft) });
+  }, [draft]);
+
   const updateDraft = (patch: Partial<TravelItinerary>) => {
     setDraft(prev => (prev ? { ...prev, ...patch } : prev));
   };
@@ -302,6 +377,72 @@ function AdminItinerary() {
         });
     }
     updateDay(activeDayIndex, { schedule: next });
+  };
+
+  const flightsList = draft?.flightsList ?? [];
+
+  const updateFlightsList = (next: Flight[]) => {
+    updateDraft({ flightsList: next });
+  };
+
+  const updateFlight = (index: number, patch: Partial<Flight>) => {
+    const next = [...flightsList];
+    next[index] = { ...next[index], ...patch };
+    updateFlightsList(next);
+  };
+
+  const updateSegment = (flightIndex: number, segmentIndex: number, patch: Partial<FlightSegment>) => {
+    const next = [...flightsList];
+    const flight = next[flightIndex];
+    if (!flight) return;
+    const segments = [...flight.segments];
+    segments[segmentIndex] = { ...segments[segmentIndex], ...patch };
+    next[flightIndex] = { ...flight, segments };
+    updateFlightsList(next);
+  };
+
+  const addFlight = () => {
+    updateFlightsList([...flightsList, createEmptyFlight('outbound')]);
+  };
+
+  const removeFlight = (index: number) => {
+    updateFlightsList(flightsList.filter((_, i) => i !== index));
+  };
+
+  const moveFlight = (from: number, to: number) => {
+    if (to < 0 || to >= flightsList.length) return;
+    const next = [...flightsList];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    updateFlightsList(next);
+  };
+
+  const addSegment = (flightIndex: number) => {
+    const next = [...flightsList];
+    const flight = next[flightIndex];
+    if (!flight) return;
+    next[flightIndex] = { ...flight, segments: [...flight.segments, createEmptySegment()] };
+    updateFlightsList(next);
+  };
+
+  const removeSegment = (flightIndex: number, segmentIndex: number) => {
+    const next = [...flightsList];
+    const flight = next[flightIndex];
+    if (!flight) return;
+    const segments = flight.segments.filter((_, i) => i !== segmentIndex);
+    next[flightIndex] = { ...flight, segments: segments.length > 0 ? segments : [createEmptySegment()] };
+    updateFlightsList(next);
+  };
+
+  const moveSegment = (flightIndex: number, from: number, to: number) => {
+    const next = [...flightsList];
+    const flight = next[flightIndex];
+    if (!flight || to < 0 || to >= flight.segments.length) return;
+    const segments = [...flight.segments];
+    const [item] = segments.splice(from, 1);
+    segments.splice(to, 0, item);
+    next[flightIndex] = { ...flight, segments };
+    updateFlightsList(next);
   };
 
   const handleScheduleLinkInput = (scheduleIndex: number, value: string) => {
@@ -607,46 +748,228 @@ function AdminItinerary() {
 
           {activeSection === 'flights' && (
             <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>Vuelos</CardTitle>
-          <CardDescription>Salida y regreso.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-2">
-          {(['outbound', 'inbound'] as const).map(direction => {
-            const flight = draft.flights[direction];
-            return (
-              <div key={direction} className="space-y-3">
-                <h3 className="text-sm font-semibold">{direction === 'outbound' ? 'Salida' : 'Regreso'}</h3>
-                {[
-                  ['Fecha', 'date'],
-                  ['Hora salida', 'fromTime'],
-                  ['Hora llegada', 'toTime'],
-                  ['Ciudad salida', 'fromCity'],
-                  ['Ciudad llegada', 'toCity'],
-                  ['Duración', 'duration'],
-                  ['Escalas', 'stops'],
-                ].map(([label, key]) => (
-                  <div key={key} className="space-y-1">
-                    <label className="text-xs text-mutedForeground">{label}</label>
-                    <input
-                      value={flight[key as keyof typeof flight]}
-                      onChange={event =>
-                        updateDraft({
-                          flights: {
-                            ...draft.flights,
-                            [direction]: { ...flight, [key]: event.target.value },
-                          },
-                        })
-                      }
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    />
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <CardTitle>Vuelos</CardTitle>
+                    <CardDescription>Gestiona vuelos con múltiples segmentos.</CardDescription>
+                  </div>
+                  <Button size="sm" onClick={addFlight}>Añadir vuelo</Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {flightsList.map((flight, flightIndex) => (
+                  <div key={flight.id} className="rounded-xl border border-border bg-background p-4 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <select
+                          value={flight.direction}
+                          onChange={event => updateFlight(flightIndex, { direction: event.target.value as Flight['direction'] })}
+                          className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="outbound">Ida</option>
+                          <option value="inbound">Vuelta</option>
+                          <option value="oneway">Solo ida</option>
+                          <option value="multi">Multi-ciudad</option>
+                        </select>
+                        <input
+                          placeholder="Etiqueta (opcional)"
+                          value={flight.label ?? ''}
+                          onChange={event => updateFlight(flightIndex, { label: event.target.value })}
+                          className="rounded-lg border border-border bg-background px-3 py-2 text-sm min-w-[200px]"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => moveFlight(flightIndex, flightIndex - 1)} disabled={flightIndex === 0}>↑</Button>
+                        <Button variant="outline" size="sm" onClick={() => moveFlight(flightIndex, flightIndex + 1)} disabled={flightIndex === flightsList.length - 1}>↓</Button>
+                        <Button variant="outline" size="sm" onClick={() => removeFlight(flightIndex)} disabled={flightsList.length === 1}>Eliminar</Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-mutedForeground">Fecha</label>
+                        <input
+                          value={flight.date}
+                          onChange={event => updateFlight(flightIndex, { date: event.target.value })}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-mutedForeground">Referencia</label>
+                        <input
+                          value={flight.bookingReference ?? ''}
+                          onChange={event => updateFlight(flightIndex, { bookingReference: event.target.value })}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-mutedForeground">Asiento</label>
+                        <input
+                          value={flight.seat ?? ''}
+                          onChange={event => updateFlight(flightIndex, { seat: event.target.value })}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-mutedForeground">Clase</label>
+                        <select
+                          value={flight.cabinClass ?? ''}
+                          onChange={event => updateFlight(flightIndex, { cabinClass: event.target.value as Flight['cabinClass'] })}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="">Sin definir</option>
+                          <option value="economy">Economy</option>
+                          <option value="premium_economy">Premium Economy</option>
+                          <option value="business">Business</option>
+                          <option value="first">First Class</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-mutedForeground">Estado</label>
+                        <select
+                          value={flight.status ?? 'confirmed'}
+                          onChange={event => updateFlight(flightIndex, { status: event.target.value as Flight['status'] })}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="confirmed">Confirmado</option>
+                          <option value="pending">Pendiente</option>
+                          <option value="delayed">Retrasado</option>
+                          <option value="cancelled">Cancelado</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-mutedForeground">Duración total</label>
+                        <input
+                          value={flight.totalDuration ?? ''}
+                          onChange={event => updateFlight(flightIndex, { totalDuration: event.target.value })}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold">Segmentos</p>
+                      <Button variant="outline" size="sm" onClick={() => addSegment(flightIndex)}>Añadir segmento</Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {flight.segments.map((segment, segmentIndex) => (
+                        <div key={segment.id} className="rounded-lg border border-border bg-muted/20 p-4">
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <p className="text-xs font-semibold text-mutedForeground">Segmento {segmentIndex + 1}</p>
+                            <div className="flex items-center gap-2">
+                              <Button variant="outline" size="sm" onClick={() => moveSegment(flightIndex, segmentIndex, segmentIndex - 1)} disabled={segmentIndex === 0}>↑</Button>
+                              <Button variant="outline" size="sm" onClick={() => moveSegment(flightIndex, segmentIndex, segmentIndex + 1)} disabled={segmentIndex === flight.segments.length - 1}>↓</Button>
+                              <Button variant="outline" size="sm" onClick={() => removeSegment(flightIndex, segmentIndex)} disabled={flight.segments.length === 1}>Eliminar</Button>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Aerolínea</label>
+                              <input
+                                value={segment.airline ?? ''}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { airline: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Código aerolínea</label>
+                              <input
+                                value={segment.airlineCode ?? ''}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { airlineCode: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Número de vuelo</label>
+                              <input
+                                value={segment.flightNumber ?? ''}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { flightNumber: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Aeropuerto salida</label>
+                              <input
+                                value={segment.departureAirport}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { departureAirport: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Ciudad salida</label>
+                              <input
+                                value={segment.departureCity}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { departureCity: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Hora salida</label>
+                              <input
+                                value={segment.departureTime}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { departureTime: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Terminal salida</label>
+                              <input
+                                value={segment.departureTerminal ?? ''}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { departureTerminal: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Aeropuerto llegada</label>
+                              <input
+                                value={segment.arrivalAirport}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { arrivalAirport: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Ciudad llegada</label>
+                              <input
+                                value={segment.arrivalCity}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { arrivalCity: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Hora llegada</label>
+                              <input
+                                value={segment.arrivalTime}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { arrivalTime: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Terminal llegada</label>
+                              <input
+                                value={segment.arrivalTerminal ?? ''}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { arrivalTerminal: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs text-mutedForeground">Duración</label>
+                              <input
+                                value={segment.duration}
+                                onChange={event => updateSegment(flightIndex, segmentIndex, { duration: event.target.value })}
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
           )}
 
           {activeSection === 'budget' && (

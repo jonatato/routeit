@@ -8,6 +8,7 @@ import {
   type DbDayNote,
   type DbDayTag,
   type DbFlight,
+  type DbFlightSegment,
   type DbItinerary,
   type DbItineraryList,
   type DbItineraryListItem,
@@ -147,6 +148,12 @@ async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinera
     );
   }
 
+  const flightIds = (flights.data as DbFlight[]).map(flight => flight.id);
+  const flightSegments = flightIds.length > 0
+    ? await supabase.from('flight_segments').select('*').in('flight_id', flightIds)
+    : await supabase.from('flight_segments').select('*').limit(0);
+  if (flightSegments.error) throw flightSegments.error;
+
   return mapDbToItinerary({
     itinerary,
     days: days.data as DbDay[],
@@ -158,6 +165,7 @@ async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinera
     locations: locations.data as DbLocation[],
     routes: routes.data as DbRoute[],
     flights: flights.data as DbFlight[],
+    flightSegments: flightSegments.data as DbFlightSegment[],
     lists: lists.data as DbItineraryList[],
     listItems: listItems.data as DbItineraryListItem[],
     phrases: phrases.data as DbPhrase[],
@@ -335,10 +343,44 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
     if (routesError) throw routesError;
   }
   if (seed.flights.length > 0) {
-    const { error: flightsError } = await supabase
+    const { data: insertedFlights, error: flightsError } = await supabase
       .from('flights')
-      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryId })));
+      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryId })))
+      .select('*');
     if (flightsError) throw flightsError;
+
+    const flightIdByOrder = new Map<number, string>();
+    (insertedFlights as DbFlight[]).forEach(flight => {
+      flightIdByOrder.set(flight.order_index ?? 0, flight.id);
+    });
+
+    const flightSegmentPayload = seed.flightSegments.map(segment => ({
+      flight_id: flightIdByOrder.get(segment.flightOrder) ?? '',
+      order_index: segment.order_index,
+      airline: segment.airline ?? null,
+      airline_code: segment.airline_code ?? null,
+      flight_number: segment.flight_number ?? null,
+      departure_airport: segment.departure_airport,
+      departure_city: segment.departure_city,
+      departure_time: segment.departure_time,
+      departure_terminal: segment.departure_terminal ?? null,
+      departure_lat: segment.departure_lat ?? null,
+      departure_lng: segment.departure_lng ?? null,
+      arrival_airport: segment.arrival_airport,
+      arrival_city: segment.arrival_city,
+      arrival_time: segment.arrival_time,
+      arrival_terminal: segment.arrival_terminal ?? null,
+      arrival_lat: segment.arrival_lat ?? null,
+      arrival_lng: segment.arrival_lng ?? null,
+      duration: segment.duration,
+    }));
+
+    if (flightSegmentPayload.length > 0) {
+      const { error: segmentsError } = await supabase
+        .from('flight_segments')
+        .insert(flightSegmentPayload);
+      if (segmentsError) throw segmentsError;
+    }
   }
 
   const { data: insertedLists, error: listsError } = await supabase
@@ -634,10 +676,44 @@ export async function saveUserItinerary(
     if (routesError) throw routesError;
   }
   if (seed.flights.length > 0) {
-    const { error: flightsError } = await supabase
+    const { data: insertedFlights, error: flightsError } = await supabase
       .from('flights')
-      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryId })));
+      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryId })))
+      .select('*');
     if (flightsError) throw flightsError;
+
+    const flightIdByOrder = new Map<number, string>();
+    (insertedFlights as DbFlight[]).forEach(flight => {
+      flightIdByOrder.set(flight.order_index ?? 0, flight.id);
+    });
+
+    const flightSegmentPayload = seed.flightSegments.map(segment => ({
+      flight_id: flightIdByOrder.get(segment.flightOrder) ?? '',
+      order_index: segment.order_index,
+      airline: segment.airline ?? null,
+      airline_code: segment.airline_code ?? null,
+      flight_number: segment.flight_number ?? null,
+      departure_airport: segment.departure_airport,
+      departure_city: segment.departure_city,
+      departure_time: segment.departure_time,
+      departure_terminal: segment.departure_terminal ?? null,
+      departure_lat: segment.departure_lat ?? null,
+      departure_lng: segment.departure_lng ?? null,
+      arrival_airport: segment.arrival_airport,
+      arrival_city: segment.arrival_city,
+      arrival_time: segment.arrival_time,
+      arrival_terminal: segment.arrival_terminal ?? null,
+      arrival_lat: segment.arrival_lat ?? null,
+      arrival_lng: segment.arrival_lng ?? null,
+      duration: segment.duration,
+    }));
+
+    if (flightSegmentPayload.length > 0) {
+      const { error: segmentsError } = await supabase
+        .from('flight_segments')
+        .insert(flightSegmentPayload);
+      if (segmentsError) throw segmentsError;
+    }
   }
 
   const { data: insertedLists, error: listsError } = await supabase

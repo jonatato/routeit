@@ -3,20 +3,22 @@ import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import { Link } from 'react-router-dom';
 import { Plus, Settings, Search, Maximize2 } from 'lucide-react';
-import type { TravelItinerary } from '../data/itinerary';
+import type { TravelItinerary, Flight, FlightSegment } from '../data/itinerary';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
-import { Tabs } from 'flowbite-react';
 import { PandaLogo } from './PandaLogo';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs as UITabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { DaySelectorCarousel } from './DaySelectorCarousel';
+import { FlightCarousel } from './FlightCarousel';
 import { fetchSectionPreferences, type SectionPreference } from '../services/sections';
 import { supabase } from '../lib/supabase';
 import { exportItineraryToPDF } from '../services/pdfExport';
 import { PDFExportDialog } from './PDFExportDialog';
 import { MapModal } from './MapModal';
 import { useIsMobileShell } from '../hooks/useIsMobileShell';
+import { downloadFlightICS } from '../utils/calendarExport';
 
 const kindLabels: Record<string, string> = {
   flight: '✈️ Vuelo',
@@ -48,6 +50,21 @@ function getTagLabel(kind: string, tagsCatalog?: Array<{ name: string; slug: str
   if (!tagsCatalog) return null;
   const tag = tagsCatalog.find(t => t.slug === kind);
   return tag?.name ?? null;
+}
+
+// Helper para extraer código de aeropuerto de string como "Madrid (MAD)"
+function extractAirportCode(cityStr: string): string {
+  const match = cityStr.match(/\(([A-Z]{3})\)/);
+  if (match) return match[1];
+  // Fallback: use first 3 chars uppercase
+  return cityStr.slice(0, 3).toUpperCase();
+}
+
+// Helper para extraer nombre de ciudad de string como "Madrid (MAD)"
+function extractCityName(cityStr: string): string {
+  const match = cityStr.match(/^(.+?)\s*\(/);
+  if (match) return match[1].trim();
+  return cityStr;
 }
 
 type ItineraryViewProps = {
@@ -84,10 +101,60 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const swipeState = useRef({ startX: 0, deltaX: 0, isDragging: false });
   const mapSectionRef = useRef<HTMLDivElement | null>(null);
-  const flightTabs = [
-    { label: 'Salida', value: 'outbound', data: itinerary.flights.outbound },
-    { label: 'Vuelta', value: 'inbound', data: itinerary.flights.inbound },
-  ];
+  
+  // Convert legacy flights to new format if flightsList is not available
+  const flightsList: Flight[] = useMemo(() => {
+    // If new format is available, use it
+    if (itinerary.flightsList && itinerary.flightsList.length > 0) {
+      return itinerary.flightsList;
+    }
+    // Convert legacy format to new format
+    const legacyFlights: Flight[] = [];
+    if (itinerary.flights?.outbound) {
+      const outbound = itinerary.flights.outbound;
+      legacyFlights.push({
+        id: 'legacy-outbound',
+        direction: 'outbound',
+        date: outbound.date,
+        status: 'confirmed',
+        totalDuration: outbound.duration,
+        stops: outbound.stops === 'Directo' ? 0 : 1,
+        segments: [{
+          id: 'legacy-outbound-seg-1',
+          departureAirport: extractAirportCode(outbound.fromCity),
+          departureCity: extractCityName(outbound.fromCity),
+          departureTime: outbound.fromTime,
+          arrivalAirport: extractAirportCode(outbound.toCity),
+          arrivalCity: extractCityName(outbound.toCity),
+          arrivalTime: outbound.toTime,
+          duration: outbound.duration,
+        }],
+      });
+    }
+    if (itinerary.flights?.inbound) {
+      const inbound = itinerary.flights.inbound;
+      legacyFlights.push({
+        id: 'legacy-inbound',
+        direction: 'inbound',
+        date: inbound.date,
+        status: 'confirmed',
+        totalDuration: inbound.duration,
+        stops: inbound.stops === 'Directo' ? 0 : 1,
+        segments: [{
+          id: 'legacy-inbound-seg-1',
+          departureAirport: extractAirportCode(inbound.fromCity),
+          departureCity: extractCityName(inbound.fromCity),
+          departureTime: inbound.fromTime,
+          arrivalAirport: extractAirportCode(inbound.toCity),
+          arrivalCity: extractCityName(inbound.toCity),
+          arrivalTime: inbound.toTime,
+          duration: inbound.duration,
+        }],
+      });
+    }
+    return legacyFlights;
+  }, [itinerary.flightsList, itinerary.flights]);
+
   const mapCenter = useMemo(() => [33.5, 111.5] as [number, number], []);
   const visibleLocations = useMemo(() => {
     if (showAllMarkers) return itinerary.locations;
@@ -345,18 +412,30 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   // Mapeo de secciones con su visibilidad y orden
   const sectionConfig = useMemo(() => {
     const config = new Map<string, { visible: boolean; order: number }>();
+    const defaultOrder = isMobile
+      ? ['flights', 'itinerary', 'flightInfo', 'overview', 'map', 'foods', 'budget']
+      : ['flights', 'itinerary', 'flightInfo', 'overview', 'map', 'foods', 'budget'];
+
+    defaultOrder.forEach((key, index) => {
+      config.set(key, { visible: true, order: index });
+    });
+
     if (sectionPreferences.length > 0) {
       sectionPreferences.forEach(pref => {
         config.set(pref.section_key, { visible: pref.is_visible, order: pref.order_index });
       });
-    } else {
-      // Orden por defecto si no hay preferencias
-      ['overview', 'map', 'itinerary', 'foods', 'budget'].forEach((key, index) => {
-        config.set(key, { visible: true, order: index });
-      });
     }
+
+    const priority = isMobile
+      ? ['flights', 'itinerary', 'flightInfo', 'overview', 'map', 'foods', 'budget']
+      : ['flights', 'itinerary', 'flightInfo', 'overview', 'map', 'foods', 'budget'];
+    priority.forEach((key, index) => {
+      const current = config.get(key);
+      config.set(key, { visible: current?.visible ?? true, order: index });
+    });
+
     return config;
-  }, [sectionPreferences]);
+  }, [isMobile, sectionPreferences]);
 
   const shouldShowSection = (key: string) => {
     const config = sectionConfig.get(key);
@@ -496,13 +575,13 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       )}
       <div
         ref={itineraryContainerRef}
-        className={`min-h-screen bg-background text-foreground ${
+        className={`min-h-screen bg-background text-foreground overflow-x-hidden ${
           highContrast ? 'a11y-contrast' : ''
         } ${largeText ? 'a11y-text-lg' : ''}`}
       >
 
-      <main className="mx-auto flex w-full flex-col gap-8 px-4 py-6 md:py-10" style={{ display: 'flex', flexDirection: 'column' }}>
-        <section data-section="flights" className="grid gap-6" style={{ order: -1 }}>
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:py-10 overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
+        <section data-section="flights" className="grid gap-6" style={{ order: getSectionOrder('flights') }}>
           {itinerary.coverImage && (
             <div className="relative w-full h-64 md:h-96 rounded-lg overflow-hidden">
               <img
@@ -522,17 +601,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               dangerouslySetInnerHTML={renderHtml(itinerary.intro)}
             />
             <div className="flex flex-wrap gap-3">
-              <Link to="#itinerary" className="no-print">
-                <Button className="rounded-full">
-                  Itinerario
-                </Button>
-              </Link>
-              <Link to="/app/split" className="no-print">
-                <Button variant="outline" className="rounded-full">
-                  Gastos
-                </Button>
-              </Link>
-              <Button variant="outline" className="rounded-full no-print" onClick={handlePrint}>
+              <Button  className="rounded-full no-print" onClick={handlePrint}>
                 Exportar PDF
               </Button>
             </div>
@@ -568,57 +637,24 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           )}
         </section>
 
-        <section className="space-y-6" style={{ order: -1 }}>
-          <div className="flex flex-col gap-2">
-            <h2 className="text-3xl font-semibold">Información del vuelo</h2>
-            <p className="text-mutedForeground">Detalles clave de salida y regreso.</p>
-          </div>
-          <Tabs aria-label="Información del vuelo" variant="pills" className="w-full max-w-md">
-            {flightTabs.map(tab => {
-              const TabsItem = (Tabs as any).Item;
-              return (
-                <TabsItem key={tab.value} title={tab.label}>
-                  <Card className="border-none shadow-lg">
-                    <CardContent className="space-y-6 p-6">
-                      <p className="text-lg font-semibold text-mutedForeground">{tab.data.date}</p>
-                      <div className="grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
-                        <div className="space-y-2 text-center md:text-left">
-                          <p className="text-4xl font-semibold">{tab.data.fromTime}</p>
-                          <p className="text-sm text-mutedForeground">{tab.data.fromCity}</p>
-                        </div>
-                        <div className="flex flex-col items-center gap-2 text-mutedForeground">
-                          <span className="text-2xl">✈️</span>
-                          <span className="text-sm">{tab.data.duration}</span>
-                          <span className="text-xs">{tab.data.stops}</span>
-                        </div>
-                        <div className="space-y-2 text-center md:text-right">
-                          <p className="text-4xl font-semibold">{tab.data.toTime}</p>
-                          <p className="text-sm text-mutedForeground">{tab.data.toCity}</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="w-full border-2 text-base font-semibold"
-                        onClick={() => {
-                          // Scroll a la sección del mapa interactivo
-                          mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }}
-                      >
-                        Detalles del viaje
-                      </Button>
-                      <div className="flex items-center gap-3 rounded-2xl bg-purple-50 px-4 py-3 text-sm text-purple-700">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-100 text-xs font-semibold">
-                          i
-                        </span>
-                        <span>Servicio de facturación no disponible</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsItem>
-              );
-            })}
-          </Tabs>
-        </section>
+        {flightsList.length > 0 && (
+          <section className="space-y-6" style={{ order: getSectionOrder('flightInfo') }}>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-3xl font-semibold">Información de vuelos</h2>
+              <p className="text-mutedForeground">
+                {flightsList.length === 1 
+                  ? 'Detalles de tu vuelo.' 
+                  : `${flightsList.length} vuelos configurados. Desliza para ver todos.`
+                }
+              </p>
+            </div>
+            <FlightCarousel
+              flights={flightsList}
+              editable={editable}
+              onAddToCalendar={downloadFlightICS}
+            />
+          </section>
+        )}
 
         {shouldShowSection('map') && (
           <section id="map" data-section="map" className="space-y-6" ref={mapSectionRef} style={{ order: getSectionOrder('map') }}>
@@ -719,98 +755,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               </CardContent>
             </Card>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Ruta del viaje</CardTitle>
-                <CardDescription>Orden general de ciudades.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2 text-sm">
-                {itinerary.route.map(city => (
-                  <span key={city} className="rounded-full border border-border px-3 py-1">
-                    {city}
-                  </span>
-                ))}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Tramos por día</CardTitle>
-                <CardDescription>Traslados y vuelos con fecha.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-mutedForeground">
-                {routeLegs.map(leg => (
-                  <div
-                    key={leg.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-4 py-2"
-                  >
-                    <span className="font-medium text-foreground">Día {leg.label}</span>
-                    <span>{leg.city}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-        )}
-
-        {shouldShowSection('overview') && (
-          <section id="overview" data-section="overview" className="grid gap-6 lg:grid-cols-[2fr_1fr]" style={{ order: getSectionOrder('overview') }}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Checklist previa</CardTitle>
-              <CardDescription>Imprescindibles antes de salir.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm text-mutedForeground">
-                <span>{checklistProgress}% completado</span>
-                <span>
-                  {checkedItems.length}/{checklistItems.length}
-                </span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-muted">
-                <div
-                  className="h-2 rounded-full bg-primary transition-[width] duration-300"
-                  style={{ width: `${checklistProgress}%` }}
-                />
-              </div>
-              <div className="grid gap-3 text-sm text-mutedForeground md:grid-cols-2">
-                {checklistItems.map((item, index) => {
-                  const checked = checkedItems.includes(item);
-                  return (
-                    <label
-                      key={`check-${index}`}
-                      className={`flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 transition ${
-                        checked ? 'bg-muted text-foreground' : 'bg-background'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setCheckedItems(prev =>
-                            prev.includes(item) ? prev.filter(value => value !== item) : [...prev, item],
-                          );
-                        }}
-                      />
-                      <span dangerouslySetInnerHTML={renderHtml(item)} />
-                    </label>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted">
-            <CardHeader>
-              <CardTitle>Notas clave</CardTitle>
-              <CardDescription>Consejos rápidos de seguridad.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-mutedForeground">
-              <p>Pasaporte siempre contigo + copia digital.</p>
-              <p>Powerbank y adaptador universal cada día.</p>
-              <p>Evita horas pico en atracciones populares.</p>
-            </CardContent>
-          </Card>
         </section>
         )}
 
@@ -839,256 +783,160 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearchQuery('');
-                setActiveFilters([]);
-              }}
-              className="text-xs shrink-0 rounded-full"
-            >
-              Ver todo
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs shrink-0 rounded-full"
-            >
-              Filtrar por ciudad
-            </Button>
-            <span className="text-xs text-mutedForeground ml-auto shrink-0">
-              Marcador de actividad: {checkedItems.length}
-            </span>
-          </div>
           
-          {/* Desktop: Tabs + Contenido + Mapa lateral */}
+          {/* Desktop: Selector de días mejorado + Contenido */}
           {!isMobile && (
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
-              <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full min-w-0">
-                <div className="overflow-x-auto no-scrollbar">
-                  <TabsList className="inline-flex w-auto min-w-full">
-                    {filteredDays.map((day, index) => {
-                      const customColor = getTagColor(day.kind, tagsCatalog);
-                      const customLabel = getTagLabel(day.kind, tagsCatalog);
-                      return (
-                        <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap">
-                          <span className="flex items-center gap-2">
-                            {customColor ? (
-                              <span 
-                                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                                style={{ backgroundColor: customColor }}
-                              >
-                                {customLabel ?? day.kind}
-                              </span>
-                            ) : (
-                              <Badge variant={kindVariants[day.kind] ?? 'primary'} className="text-[10px] py-0 px-1.5">{kindLabels[day.kind] ?? day.kind}</Badge>
-                            )}
-                            {day.dayLabel}
-                          </span>
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
-                </div>
-                
-                {filteredDays.map((day, index) => {
-                  const customColor = getTagColor(day.kind, tagsCatalog);
-                  const customLabel = getTagLabel(day.kind, tagsCatalog);
-                  return (
-                    <TabsContent key={day.id} value={String(index)} className="mt-4">
-                      <Card className="w-full border border-border/60 shadow-sm">
-                        <CardHeader className="gap-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {customColor ? (
-                              <span 
-                                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                                style={{ backgroundColor: customColor }}
-                              >
-                                {customLabel ?? day.kind}
-                              </span>
-                            ) : (
-                              <Badge variant={kindVariants[day.kind] ?? 'primary'}>{kindLabels[day.kind] ?? day.kind}</Badge>
-                            )}
-                            <Badge variant="secondary">{day.dayLabel}</Badge>
-                            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                              {day.date}
-                            </span>
-                            {editable && (
-                              <Link
-                              to={`/app/admin?section=days&dayId=${day.id}`}
-                              className="ml-auto inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-600 transition hover:bg-emerald-100"
-                              aria-label="Editar día"
-                            >
-                              +
-                            </Link>
-                          )}
-                        </div>
-                        <CardTitle className="text-xl">{day.city}</CardTitle>
-                        <CardDescription>{day.plan}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Mapa del día */}
-                        {dayMapPoints.length > 0 && index === currentDayIndex && (
-                          <div 
-                            className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
-                            onClick={() => {
-                              setDayMapModalData({
-                                center: dayMapCenter,
-                                points: dayMapPoints.map(point => ({
-                                  lat: point.position[0],
-                                  lng: point.position[1],
-                                  time: point.time,
-                                  label: point.label,
-                                  city: day.city,
-                                  region: day.city,
-                                })),
-                              });
-                              setIsDayMapModalOpen(true);
-                            }}
+            <div className="w-full space-y-4">
+              {/* Selector de días con navegación */}
+              <DaySelectorCarousel
+                days={filteredDays}
+                currentIndex={currentDayIndex}
+                onDayChange={(index) => {
+                  setCurrentDayIndex(index);
+                  setActiveTabValue(String(index));
+                }}
+                tagsCatalog={tagsCatalog}
+              />
+              
+              {/* Contenido del día seleccionado */}
+              {filteredDays[currentDayIndex] && (() => {
+                const day = filteredDays[currentDayIndex];
+                const customColor = getTagColor(day.kind, tagsCatalog);
+                const customLabel = getTagLabel(day.kind, tagsCatalog);
+                return (
+                  <Card className="w-full border border-border/60 shadow-sm">
+                    <CardHeader className="gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {customColor ? (
+                          <span 
+                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                            style={{ backgroundColor: customColor }}
                           >
-                            <div className="h-56 w-full">
-                              <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
-                                <TileLayer
-                                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                />
-                                {dayMapPoints.map(point => (
-                                  <Marker key={`${point.time}-${point.label}`} position={point.position}>
-                                    <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                      {point.time} · {point.label}
-                                    </Tooltip>
-                                    <Popup>
-                                      {point.time} · {point.label}
-                                    </Popup>
-                                  </Marker>
-                                ))}
-                              </MapContainer>
-                            </div>
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
-                                <Maximize2 className="h-6 w-6 text-primary" />
-                              </div>
-                            </div>
-                          </div>
+                            {customLabel ?? day.kind}
+                          </span>
+                        ) : (
+                          <Badge variant={kindVariants[day.kind] ?? 'primary'}>{kindLabels[day.kind] ?? day.kind}</Badge>
                         )}
-                        
-                        {/* Timeline de actividades */}
-                        <div className="relative space-y-4">
-                          <div className="absolute left-3 top-2 h-[calc(100%-16px)] w-px bg-border" />
-                          {day.schedule.map((item, itemIndex) => (
+                        <Badge variant="secondary">{day.dayLabel}</Badge>
+                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                          {day.date}
+                        </span>
+                      </div>
+                      <CardTitle className="text-xl">{day.city}</CardTitle>
+                      <CardDescription>{day.plan}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Timeline de actividades */}
+                      <div className="relative space-y-5">
+                        <div className="absolute left-3 top-2 h-[calc(100%-20px)] w-px bg-border" />
+                        {day.schedule.map((item, itemIndex) => {
+                          const checked = checkedItems.includes(`${day.id}-${itemIndex}`);
+                          return (
                             <div
                               key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
-                              className="relative flex flex-col gap-2 pl-8 text-sm sm:flex-row sm:items-center"
+                              className={`relative flex flex-col gap-2 pl-8 text-sm transition ${
+                                checked ? 'opacity-50' : ''
+                              }`}
                             >
-                              <span className="absolute left-1.5 top-2 h-3 w-3 rounded-full bg-primary" />
-                              <span className="w-auto font-semibold text-foreground sm:w-20">{item.time}</span>
-                              <div className="flex flex-col gap-1 text-mutedForeground sm:flex-row sm:items-center sm:gap-3">
-                                <span>{item.activity}</span>
-                                {item.link && (
-                                  <a
-                                    href={item.link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
-                                  >
-                                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
-                                      <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
-                                    </svg>
-                                    Entradas
-                                  </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const key = `${day.id}-${itemIndex}`;
+                                  setCheckedItems(prev =>
+                                    prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key],
+                                  );
+                                }}
+                                className={`absolute left-0.5 top-1.5 h-5 w-5 rounded-full border-2 transition ${
+                                  checked
+                                    ? 'border-primary bg-primary text-white'
+                                    : 'border-border bg-background hover:border-primary/50'
+                                }`}
+                                aria-label={checked ? 'Marcar como pendiente' : 'Marcar como completado'}
+                              >
+                                {checked && (
+                                  <svg viewBox="0 0 24 24" className="h-full w-full p-0.5" fill="none" stroke="currentColor" strokeWidth="3">
+                                    <path d="M5 12l5 5L20 7" />
+                                  </svg>
                                 )}
-                                {item.mapLink && (
-                                  <a
-                                    href={item.mapLink}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                                  >
-                                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M3 6l8-3 10 4-8 3-10-4z" />
-                                      <path d="M14 10l7-3v11l-7 3" />
-                                      <path d="M3 6v11l8 3" />
-                                    </svg>
-                                    Maps
-                                  </a>
-                                )}
-                                {item.cost && (
-                                  <span
-                                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
-                                    title={`Gasto registrado en Split${item.costSplitExpenseId ? ' (sincronizado)' : ''}`}
-                                  >
-                                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <line x1="12" y1="1" x2="12" y2="23" />
-                                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                                    </svg>
-                                    {item.cost.toFixed(2)} {item.costCurrency ?? 'EUR'}
-                                  </span>
-                                )}
+                              </button>
+                              <span className="font-semibold text-foreground">{item.time}</span>
+                              <div className="flex flex-col gap-1 text-mutedForeground">
+                                <span className={checked ? 'line-through' : ''}>{item.activity}</span>
+                                <div className="flex flex-wrap gap-2">
+                                  {item.link && (
+                                    <a
+                                      href={item.link}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary transition hover:bg-primary/20"
+                                    >
+                                      Entradas
+                                    </a>
+                                  )}
+                                  {item.mapLink && (
+                                    <a
+                                      href={item.mapLink}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                    >
+                                      Maps
+                                    </a>
+                                  )}
+                                  {item.cost && (
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                                      €{item.cost.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              {item.lat !== undefined && item.lng !== undefined && (
-                                <span className="text-xs text-mutedForeground sm:ml-auto">
-                                  {item.lat.toFixed(4)}, {item.lng.toFixed(4)}
-                                </span>
-                              )}
                             </div>
-                          ))}
+                          );
+                        })}
+                      </div>
+                      {/* Notas y estadísticas */}
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                            Notas clave
+                          </p>
+                          {day.notes.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-mutedForeground">
+                              {day.notes.map(note => (
+                                <span key={note} className="rounded-full border border-border px-3 py-1">
+                                  {note}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs text-mutedForeground">Sin notas adicionales.</p>
+                          )}
                         </div>
-                        
-                        {/* Notas y estadísticas */}
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                              Notas clave
-                            </p>
-                            {day.notes.length > 0 ? (
-                              <div className="mt-2 flex flex-wrap gap-2 text-xs text-mutedForeground">
-                                {day.notes.map(note => (
-                                  <span key={note} className="rounded-full border border-border px-3 py-1">
-                                    {note}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="mt-2 text-xs text-mutedForeground">Sin notas adicionales.</p>
-                            )}
-                          </div>
-                          <div className="rounded-xl border border-border bg-background p-4 text-sm">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                              Bloques del día
-                            </p>
-                            <p className="mt-2 text-base font-semibold text-foreground">
-                              {day.schedule.length} momentos planificados
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                  );
-                })}
-              </UITabs>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </div>
           )}
           
-          {/* Mobile: Tabs con los días */}
+          {/* Mobile: Selector de días mejorado con gestos */}
           {isMobile && (
             <>
-              {/* Tabs solo con los días */}
-              <UITabs value={activeTabValue} onValueChange={setActiveTabValue} className="w-full">
-                <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
-                  <TabsList className="inline-flex w-auto min-w-full">
-                    {filteredDays.map((day, index) => (
-                      <TabsTrigger key={day.id} value={String(index)} className="whitespace-nowrap text-xs">
-                        {day.dayLabel}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </div>
+              {/* Nuevo selector de días con swipe y dropdown */}
+              <DaySelectorCarousel
+                days={filteredDays}
+                currentIndex={currentDayIndex}
+                onDayChange={(index) => {
+                  setCurrentDayIndex(index);
+                  setActiveTabValue(String(index));
+                }}
+                tagsCatalog={tagsCatalog}
+              />
               
-              {filteredDays.map((day, index) => {
+              {/* Contenido del día actual */}
+              {filteredDays[currentDayIndex] && (() => {
+                const day = filteredDays[currentDayIndex];
                 const dayPoints = day.schedule
                   .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number')
                   .map(item => ({
@@ -1103,7 +951,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 const customLabel = getTagLabel(day.kind, tagsCatalog);
                 
                 return (
-                  <TabsContent key={day.id} value={String(index)} className="mt-4 space-y-4">
+                  <div key={day.id} className="mt-4 space-y-4">
                     {/* Mapa del día */}
                     {dayPoints.length > 0 && (
                       <div 
@@ -1175,56 +1023,80 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                         {/* Timeline de actividades */}
                         <div className="relative space-y-4">
                           <div className="absolute left-3 top-2 h-[calc(100%-16px)] w-px bg-border" />
-                          {day.schedule.map((item, itemIndex) => (
-                            <div
-                              key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
-                              className="relative flex flex-col gap-2 pl-8 text-sm"
-                            >
-                              <span className="absolute left-1.5 top-2 h-3 w-3 rounded-full bg-primary" />
-                              <span className="w-auto font-semibold text-foreground">{item.time}</span>
-                              <div className="flex flex-col gap-1 text-mutedForeground">
-                                <span>{item.activity}</span>
-                                <div className="flex flex-wrap gap-2">
-                                  {item.link && (
-                                    <a
-                                      href={item.link}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition active:bg-primary/30"
-                                    >
-                                      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
-                                        <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
-                                      </svg>
-                                      Entradas
-                                    </a>
+                          {day.schedule.map((item, itemIndex) => {
+                            const checked = checkedItems.includes(`${day.id}-${itemIndex}`);
+                            return (
+                              <div
+                                key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
+                                className={`relative flex flex-col gap-2 pl-8 text-sm transition ${
+                                  checked ? 'opacity-50' : ''
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const key = `${day.id}-${itemIndex}`;
+                                    setCheckedItems(prev =>
+                                      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key],
+                                    );
+                                  }}
+                                  className={`absolute left-0.5 top-1.5 h-5 w-5 rounded-full border-2 transition ${
+                                    checked
+                                      ? 'border-primary bg-primary text-white'
+                                      : 'border-border bg-background hover:border-primary/50'
+                                  }`}
+                                  aria-label={checked ? 'Marcar como pendiente' : 'Marcar como completado'}
+                                >
+                                  {checked && (
+                                    <svg viewBox="0 0 24 24" className="h-full w-full p-0.5" fill="none" stroke="currentColor" strokeWidth="3">
+                                      <path d="M5 12l5 5L20 7" />
+                                    </svg>
                                   )}
-                                  {item.mapLink && (
-                                    <a
-                                      href={item.mapLink}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition active:bg-emerald-200"
-                                    >
-                                      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M3 6l8-3 10 4-8 3-10-4z" />
-                                        <path d="M14 10l7-3v11l-7 3" />
-                                        <path d="M3 6v11l8 3" />
-                                      </svg>
-                                      Maps
-                                    </a>
-                                  )}
+                                </button>
+                                <span className="w-auto font-semibold text-foreground">{item.time}</span>
+                                <div className="flex flex-col gap-1 text-mutedForeground">
+                                  <span className={checked ? 'line-through' : ''}>{item.activity}</span>
+                                  <div className="flex flex-wrap gap-2">
+                                    {item.link && (
+                                      <a
+                                        href={item.link}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition active:bg-primary/30"
+                                      >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
+                                          <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
+                                        </svg>
+                                        Entradas
+                                      </a>
+                                    )}
+                                    {item.mapLink && (
+                                      <a
+                                        href={item.mapLink}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition active:bg-emerald-200"
+                                      >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M3 6l8-3 10 4-8 3-10-4z" />
+                                          <path d="M14 10l7-3v11l-7 3" />
+                                          <path d="M3 6v11l8 3" />
+                                        </svg>
+                                        Maps
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </CardContent>
                     </Card>
-                  </TabsContent>
+                  </div>
                 );
-              })}
-              </UITabs>
+              })()}
             </>
           )}
           
@@ -1245,6 +1117,66 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               </CardContent>
             </Card>
           )}
+        </section>
+        )}
+
+        {shouldShowSection('overview') && (
+          <section id="overview" data-section="overview" className="grid gap-6 lg:grid-cols-[2fr_1fr]" style={{ order: getSectionOrder('overview') }}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Checklist previa</CardTitle>
+              <CardDescription>Imprescindibles antes de salir.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between text-sm text-mutedForeground">
+                <span>{checklistProgress}% completado</span>
+                <span>
+                  {checkedItems.length}/{checklistItems.length}
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted">
+                <div
+                  className="h-2 rounded-full bg-primary transition-[width] duration-300"
+                  style={{ width: `${checklistProgress}%` }}
+                />
+              </div>
+              <div className="grid gap-3 text-sm text-mutedForeground md:grid-cols-2">
+                {checklistItems.map((item, index) => {
+                  const checked = checkedItems.includes(item);
+                  return (
+                    <label
+                      key={`check-${index}`}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 transition ${
+                        checked ? 'bg-muted text-foreground' : 'bg-background'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setCheckedItems(prev =>
+                            prev.includes(item) ? prev.filter(value => value !== item) : [...prev, item],
+                          );
+                        }}
+                      />
+                      <span dangerouslySetInnerHTML={renderHtml(item)} />
+                    </label>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-muted">
+            <CardHeader>
+              <CardTitle>Notas clave</CardTitle>
+              <CardDescription>Consejos rápidos de seguridad.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-mutedForeground">
+              <p>Pasaporte siempre contigo + copia digital.</p>
+              <p>Powerbank y adaptador universal cada día.</p>
+              <p>Evita horas pico en atracciones populares.</p>
+            </CardContent>
+          </Card>
         </section>
         )}
 

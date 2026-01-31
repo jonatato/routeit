@@ -39,6 +39,54 @@ export interface ItineraryLocation {
   lng: number;
 }
 
+// Flight segment represents a single leg of a flight (e.g., MAD -> CDG)
+export interface FlightSegment {
+  id: string;
+  airline?: string;
+  airlineCode?: string;
+  flightNumber?: string;
+  departureAirport: string;
+  departureCity: string;
+  departureTime: string;
+  departureTerminal?: string;
+  arrivalAirport: string;
+  arrivalCity: string;
+  arrivalTime: string;
+  arrivalTerminal?: string;
+  duration: string;
+  departureLat?: number;
+  departureLng?: number;
+  arrivalLat?: number;
+  arrivalLng?: number;
+}
+
+// Flight represents a complete flight which may have multiple segments (layovers)
+export interface Flight {
+  id: string;
+  direction: 'outbound' | 'inbound' | 'oneway' | 'multi';
+  label?: string; // Custom label like "Vuelo a Tokio"
+  date: string;
+  bookingReference?: string;
+  seat?: string;
+  cabinClass?: 'economy' | 'premium_economy' | 'business' | 'first';
+  status?: 'confirmed' | 'pending' | 'cancelled' | 'delayed';
+  segments: FlightSegment[];
+  // Computed from segments
+  totalDuration?: string;
+  stops?: number;
+}
+
+// Legacy flight format for backwards compatibility
+export interface LegacyFlight {
+  date: string;
+  fromTime: string;
+  toTime: string;
+  fromCity: string;
+  toCity: string;
+  duration: string;
+  stops: string;
+}
+
 export interface TravelItinerary {
   id?: string;
   title: string;
@@ -65,71 +113,12 @@ export interface TravelItinerary {
   phrases: Phrase[];
   locations: ItineraryLocation[];
   route: string[];
+  // New flexible flights array
+  flightsList?: Flight[];
+  // Legacy flights structure (for backwards compatibility)
   flights: {
-    outbound: {
-      date: string;
-      fromTime: string;
-      toTime: string;
-      fromCity: string;
-      toCity: string;
-      duration: string;
-      stops: string;
-    };
-    inbound: {
-      date: string;
-      fromTime: string;
-      toTime: string;
-      fromCity: string;
-      toCity: string;
-      duration: string;
-      stops: string;
-    };
+    outbound: LegacyFlight;
+    inbound: LegacyFlight;
   };
 }
 
-export const chinaTrip: TravelItinerary = {
-  title: 'Mi Viaje 2026',
-  dateRange: 'Vie 9 Oct → Vie 31 Oct',
-  intro: 'Itinerario completo con horarios sugeridos, organizado por día y por ciudad, pensado para minimizar traslados y maximizar experiencias.',
-  coverImage: undefined,
-  budgetTiers: [],
-  tagsCatalog: [],
-  foods: [],
-  tips: [],
-  avoid: [],
-  utilities: [],
-  packing: [],
-  money: [],
-  connectivity: [],
-  transport: [],
-  safety: [],
-  etiquette: [],
-  weather: [],
-  scams: [],
-  budgetTips: [],
-  emergency: [],
-  phrases: [],
-  locations: [],
-  route: [],
-  flights: {
-    outbound: {
-      date: '',
-      fromTime: '',
-      toTime: '',
-      fromCity: '',
-      toCity: '',
-      duration: '',
-      stops: '',
-    },
-    inbound: {
-      date: '',
-      fromTime: '',
-      toTime: '',
-      fromCity: '',
-      toCity: '',
-      duration: '',
-      stops: '',
-    },
-  },
-  days: [],
-};

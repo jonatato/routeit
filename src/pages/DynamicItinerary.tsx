@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Edit } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
 import { PandaLogo } from '../components/PandaLogo';
 import ItineraryView from '../components/ItineraryView';
-import { NotificationBell } from '../components/NotificationBell';
 import { supabase } from '../lib/supabase';
 import { fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
 import type { TravelItinerary } from '../data/itinerary';

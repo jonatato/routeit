@@ -84,7 +84,7 @@ export type DbRoute = {
 export type DbFlight = {
   id: string;
   itinerary_id: string;
-  direction: 'outbound' | 'inbound';
+  direction: 'outbound' | 'inbound' | 'oneway' | 'multi' | (string & {});
   date_text: string;
   from_time: string;
   to_time: string;
@@ -92,6 +92,36 @@ export type DbFlight = {
   to_city: string;
   duration: string;
   stops: string;
+  label?: string | null;
+  booking_reference?: string | null;
+  seat?: string | null;
+  cabin_class?: 'economy' | 'premium_economy' | 'business' | 'first' | null;
+  status?: 'confirmed' | 'pending' | 'cancelled' | 'delayed' | null;
+  total_duration?: string | null;
+  stops_count?: number | null;
+  order_index?: number | null;
+};
+
+export type DbFlightSegment = {
+  id: string;
+  flight_id: string;
+  order_index: number;
+  airline: string | null;
+  airline_code: string | null;
+  flight_number: string | null;
+  departure_airport: string;
+  departure_city: string;
+  departure_time: string;
+  departure_terminal: string | null;
+  departure_lat: number | null;
+  departure_lng: number | null;
+  arrival_airport: string;
+  arrival_city: string;
+  arrival_time: string;
+  arrival_terminal: string | null;
+  arrival_lat: number | null;
+  arrival_lng: number | null;
+  duration: string;
 };
 
 export type DbItineraryList = {
@@ -134,6 +164,7 @@ export type ScheduleItemTagSeed = { dayOrder: number; orderIndex: number; tagSlu
 export type LocationSeed = Omit<DbLocation, 'id' | 'itinerary_id'>;
 export type RouteSeed = Omit<DbRoute, 'id' | 'itinerary_id'>;
 export type FlightSeed = Omit<DbFlight, 'id' | 'itinerary_id'>;
+export type FlightSegmentSeed = Omit<DbFlightSegment, 'id' | 'flight_id'> & { flightOrder: number };
 export type ListSeed = Omit<DbItineraryList, 'id' | 'itinerary_id'>;
 export type ListItemSeed = Omit<DbItineraryListItem, 'id' | 'list_id'> & { listKey: string };
 export type PhraseSeed = Omit<DbPhrase, 'id' | 'itinerary_id'>;
@@ -201,6 +232,7 @@ export function mapDbToItinerary(args: {
   locations: DbLocation[];
   routes: DbRoute[];
   flights: DbFlight[];
+  flightSegments: DbFlightSegment[];
   lists: DbItineraryList[];
   listItems: DbItineraryListItem[];
   phrases: DbPhrase[];
@@ -238,6 +270,51 @@ export function mapDbToItinerary(args: {
       list.push(item.text);
       listItemsByKey.set(key, list);
     });
+
+  const segmentsByFlight = new Map<string, DbFlightSegment[]>();
+  args.flightSegments
+    .slice()
+    .sort((a, b) => a.order_index - b.order_index)
+    .forEach(segment => {
+      const list = segmentsByFlight.get(segment.flight_id) ?? [];
+      list.push(segment);
+      segmentsByFlight.set(segment.flight_id, list);
+    });
+
+  const flightsList = args.flights
+    .slice()
+    .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+    .map(flight => ({
+      id: flight.id,
+      direction: flight.direction as 'outbound' | 'inbound' | 'oneway' | 'multi',
+      label: flight.label ?? undefined,
+      date: flight.date_text,
+      bookingReference: flight.booking_reference ?? undefined,
+      seat: flight.seat ?? undefined,
+      cabinClass: flight.cabin_class ?? undefined,
+      status: flight.status ?? undefined,
+      totalDuration: flight.total_duration ?? undefined,
+      stops: flight.stops_count ?? undefined,
+      segments: (segmentsByFlight.get(flight.id) ?? []).map(segment => ({
+        id: segment.id,
+        airline: segment.airline ?? undefined,
+        airlineCode: segment.airline_code ?? undefined,
+        flightNumber: segment.flight_number ?? undefined,
+        departureAirport: segment.departure_airport,
+        departureCity: segment.departure_city,
+        departureTime: segment.departure_time,
+        departureTerminal: segment.departure_terminal ?? undefined,
+        departureLat: segment.departure_lat ?? undefined,
+        departureLng: segment.departure_lng ?? undefined,
+        arrivalAirport: segment.arrival_airport,
+        arrivalCity: segment.arrival_city,
+        arrivalTime: segment.arrival_time,
+        arrivalTerminal: segment.arrival_terminal ?? undefined,
+        arrivalLat: segment.arrival_lat ?? undefined,
+        arrivalLng: segment.arrival_lng ?? undefined,
+        duration: segment.duration,
+      })),
+    }));
 
   const flightsByDirection = new Map(args.flights.map(flight => [flight.direction, flight]));
   const outbound = flightsByDirection.get('outbound');
@@ -336,6 +413,7 @@ export function mapDbToItinerary(args: {
       .slice()
       .sort((a, b) => a.order_index - b.order_index)
       .map(route => route.city),
+    flightsList,
     flights: {
       outbound: {
         date: outbound?.date_text ?? '',
@@ -412,28 +490,96 @@ export function buildSeedPayloads(itinerary: TravelItinerary, itineraryId: strin
     order_index: index,
   }));
 
-  const flights: FlightSeed[] = [
-    {
-      direction: 'outbound',
-      date_text: itinerary.flights.outbound.date,
-      from_time: itinerary.flights.outbound.fromTime,
-      to_time: itinerary.flights.outbound.toTime,
-      from_city: itinerary.flights.outbound.fromCity,
-      to_city: itinerary.flights.outbound.toCity,
-      duration: itinerary.flights.outbound.duration,
-      stops: itinerary.flights.outbound.stops,
-    },
-    {
-      direction: 'inbound',
-      date_text: itinerary.flights.inbound.date,
-      from_time: itinerary.flights.inbound.fromTime,
-      to_time: itinerary.flights.inbound.toTime,
-      from_city: itinerary.flights.inbound.fromCity,
-      to_city: itinerary.flights.inbound.toCity,
-      duration: itinerary.flights.inbound.duration,
-      stops: itinerary.flights.inbound.stops,
-    },
-  ];
+  const flightsSource = itinerary.flightsList && itinerary.flightsList.length > 0
+    ? itinerary.flightsList
+    : [
+        {
+          id: 'legacy-outbound',
+          direction: 'outbound' as const,
+          date: itinerary.flights.outbound.date,
+          segments: [
+            {
+              id: 'legacy-outbound-seg-1',
+              departureAirport: itinerary.flights.outbound.fromCity,
+              departureCity: itinerary.flights.outbound.fromCity,
+              departureTime: itinerary.flights.outbound.fromTime,
+              arrivalAirport: itinerary.flights.outbound.toCity,
+              arrivalCity: itinerary.flights.outbound.toCity,
+              arrivalTime: itinerary.flights.outbound.toTime,
+              duration: itinerary.flights.outbound.duration,
+            },
+          ],
+          totalDuration: itinerary.flights.outbound.duration,
+          stops: itinerary.flights.outbound.stops === 'Directo' ? 0 : 1,
+        },
+        {
+          id: 'legacy-inbound',
+          direction: 'inbound' as const,
+          date: itinerary.flights.inbound.date,
+          segments: [
+            {
+              id: 'legacy-inbound-seg-1',
+              departureAirport: itinerary.flights.inbound.fromCity,
+              departureCity: itinerary.flights.inbound.fromCity,
+              departureTime: itinerary.flights.inbound.fromTime,
+              arrivalAirport: itinerary.flights.inbound.toCity,
+              arrivalCity: itinerary.flights.inbound.toCity,
+              arrivalTime: itinerary.flights.inbound.toTime,
+              duration: itinerary.flights.inbound.duration,
+            },
+          ],
+          totalDuration: itinerary.flights.inbound.duration,
+          stops: itinerary.flights.inbound.stops === 'Directo' ? 0 : 1,
+        },
+      ];
+
+  const flights: FlightSeed[] = flightsSource.map((flight, index) => {
+    const firstSegment = flight.segments[0];
+    const lastSegment = flight.segments[flight.segments.length - 1];
+    const stopsCount = flight.stops ?? Math.max(flight.segments.length - 1, 0);
+
+    return {
+      direction: flight.direction,
+      date_text: flight.date,
+      from_time: firstSegment?.departureTime ?? '',
+      to_time: lastSegment?.arrivalTime ?? '',
+      from_city: firstSegment?.departureCity ?? '',
+      to_city: lastSegment?.arrivalCity ?? '',
+      duration: flight.totalDuration ?? firstSegment?.duration ?? '',
+      stops: stopsCount === 0 ? 'Directo' : `${stopsCount} escala${stopsCount > 1 ? 's' : ''}`,
+      label: flight.label ?? null,
+      booking_reference: flight.bookingReference ?? null,
+      seat: flight.seat ?? null,
+      cabin_class: flight.cabinClass ?? null,
+      status: flight.status ?? 'confirmed',
+      total_duration: flight.totalDuration ?? null,
+      stops_count: stopsCount,
+      order_index: index,
+    };
+  });
+
+  const flightSegments: FlightSegmentSeed[] = flightsSource.flatMap((flight, flightOrder) =>
+    flight.segments.map((segment, orderIndex) => ({
+      flightOrder,
+      order_index: orderIndex,
+      airline: segment.airline ?? null,
+      airline_code: segment.airlineCode ?? null,
+      flight_number: segment.flightNumber ?? null,
+      departure_airport: segment.departureAirport,
+      departure_city: segment.departureCity,
+      departure_time: segment.departureTime,
+      departure_terminal: segment.departureTerminal ?? null,
+      departure_lat: segment.departureLat ?? null,
+      departure_lng: segment.departureLng ?? null,
+      arrival_airport: segment.arrivalAirport,
+      arrival_city: segment.arrivalCity,
+      arrival_time: segment.arrivalTime,
+      arrival_terminal: segment.arrivalTerminal ?? null,
+      arrival_lat: segment.arrivalLat ?? null,
+      arrival_lng: segment.arrivalLng ?? null,
+      duration: segment.duration,
+    })),
+  );
 
   const lists: ListSeed[] = listSections.map(key => ({
     section_key: key,
@@ -519,6 +665,7 @@ export function buildSeedPayloads(itinerary: TravelItinerary, itineraryId: strin
     locations,
     routes,
     flights,
+    flightSegments,
     lists,
     listItems,
     phrases,
