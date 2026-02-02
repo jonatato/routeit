@@ -69,12 +69,10 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} className="h-32" />
-          ))}
+      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
+        <div className="space-y-3">
+          <div className="text-6xl">📊</div>
+          <p className="text-sm text-mutedForeground">Cargando analytics...</p>
         </div>
       </div>
     );
@@ -91,7 +89,10 @@ export default function Analytics() {
   return (
     <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
       <div>
-        <h1 className="text-3xl font-semibold">Analytics</h1>
+        <h1 className="text-3xl font-semibold flex items-center gap-2">
+          <span className="text-4xl">📊</span>
+          Analytics
+        </h1>
         <p className="text-sm text-mutedForeground">Estadísticas de uso y actividad</p>
       </div>
 

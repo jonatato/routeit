@@ -167,7 +167,10 @@ function MyItineraries() {
   if (isLoading) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <p className="text-sm text-mutedForeground">Cargando itinerarios...</p>
+        <div className="space-y-3">
+          <div className="text-6xl">🗺️</div>
+          <p className="text-sm text-mutedForeground">Cargando itinerarios...</p>
+        </div>
       </div>
     );
   }
@@ -190,7 +193,10 @@ function MyItineraries() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold">Mis viajes</h1>
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              <span className="text-3xl">🗺️</span>
+              Mis viajes
+            </h1>
             <p className="text-sm text-mutedForeground">Crea, comparte y gestiona.</p>
           </div>
         </div>

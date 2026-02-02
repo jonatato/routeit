@@ -131,6 +131,11 @@ export function DaySelectorCarousel({
     return kindIcons[kind] || '📍';
   };
 
+  // Si no hay día actual, no renderizar nada (después de todos los hooks)
+  if (!currentDay) {
+    return null;
+  };
+
   return (
     <div className="space-y-3">
       {/* Selector principal */}

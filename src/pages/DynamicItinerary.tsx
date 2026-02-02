@@ -64,15 +64,10 @@ function DynamicItinerary() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-4 py-10">
+      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
         <div className="space-y-3">
-          <Skeleton className="h-12 w-3/4" />
-          <Skeleton className="h-6 w-1/2" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
+          <div className="text-6xl">🧭</div>
+          <p className="text-sm text-mutedForeground">Cargando itinerario...</p>
         </div>
       </div>
     );

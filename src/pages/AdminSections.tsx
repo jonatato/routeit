@@ -148,7 +148,10 @@ function AdminSections() {
   if (isLoading) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <p className="text-sm text-mutedForeground">Cargando secciones...</p>
+        <div className="space-y-3">
+          <div className="text-6xl">⚙️</div>
+          <p className="text-sm text-mutedForeground">Cargando secciones...</p>
+        </div>
       </div>
     );
   }
@@ -157,7 +160,10 @@ function AdminSections() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-10 pb-24 md:pb-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold">Administrar secciones</h1>
+          <h1 className="text-3xl font-semibold flex items-center gap-2">
+            <span className="text-4xl">⚙️</span>
+            Administrar secciones
+          </h1>
           <p className="text-sm text-mutedForeground">Reordena y oculta secciones del itinerario.</p>
         </div>
         <div className="flex gap-2">

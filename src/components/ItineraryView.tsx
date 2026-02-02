@@ -370,6 +370,19 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
     setActiveTabValue(String(newIndex));
   };
 
+  // Resetear índice cuando cambian los filtros o la búsqueda
+  useEffect(() => {
+    if (filteredDays.length === 0) {
+      setCurrentDayIndex(0);
+      return;
+    }
+    // Si el índice actual está fuera de rango, resetear al primero
+    if (currentDayIndex >= filteredDays.length) {
+      setCurrentDayIndex(0);
+      setActiveTabValue('0');
+    }
+  }, [filteredDays.length]);
+
   // Sincronizar tab con índice del día
   useEffect(() => {
     // No sobrescribir si el tab actual es "general"
@@ -1180,41 +1193,289 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         </section>
         )}
 
-        {shouldShowSection('foods') && (
-          <section id="foods" data-section="lists" className="grid gap-6 lg:grid-cols-2" style={{ order: getSectionOrder('foods') }}>
-          <Card id="tips">
-            <CardHeader>
-              <CardTitle>Comidas típicas por ciudad</CardTitle>
-              <CardDescription>Ideas para probar en cada parada.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-mutedForeground">
-              <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.foods))} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Consejos y cosas a evitar</CardTitle>
-              <CardDescription>Para viajar con seguridad y sin sorpresas.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="mb-2 text-sm font-semibold">Consejos</h3>
-                <div className="space-y-2 text-sm text-mutedForeground">
-                <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.tips))} />
-              </div>
-              </div>
-              <div>
-                <h3 className="mb-2 text-sm font-semibold">Cosas a evitar</h3>
-                <div className="space-y-2 text-sm text-mutedForeground">
-                  <div dangerouslySetInnerHTML={renderHtml(buildListHtml(itinerary.avoid))} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-        )}
+        {shouldShowSection('foods') && (() => {
+          // Construir array de listas disponibles
+          const listCards: Array<{
+            id: string;
+            icon: string;
+            title: string;
+            description: string;
+            content: string[];
+          }> = [];
 
-        {shouldShowSection('budget') && (
+          if (itinerary.foods?.length > 0) {
+            listCards.push({
+              id: 'foods',
+              icon: '🍜',
+              title: 'Comidas típicas',
+              description: 'Ideas para probar en cada parada.',
+              content: itinerary.foods,
+            });
+          }
+          if (itinerary.tips?.length > 0) {
+            listCards.push({
+              id: 'tips',
+              icon: '💡',
+              title: 'Consejos',
+              description: 'Tips esenciales para tu viaje.',
+              content: itinerary.tips,
+            });
+          }
+          if (itinerary.avoid?.length > 0) {
+            listCards.push({
+              id: 'avoid',
+              icon: '⚠️',
+              title: 'Cosas a evitar',
+              description: 'Errores comunes que debes evitar.',
+              content: itinerary.avoid,
+            });
+          }
+          if (itinerary.utilities?.length > 0) {
+            listCards.push({
+              id: 'utilities',
+              icon: '📱',
+              title: 'Utilidades',
+              description: 'Apps y herramientas recomendadas.',
+              content: itinerary.utilities,
+            });
+          }
+          if (itinerary.packing?.length > 0) {
+            listCards.push({
+              id: 'packing',
+              icon: '🧳',
+              title: 'Checklist de maleta',
+              description: 'No olvides empacar estos items.',
+              content: itinerary.packing,
+            });
+          }
+          if (itinerary.money?.length > 0) {
+            listCards.push({
+              id: 'money',
+              icon: '💰',
+              title: 'Dinero y pagos',
+              description: 'Métodos de pago y consejos financieros.',
+              content: itinerary.money,
+            });
+          }
+          if (itinerary.connectivity?.length > 0) {
+            listCards.push({
+              id: 'connectivity',
+              icon: '📶',
+              title: 'Conectividad',
+              description: 'Internet, VPN y comunicaciones.',
+              content: itinerary.connectivity,
+            });
+          }
+          if (itinerary.transport?.length > 0) {
+            listCards.push({
+              id: 'transport',
+              icon: '🚆',
+              title: 'Transporte',
+              description: 'Opciones de movilidad local.',
+              content: itinerary.transport,
+            });
+          }
+          if (itinerary.safety?.length > 0) {
+            listCards.push({
+              id: 'safety',
+              icon: '🛡️',
+              title: 'Seguridad',
+              description: 'Mantente seguro durante el viaje.',
+              content: itinerary.safety,
+            });
+          }
+          if (itinerary.etiquette?.length > 0) {
+            listCards.push({
+              id: 'etiquette',
+              icon: '🎎',
+              title: 'Etiqueta local',
+              description: 'Costumbres y normas culturales.',
+              content: itinerary.etiquette,
+            });
+          }
+          if (itinerary.weather?.length > 0) {
+            listCards.push({
+              id: 'weather',
+              icon: '🌤️',
+              title: 'Clima',
+              description: 'Condiciones meteorológicas esperadas.',
+              content: itinerary.weather,
+            });
+          }
+          if (itinerary.scams?.length > 0) {
+            listCards.push({
+              id: 'scams',
+              icon: '🚨',
+              title: 'Estafas comunes',
+              description: 'Fraudes a evitar en destino.',
+              content: itinerary.scams,
+            });
+          }
+          if (itinerary.budgetTips?.length > 0) {
+            listCards.push({
+              id: 'budgetTips',
+              icon: '💵',
+              title: 'Presupuesto inteligente',
+              description: 'Ahorra sin sacrificar experiencias.',
+              content: itinerary.budgetTips,
+            });
+          }
+          if (itinerary.emergency?.length > 0) {
+            listCards.push({
+              id: 'emergency',
+              icon: '🆘',
+              title: 'Emergencias',
+              description: 'Contactos y procedimientos de emergencia.',
+              content: itinerary.emergency,
+            });
+          }
+
+          const [currentListIndex, setCurrentListIndex] = useState(0);
+          const [listDragOffset, setListDragOffset] = useState(0);
+          const [isListDragging, setIsListDragging] = useState(false);
+          const listStartX = useRef(0);
+          const listStartTime = useRef(0);
+
+          const canGoPrevList = currentListIndex > 0;
+          const canGoNextList = currentListIndex < listCards.length - 1;
+
+          // Manejo de gestos táctiles para el carousel de listas
+          const handleListTouchStart = (e: React.TouchEvent) => {
+            listStartX.current = e.touches[0].clientX;
+            listStartTime.current = Date.now();
+            setIsListDragging(true);
+          };
+
+          const handleListTouchMove = (e: React.TouchEvent) => {
+            if (!isListDragging) return;
+            const deltaX = e.touches[0].clientX - listStartX.current;
+            setListDragOffset(deltaX);
+          };
+
+          const handleListTouchEnd = () => {
+            if (!isListDragging) return;
+            
+            const deltaTime = Date.now() - listStartTime.current;
+            const velocity = Math.abs(listDragOffset) / deltaTime;
+            const threshold = 50;
+            const velocityThreshold = 0.3;
+
+            if (Math.abs(listDragOffset) > threshold || velocity > velocityThreshold) {
+              if (listDragOffset > 0 && canGoPrevList) {
+                setCurrentListIndex(currentListIndex - 1);
+              } else if (listDragOffset < 0 && canGoNextList) {
+                setCurrentListIndex(currentListIndex + 1);
+              }
+            }
+
+            setIsListDragging(false);
+            setListDragOffset(0);
+          };
+
+          return (
+            <section id="foods" data-section="lists" className="space-y-6" style={{ order: getSectionOrder('foods') }}>
+              {/* Header de la sección */}
+              <div className="flex flex-col gap-2">
+                <h2 className="text-3xl font-semibold">Listas principales</h2>
+                <p className="text-mutedForeground">Un elemento por línea.</p>
+              </div>
+
+              {/* Versión móvil: Carousel horizontal */}
+              {isMobile && listCards.length > 0 && (
+                <div className="space-y-4">
+                  {/* Navegación de pestañas */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {listCards.map((card, idx) => (
+                      <button
+                        key={card.id}
+                        onClick={() => setCurrentListIndex(idx)}
+                        className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+                          idx === currentListIndex
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        <span>{card.icon}</span>
+                        <span>{card.title}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tarjeta actual con gestos swipe */}
+                  <div
+                    className="touch-pan-y select-none"
+                    onTouchStart={handleListTouchStart}
+                    onTouchMove={handleListTouchMove}
+                    onTouchEnd={handleListTouchEnd}
+                  >
+                    <div
+                      className="transition-transform duration-200"
+                      style={{
+                        transform: isListDragging ? `translateX(${listDragOffset}px)` : 'translateX(0)',
+                      }}
+                    >
+                      {(() => {
+                        const currentCard = listCards[currentListIndex];
+                        return (
+                          <Card key={currentCard.id}>
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2">
+                                <span>{currentCard.icon}</span>
+                                <span>{currentCard.title}</span>
+                              </CardTitle>
+                              <CardDescription>{currentCard.description}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm text-mutedForeground prose prose-sm max-w-none">
+                              <div dangerouslySetInnerHTML={renderHtml(buildListHtml(currentCard.content))} />
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Indicadores de posición */}
+                  <div className="flex items-center justify-center gap-2">
+                    {listCards.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentListIndex(idx)}
+                        className={`h-2 rounded-full transition-all ${
+                          idx === currentListIndex
+                            ? 'w-6 bg-primary'
+                            : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                        }`}
+                        aria-label={`Ir a lista ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Versión desktop: Grid de 2 columnas */}
+              {!isMobile && (
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {listCards.map(card => (
+                    <Card key={card.id} id={`${card.id}-card`}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <span>{card.icon}</span>
+                          <span>{card.title}</span>
+                        </CardTitle>
+                        <CardDescription>{card.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm text-mutedForeground prose prose-sm max-w-none">
+                        <div dangerouslySetInnerHTML={renderHtml(buildListHtml(card.content))} />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })()}
+
+        {shouldShowSection('budget') && itinerary.budgetTiers.length > 0 && (
           <section id="budget" data-section="budget" className="space-y-6" style={{ order: getSectionOrder('budget') }}>
           <div className="flex flex-col gap-2">
             <h2 className="text-3xl font-semibold">Presupuesto estimado</h2>
@@ -1243,24 +1504,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               </Card>
             ))}
           </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Desglose rápido por ciudad</CardTitle>
-              <CardDescription>Distribución de días para ajustar gastos.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-mutedForeground">
-              {Array.from(
-                allDays
-                  .filter(day => day.kind === 'city')
-                  .reduce((acc, day) => acc.set(day.city, (acc.get(day.city) ?? 0) + 1), new Map<string, number>()),
-              ).map(([city, count]) => (
-                <div key={city} className="flex items-center justify-between rounded-lg border border-border px-4 py-2">
-                  <span className="font-medium text-foreground">{city}</span>
-                  <span>{count} días</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
         </section>
         )}
       </main>

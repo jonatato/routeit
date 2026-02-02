@@ -540,15 +540,10 @@ function AdminItinerary() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-4 py-10">
+      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
         <div className="space-y-3">
-          <Skeleton className="h-10 w-1/3" />
-          <Skeleton className="h-6 w-1/2" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-32 w-full" />
+          <div className="text-6xl">✏️</div>
+          <p className="text-sm text-mutedForeground">Cargando itinerario...</p>
         </div>
       </div>
     );
@@ -576,7 +571,10 @@ function AdminItinerary() {
             </Button>
           </Link>
           <div className="flex-1">
-            <h1 className="text-lg font-bold">Administrar Itinerario</h1>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <span className="text-2xl">✏️</span>
+              Administrar Itinerario
+            </h1>
           </div>
           <Button onClick={handleSave} disabled={isSaving || isResolvingMaps} size="sm">
             {isSaving ? 'Guardando...' : 'Guardar'}
@@ -598,7 +596,10 @@ function AdminItinerary() {
         {/* Desktop Header */}
         <div className="mb-6 hidden items-center justify-between md:flex">
           <div>
-            <h1 className="text-3xl font-bold">Administrar Itinerario</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <span className="text-4xl">✏️</span>
+              Administrar Itinerario
+            </h1>
             <p className="text-muted-foreground">Edita tu itinerario dinámico</p>
           </div>
           <div className="flex items-center gap-2">

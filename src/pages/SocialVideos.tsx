@@ -205,15 +205,10 @@ function SocialVideos() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-[600px]" />
-          ))}
+      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
+        <div className="space-y-3">
+          <div className="text-6xl">🎥</div>
+          <p className="text-sm text-mutedForeground">Cargando videos...</p>
         </div>
       </div>
     );
@@ -239,7 +234,7 @@ function SocialVideos() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <VideoIcon className="h-8 w-8 text-primary" />
+            <span className="text-4xl">🎥</span>
             Videos de la Ruta
           </h1>
           <p className="text-muted-foreground mt-1">

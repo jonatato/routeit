@@ -81,8 +81,8 @@ function MyBag() {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
         <div className="space-y-3">
-          <div className="text-6xl animate-pulse">🎒</div>
-        <p className="text-sm text-mutedForeground">Cargando maleta...</p>
+          <div className="text-6xl">🎒</div>
+          <p className="text-sm text-mutedForeground">Cargando maleta...</p>
         </div>
       </div>
     );

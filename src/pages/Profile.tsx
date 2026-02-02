@@ -92,7 +92,10 @@ function Profile() {
   if (isLoading) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <p className="text-sm text-mutedForeground">Cargando perfil...</p>
+        <div className="space-y-3">
+          <div className="text-6xl">👤</div>
+          <p className="text-sm text-mutedForeground">Cargando perfil...</p>
+        </div>
       </div>
     );
   }
@@ -109,7 +112,10 @@ function Profile() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-10 pb-24 md:pb-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold">{t('profile.title')}</h1>
+          <h1 className="text-3xl font-semibold flex items-center gap-2">
+            <span className="text-4xl">👤</span>
+            {t('profile.title')}
+          </h1>
           <p className="text-sm text-mutedForeground">Gestiona tu cuenta y preferencias</p>
         </div>
         <Link to="/app">
