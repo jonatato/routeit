@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Skeleton } from '../components/ui/skeleton';
+import FullscreenLoader from '../components/FullscreenLoader';
 import { getEventCount, getEventsByDateRange } from '../services/analytics';
 import { supabase } from '../lib/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -68,14 +68,7 @@ export default function Analytics() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <div className="space-y-3">
-          <div className="text-6xl">📊</div>
-          <p className="text-sm text-mutedForeground">Cargando analytics...</p>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader message="Cargando analytics..." />;
   }
 
   if (!userId) {

@@ -8,6 +8,7 @@ import { addChecklistItem, deleteChecklistItem, fetchChecklist, updateChecklistI
 import { ProgressCard } from '../components/bag/ProgressCard';
 import { CategorySection } from '../components/bag/CategorySection';
 import { AddItemsModal } from '../components/bag/AddItemsModal';
+import FullscreenLoader from '../components/FullscreenLoader';
 
 function MyBag() {
   const [isLoading, setIsLoading] = useState(true);
@@ -78,14 +79,7 @@ function MyBag() {
   };
 
   if (isLoading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <div className="space-y-3">
-          <div className="text-6xl">🎒</div>
-          <p className="text-sm text-mutedForeground">Cargando maleta...</p>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader message="Cargando maleta..." />;
   }
 
   return (

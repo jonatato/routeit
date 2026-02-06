@@ -35,7 +35,7 @@ export function OfflineIndicator() {
           </>
         ) : (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-10 w-10 animate-spin" />
             <span>Sincronizando cambios...</span>
           </>
         )}

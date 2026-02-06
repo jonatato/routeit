@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { fetchSectionPreferences, updateSectionPreferences, toggleSectionVisibility, type SectionPreference } from '../services/sections';
+import FullscreenLoader from '../components/FullscreenLoader';
 
 function SortableSectionItem({ preference, onToggle }: { preference: SectionPreference; onToggle: (id: string, visible: boolean) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
@@ -146,14 +147,7 @@ function AdminSections() {
   };
 
   if (isLoading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <div className="space-y-3">
-          <div className="text-6xl">⚙️</div>
-          <p className="text-sm text-mutedForeground">Cargando secciones...</p>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader message="Cargando secciones..." />;
   }
 
   return (

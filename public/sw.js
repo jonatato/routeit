@@ -1,10 +1,8 @@
 // Service Worker for push notifications and offline caching
-const CACHE_NAME = 'routeit-v1';
+const CACHE_NAME = 'routeit-v2';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/assets/index.css',
-  '/assets/index.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -16,11 +14,27 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    }),
-  );
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isNavigation = request.mode === 'navigate';
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => response)
+        .catch(() => caches.match('/index.html')),
+    );
+    return;
+  }
+
+  if (isSameOrigin) {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(request)),
+    );
+  }
 });
 
 self.addEventListener('push', (event) => {

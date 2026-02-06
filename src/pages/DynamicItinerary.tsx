@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Skeleton } from '../components/ui/skeleton';
 import { PandaLogo } from '../components/PandaLogo';
 import ItineraryView from '../components/ItineraryView';
+import FullscreenLoader from '../components/FullscreenLoader';
 import { supabase } from '../lib/supabase';
 import { fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
 import type { TravelItinerary } from '../data/itinerary';
@@ -55,14 +55,7 @@ function DynamicItinerary() {
   }, [location.search]);
 
   if (isLoading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <div className="space-y-3">
-          <div className="text-6xl">🧭</div>
-          <p className="text-sm text-mutedForeground">Cargando itinerario...</p>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader message="Cargando itinerario..." />;
   }
 
   if (error) {

@@ -4,7 +4,6 @@ import { CloudinaryUpload } from '../components/CloudinaryUpload';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Skeleton } from '../components/ui/skeleton';
 import RichTextEditor from '../components/RichTextEditor';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { DaySelector } from '../components/DaySelector';
@@ -16,6 +15,7 @@ import { resolveMapsUrl } from '../services/maps';
 import { fetchItineraryById, fetchUserItinerary, saveUserItinerary, checkUserRole } from '../services/itinerary';
 import { ensureSplitGroup, fetchSplit, type SplitMember } from '../services/split';
 import { useToast } from '../hooks/useToast';
+import FullscreenLoader from '../components/FullscreenLoader';
 
 const listSections = [
   { key: 'foods', label: 'Comidas típicas' },
@@ -539,14 +539,7 @@ function AdminItinerary() {
   };
 
   if (isLoading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <div className="space-y-3">
-          <div className="text-6xl">✏️</div>
-          <p className="text-sm text-mutedForeground">Cargando itinerario...</p>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader message="Cargando itinerario..." />;
   }
 
   if (!draft) {

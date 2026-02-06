@@ -7,7 +7,7 @@ import WebSideMenu from './components/WebSideMenu';
 import WidgetsSidebar from './components/WidgetsSidebar';
 import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
-import { Skeleton } from './components/ui/skeleton';
+import FullscreenLoader from './components/FullscreenLoader';
 import Auth from './pages/Auth';
 
 // Lazy load heavy components
@@ -27,11 +27,7 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Store = lazy(() => import('./pages/Store'));
 
-const LoadingFallback = () => (
-  <div className="flex min-h-screen items-center justify-center">
-    <Skeleton className="h-8 w-64" />
-  </div>
-);
+const LoadingFallback = () => <FullscreenLoader />;
 
 function App() {
   const isMobileShell = useIsMobileShell();

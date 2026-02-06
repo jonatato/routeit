@@ -12,10 +12,10 @@ import { fetchVideos, deleteVideo } from '../services/socialVideos';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../hooks/useToast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { Skeleton } from '../components/ui/skeleton';
 import { PandaLogo } from '../components/PandaLogo';
 import { useIsMobileShell } from '../hooks/useIsMobileShell';
 import { useLocation } from 'react-router-dom';
+import FullscreenLoader from '../components/FullscreenLoader';
 
 interface Tag {
   id: string;
@@ -204,14 +204,7 @@ function SocialVideos() {
     : null;
 
   if (loading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <div className="space-y-3">
-          <div className="text-6xl">🎥</div>
-          <p className="text-sm text-mutedForeground">Cargando videos...</p>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader message="Cargando videos..." />;
   }
 
   if (!itineraryId) {

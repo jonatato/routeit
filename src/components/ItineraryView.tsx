@@ -1023,8 +1023,9 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 const customColor = getTagColor(day.kind, tagsCatalog);
                 const customLabel = getTagLabel(day.kind, tagsCatalog);
                 return (
-                  <Card className="w-full border border-border/60 shadow-sm">
-                    <CardHeader className="gap-3">
+                  <>
+                    <Card className="w-full border border-border/60 shadow-sm">
+                      <CardHeader className="gap-3">
                       <div className="flex flex-wrap items-center gap-2">
                         {customColor ? (
                           <span 
@@ -1134,6 +1135,50 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       </div>
                     </CardContent>
                   </Card>
+                  {shouldShowDayMap && (
+                    <div
+                      className="overflow-hidden rounded-xl border border-border cursor-pointer group relative"
+                      onClick={() => {
+                        setDayMapModalData({
+                          center: dayMapCenter,
+                          points: dayMapPoints.map(point => ({
+                            lat: point.position[0],
+                            lng: point.position[1],
+                            time: point.time,
+                            label: point.label,
+                            city: day.city,
+                            region: day.city,
+                          })),
+                        });
+                        setIsDayMapModalOpen(true);
+                      }}
+                    >
+                      <div className="h-64 w-full">
+                        <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          {dayMapPoints.map(point => (
+                            <Marker key={`${point.time}-${point.label}`} position={point.position}>
+                              <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                                {point.time} · {point.label}
+                              </Tooltip>
+                              <Popup>
+                                {point.time} · {point.label}
+                              </Popup>
+                            </Marker>
+                          ))}
+                        </MapContainer>
+                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                          <Maximize2 className="h-6 w-6 text-primary" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 );
               })()}
             </div>
@@ -1171,51 +1216,6 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 
                 return (
                   <div key={day.id} className="mt-4 space-y-4">
-                    {/* Mapa del día */}
-                    {dayPoints.length > 0 && (
-                      <div 
-                        className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
-                        onClick={() => {
-                          setDayMapModalData({
-                            center: dayCenter,
-                            points: dayPoints.map(point => ({
-                              lat: point.position[0],
-                              lng: point.position[1],
-                              time: point.time,
-                              label: point.label,
-                              city: day.city,
-                              region: day.city,
-                            })),
-                          });
-                          setIsDayMapModalOpen(true);
-                        }}
-                      >
-                        <div className="h-64 w-full">
-                          <MapContainer center={dayCenter} zoom={12} className="h-full w-full">
-                            <TileLayer
-                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-                            {dayPoints.map(point => (
-                              <Marker key={`${point.time}-${point.label}`} position={point.position}>
-                                <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                                  {point.time} · {point.label}
-                                </Tooltip>
-                                <Popup>
-                                  {point.time} · {point.label}
-                                </Popup>
-                              </Marker>
-                            ))}
-                          </MapContainer>
-                        </div>
-                        <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
-                          <div className="opacity-0 group-active:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
-                            <Maximize2 className="h-6 w-6 text-primary" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
                     {/* Info del día */}
                     <Card>
                       <CardHeader>
@@ -1313,6 +1313,49 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                         </div>
                       </CardContent>
                     </Card>
+                    {dayPoints.length > 0 && (
+                      <div 
+                        className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
+                        onClick={() => {
+                          setDayMapModalData({
+                            center: dayCenter,
+                            points: dayPoints.map(point => ({
+                              lat: point.position[0],
+                              lng: point.position[1],
+                              time: point.time,
+                              label: point.label,
+                              city: day.city,
+                              region: day.city,
+                            })),
+                          });
+                          setIsDayMapModalOpen(true);
+                        }}
+                      >
+                        <div className="h-64 w-full">
+                          <MapContainer center={dayCenter} zoom={12} className="h-full w-full">
+                            <TileLayer
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
+                            {dayPoints.map(point => (
+                              <Marker key={`${point.time}-${point.label}`} position={point.position}>
+                                <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                                  {point.time} · {point.label}
+                                </Tooltip>
+                                <Popup>
+                                  {point.time} · {point.label}
+                                </Popup>
+                              </Marker>
+                            ))}
+                          </MapContainer>
+                        </div>
+                        <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                          <div className="opacity-0 group-active:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
+                            <Maximize2 className="h-6 w-6 text-primary" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}

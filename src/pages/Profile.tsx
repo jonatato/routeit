@@ -9,6 +9,7 @@ import { fetchUserPreferences, saveUserPreferences, updateTheme, updateLanguage 
 import { useTranslation } from '../hooks/useTranslation';
 import { createPortalSession, getUserPlan } from '../services/billing';
 import { useToast } from '../hooks/useToast';
+import FullscreenLoader from '../components/FullscreenLoader';
 
 function Profile() {
   const [user, setUser] = useState<any>(null);
@@ -112,14 +113,7 @@ function Profile() {
   };
 
   if (isLoading) {
-    return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
-        <div className="space-y-3">
-          <div className="text-6xl">👤</div>
-          <p className="text-sm text-mutedForeground">Cargando perfil...</p>
-        </div>
-      </div>
-    );
+    return <FullscreenLoader message="Cargando perfil..." />;
   }
 
   if (!user) {

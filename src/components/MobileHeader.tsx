@@ -1,8 +1,9 @@
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { Home, Receipt, ShoppingBag, Plane, Video, Store, User, LogOut, Settings } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { checkUserRole } from '../services/itinerary';
 import { useUserInitials } from '../hooks/useUserInitials';
@@ -15,6 +16,7 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const initials = useUserInitials();
   const isAdminActive = location.pathname.startsWith('/app/admin');
   const isProfileActive = location.pathname === '/app/profile';
@@ -43,6 +45,17 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
   
   const canEdit = userRole !== 'viewer';
 
+  const menuItems = [
+    { path: '/app', label: 'Inicio', icon: Home },
+    { path: '/app/store', label: 'Tienda', icon: Store },
+    { path: '/app/split', label: 'Gastos', icon: Receipt },
+    { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
+    { path: '/app/memories', label: 'Vídeos', icon: Video },
+    { path: '/app/itineraries', label: 'Mis viajes', icon: Plane },
+  ];
+
+  const shouldRenderMenu = isMenuOpen && typeof document !== 'undefined';
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/20 bg-white/95 backdrop-blur-md px-4 py-3">
       <div className="flex items-center justify-between">
@@ -70,15 +83,111 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
           </Link>
           )}
           <NotificationBell />
-          <Link to="/app/profile">
-            <button className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isProfileActive ? 'bg-primary/10' : 'hover:bg-gray-100'}`}>
-              <div className={`h-8 w-8 rounded-full ${isProfileActive ? 'bg-primary' : 'bg-primary/10'} flex items-center justify-center overflow-hidden transition-colors`}>
-                <span className={`text-xs font-semibold ${isProfileActive ? 'text-white' : 'text-primary'}`}>{initials}</span>
-              </div>
-            </button>
-          </Link>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen(true)}
+            className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isProfileActive ? 'bg-primary/10' : 'hover:bg-gray-100'}`}
+            aria-label="Abrir menu"
+            aria-expanded={isMenuOpen}
+          >
+            <div className={`h-8 w-8 rounded-full ${isProfileActive ? 'bg-primary' : 'bg-primary/10'} flex items-center justify-center overflow-hidden transition-colors`}>
+              <span className={`text-xs font-semibold ${isProfileActive ? 'text-white' : 'text-primary'}`}>{initials}</span>
+            </div>
+          </button>
         </div>
       </div>
+
+      {shouldRenderMenu &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] isolate">
+            <button
+              type="button"
+              className="fixed inset-0 bg-black/40"
+              onClick={() => setIsMenuOpen(false)}
+              aria-label="Cerrar menu"
+            />
+            <aside className="fixed left-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
+              <div className="flex items-center justify-between border-b border-border px-4 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary">{initials}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Menu</p>
+                    <p className="text-xs text-mutedForeground">Navegacion rapida</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="h-9 w-9 rounded-md hover:bg-muted flex items-center justify-center"
+                  aria-label="Cerrar menu"
+                >
+                  <span className="text-lg">×</span>
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                <div className="flex flex-col gap-1">
+                  {menuItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                          isActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                  {canEdit && (
+                    <Link
+                      to="/app/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        isAdminActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
+                      }`}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Administrar
+                    </Link>
+                  )}
+                </div>
+
+                <div className="mt-4 border-t border-border pt-3">
+                  <Link
+                    to="/app/profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                      isProfileActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    Mi perfil
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      void supabase.auth.signOut();
+                    }}
+                    className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Cerrar sesion
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </div>,
+          document.body,
+        )}
     </header>
   );
 }
