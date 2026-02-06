@@ -356,7 +356,6 @@ function Split() {
           </Link>
           <div>
             <h1 className="text-2xl font-semibold flex items-center gap-2">
-              <span className="text-3xl">💰</span>
               División de gastos
             </h1>
             <p className="text-sm text-mutedForeground">Gestiona los gastos compartidos del viaje.</p>

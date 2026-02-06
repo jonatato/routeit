@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase';
 import { useThemeContext } from '../components/ThemeProvider';
 import { fetchUserPreferences, saveUserPreferences, updateTheme, updateLanguage } from '../services/userPreferences';
 import { useTranslation } from '../hooks/useTranslation';
+import { createPortalSession, getUserPlan } from '../services/billing';
+import { useToast } from '../hooks/useToast';
 
 function Profile() {
   const [user, setUser] = useState<any>(null);
@@ -21,6 +23,9 @@ function Profile() {
     largeText: false,
     highContrast: false,
   });
+  const [plan, setPlan] = useState<'free' | 'pro'>('free');
+  const [isLoadingPlan, setIsLoadingPlan] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -41,6 +46,14 @@ function Profile() {
           if (dbPrefs.theme !== theme) {
             setTheme(dbPrefs.theme);
           }
+        }
+        try {
+          const currentPlan = await getUserPlan(data.user.id);
+          setPlan(currentPlan);
+        } catch {
+          setPlan('free');
+        } finally {
+          setIsLoadingPlan(false);
         }
       }
       setIsLoading(false);
@@ -89,6 +102,15 @@ function Profile() {
     await supabase.auth.signOut();
   };
 
+  const handleManageBilling = async () => {
+    try {
+      const url = await createPortalSession();
+      window.location.href = url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir el portal de facturación');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 text-center">
@@ -113,7 +135,6 @@ function Profile() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold flex items-center gap-2">
-            <span className="text-4xl">👤</span>
             {t('profile.title')}
           </h1>
           <p className="text-sm text-mutedForeground">Gestiona tu cuenta y preferencias</p>
@@ -122,6 +143,31 @@ function Profile() {
           <Button variant="outline">{t('common.cancel')}</Button>
         </Link>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Plan actual</CardTitle>
+          <CardDescription>Gestiona tu suscripción y límites</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold uppercase">
+              {isLoadingPlan ? 'Cargando...' : plan === 'pro' ? 'Pro' : 'Free'}
+            </span>
+            <span className="text-xs text-mutedForeground">
+              {plan === 'pro' ? 'Itinerarios ilimitados' : 'Hasta 2 itinerarios'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleManageBilling} disabled={plan !== 'pro'}>
+              Gestionar suscripción
+            </Button>
+            <Link to="/pricing">
+              <Button>Ver planes</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

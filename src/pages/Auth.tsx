@@ -13,6 +13,7 @@ function Auth() {
   const [isBusy, setIsBusy] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -34,6 +35,42 @@ function Auth() {
     setIsBusy(false);
   };
 
+  const handleSignUp = async () => {
+    setIsBusy(true);
+    setStatus(null);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    });
+    if (error) {
+      setStatus(error.message);
+    } else {
+      setStatus('Revisa tu correo para confirmar tu cuenta.');
+    }
+    setIsBusy(false);
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setStatus('Introduce tu email para recuperar la contraseña.');
+      return;
+    }
+    setIsBusy(true);
+    setStatus(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset`,
+    });
+    if (error) {
+      setStatus(error.message);
+    } else {
+      setStatus('Te enviamos un enlace para restablecer tu contraseña.');
+    }
+    setIsBusy(false);
+  };
+
   if (hasSession) {
     return <Navigate to="/app" replace />;
   }
@@ -45,8 +82,14 @@ function Auth() {
       </div>
       <Card className="w-full max-w-md border border-border bg-card shadow-[0_24px_60px_rgba(111,99,216,0.22)]">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">¡Bienvenido de nuevo!</CardTitle>
-          <CardDescription>Inicia sesión para editar tus itinerarios colaborativos.</CardDescription>
+          <CardTitle className="text-2xl">
+            {mode === 'login' ? '¡Bienvenido de nuevo!' : 'Crea tu cuenta'}
+          </CardTitle>
+          <CardDescription>
+            {mode === 'login'
+              ? 'Inicia sesión para editar tus itinerarios colaborativos.'
+              : 'Regístrate para empezar a planificar tus viajes.'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -82,35 +125,51 @@ function Auth() {
               </button>
             </div>
             <div className="text-right">
-              <button type="button" className="text-xs font-medium text-mutedForeground hover:text-foreground">
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                className="text-xs font-medium text-mutedForeground hover:text-foreground"
+              >
                 ¿Olvidaste tu contraseña?
               </button>
             </div>
           </div>
           {status && <p className="text-sm text-mutedForeground">{status}</p>}
           <div className="grid gap-2">
-            <Button onClick={handleLogin} disabled={isBusy || !email || !password}>
-              Iniciar sesión
-            </Button>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-mutedForeground">
-            <span className="h-px flex-1 bg-border" />
-            O continúa con
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <div className="flex items-center justify-center gap-3">
-            <button type="button" className="h-11 w-16 rounded-xl border border-border bg-white text-sm font-semibold shadow-sm">
-              G
-            </button>
-            <button type="button" className="h-11 w-16 rounded-xl border border-border bg-white text-sm font-semibold shadow-sm">
-              f
-            </button>
-            <button type="button" className="h-11 w-16 rounded-xl border border-border bg-white text-xs font-semibold shadow-sm">
-              Apple
-            </button>
+            {mode === 'login' ? (
+              <Button onClick={handleLogin} disabled={isBusy || !email || !password}>
+                Iniciar sesión
+              </Button>
+            ) : (
+              <Button onClick={handleSignUp} disabled={isBusy || !email || !password}>
+                Crear cuenta
+              </Button>
+            )}
           </div>
           <p className="text-center text-xs text-mutedForeground">
-            ¿Nuevo aquí? <button className="font-semibold text-primary">Crea una cuenta</button>
+            {mode === 'login' ? (
+              <>
+                ¿Nuevo aquí?{' '}
+                <button
+                  type="button"
+                  className="font-semibold text-primary"
+                  onClick={() => setMode('signup')}
+                >
+                  Crea una cuenta
+                </button>
+              </>
+            ) : (
+              <>
+                ¿Ya tienes cuenta?{' '}
+                <button
+                  type="button"
+                  className="font-semibold text-primary"
+                  onClick={() => setMode('login')}
+                >
+                  Inicia sesión
+                </button>
+              </>
+            )}
           </p>
         </CardContent>
       </Card>

@@ -161,7 +161,6 @@ function AdminSections() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold flex items-center gap-2">
-            <span className="text-4xl">⚙️</span>
             Administrar secciones
           </h1>
           <p className="text-sm text-mutedForeground">Reordena y oculta secciones del itinerario.</p>

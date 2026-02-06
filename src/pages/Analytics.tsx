@@ -90,7 +90,6 @@ export default function Analytics() {
     <div className="mx-auto flex w-full  flex-col gap-6 px-4 py-10">
       <div>
         <h1 className="text-3xl font-semibold flex items-center gap-2">
-          <span className="text-4xl">📊</span>
           Analytics
         </h1>
         <p className="text-sm text-mutedForeground">Estadísticas de uso y actividad</p>

@@ -100,7 +100,6 @@ function MyBag() {
           </Link>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <span className="text-3xl">🎒</span>
               Mi Maleta
             </h1>
             <p className="text-sm text-mutedForeground">Organiza tu equipaje por categorías</p>

@@ -11,6 +11,15 @@ import { NotificationProvider } from './context/NotificationContext.tsx';
 import { I18nProvider } from './components/I18nProvider.tsx';
 import { OfflineIndicator } from './components/OfflineIndicator.tsx';
 import { Toaster } from 'react-hot-toast';
+import * as Sentry from '@sentry/react';
+
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    tracesSampleRate: 0.1,
+  });
+}
 
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({

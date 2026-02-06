@@ -7,7 +7,7 @@ const Card = React.forwardRef<HTMLDivElement, React.ComponentProps<typeof Flowbi
     <FlowbiteCard
       ref={ref}
       className={cn(
-        '!p-0 rounded-2xl border border-border bg-card shadow-[0_12px_30px_rgba(111,99,216,0.12)]',
+        '!p-0 rounded-2xl border border-border bg-card shadow-[0_12px_30px_rgba(111,99,216,0.12)] transition-shadow hover:shadow-[0_18px_38px_rgba(111,99,216,0.18)] dark:shadow-[0_18px_38px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_22px_44px_rgba(0,0,0,0.45)]',
         className
       )}
       {...props}
@@ -39,7 +39,7 @@ CardDescription.displayName = 'CardDescription';
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-2 pt-0', className)} {...props} />
+    <div ref={ref} className={cn('p-4 pt-0', className)} {...props} />
   )
 );
 CardContent.displayName = 'CardContent';

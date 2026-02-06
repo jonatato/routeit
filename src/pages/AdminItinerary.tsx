@@ -572,7 +572,6 @@ function AdminItinerary() {
           </Link>
           <div className="flex-1">
             <h1 className="text-lg font-bold flex items-center gap-2">
-              <span className="text-2xl">✏️</span>
               Administrar Itinerario
             </h1>
           </div>
@@ -597,15 +596,11 @@ function AdminItinerary() {
         <div className="mb-6 hidden items-center justify-between md:flex">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <span className="text-4xl">✏️</span>
               Administrar Itinerario
             </h1>
             <p className="text-muted-foreground">Edita tu itinerario dinámico</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/app/admin/sections">
-              <Button variant="outline">Secciones</Button>
-            </Link>
             <Link to="/app">
               <Button variant="outline">Ver itinerario</Button>
             </Link>

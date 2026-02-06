@@ -234,7 +234,6 @@ function SocialVideos() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <span className="text-4xl">🎥</span>
             Videos de la Ruta
           </h1>
           <p className="text-muted-foreground mt-1">

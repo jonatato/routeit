@@ -5,6 +5,9 @@
 :root {
   /* Soft lavender UI theme */
   --background: 255 100% 98%;
+  --surface-1: 255 100% 98%;
+  --surface-2: 255 50% 99%;
+  --surface-3: 255 35% 96%;
   --foreground: 240 15% 20%;
   --card: 0 0% 100%;
   --card-foreground: 240 15% 18%;
@@ -18,7 +21,7 @@
   --muted-foreground: 240 12% 45%;
   --accent: 270 80% 88%;
   --accent-foreground: 240 18% 20%;
-  --border: 255 30% 88%;
+  --border: 255 30% 86%;
   --ring: 258 70% 60%;
   --radius: 18px;
 }
@@ -26,6 +29,9 @@
 .dark {
   /* Soft lavender UI theme - Dark Mode */
   --background: 240 16% 10%;
+  --surface-1: 240 16% 10%;
+  --surface-2: 240 18% 14%;
+  --surface-3: 240 20% 18%;
   --foreground: 0 0% 96%;
   --card: 240 18% 14%;
   --card-foreground: 0 0% 96%;
@@ -36,10 +42,10 @@
   --secondary: 240 18% 20%;
   --secondary-foreground: 0 0% 96%;
   --muted: 240 12% 18%;
-  --muted-foreground: 240 8% 70%;
+  --muted-foreground: 240 8% 72%;
   --accent: 260 50% 30%;
   --accent-foreground: 0 0% 96%;
-  --border: 240 14% 22%;
+  --border: 240 14% 24%;
   --ring: 258 80% 70%;
 }
 
@@ -68,13 +74,36 @@ textarea::placeholder {
 }
 
 body {
-  background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+  background: linear-gradient(180deg, hsl(var(--surface-1)) 0%, hsl(var(--surface-2)) 100%);
   color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+@layer components {
+  .page-shell {
+    background: radial-gradient(circle at top, hsl(var(--surface-1)) 0%, hsl(var(--surface-2)) 55%);
+  }
+
+  .panel-surface {
+    background: hsl(var(--surface-2));
+    border: 1px solid hsl(var(--border));
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  .dark .panel-surface {
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.4);
+  }
+
+  .panel-surface .panel-divider {
+    height: 1px;
+    background: hsl(var(--border));
+  }
 }
 
 .leaflet-container {
@@ -94,6 +123,9 @@ body {
 .a11y-contrast {
   /* Panda Ninja Theme - Alto contraste */
   --background: 0 0% 100%;
+  --surface-1: 0 0% 100%;
+  --surface-2: 0 0% 100%;
+  --surface-3: 140 15% 92%;
   --foreground: 0 0% 5%;
   --muted: 140 15% 92%;
   --muted-foreground: 0 0% 25%;

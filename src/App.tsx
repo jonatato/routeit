@@ -22,6 +22,10 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const SocialVideos = lazy(() => import('./pages/SocialVideos'));
+const Landing = lazy(() => import('./pages/Landing'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Store = lazy(() => import('./pages/Store'));
 
 const LoadingFallback = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -32,16 +36,10 @@ const LoadingFallback = () => (
 function App() {
   const isMobileShell = useIsMobileShell();
   const location = useLocation();
-  const showSideMenu = !isMobileShell && location.pathname !== '/login';
+  const isAppRoute = location.pathname.startsWith('/app');
+  const showSideMenu = !isMobileShell && isAppRoute;
   const showWidgetsSidebar = !isMobileShell && (location.pathname === '/app' || location.search.includes('itineraryId='));
-  const showMobileHeader = isMobileShell && location.pathname !== '/login';
-  
-  console.log('App.tsx - Debug:', {
-    isMobileShell,
-    pathname: location.pathname,
-    search: location.search,
-    showWidgetsSidebar
-  });
+  const showMobileHeader = isMobileShell && isAppRoute;
   
   return (
     <>
@@ -49,7 +47,38 @@ function App() {
         <div className="min-h-screen pb-14">
           {showMobileHeader && <MobileHeader />}
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route
+              path="/"
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <Landing />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/pricing"
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <Pricing />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/store"
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <Store />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/reset"
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <ResetPassword />
+                </Suspense>
+              }
+            />
             <Route path="/login" element={<Auth />} />
             <Route
               path="/app"
@@ -70,6 +99,18 @@ function App() {
                   <Suspense fallback={<LoadingFallback />}>
                     <PageTransition>
                       <MyItineraries />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/store"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <Store />
                     </PageTransition>
                   </Suspense>
                 </RequireAuth>
@@ -183,9 +224,9 @@ function App() {
                 </RequireAuth>
               }
             />
-            <Route path="*" element={<Navigate to="/static" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          {location.pathname !== '/login' && location.pathname !== '/static' && <MobileTabs />}
+          {isAppRoute && <MobileTabs />}
         </div>
       ) : (
         <div className="min-h-screen">
@@ -193,7 +234,38 @@ function App() {
             {showSideMenu && <WebSideMenu />}
             <div className="flex-1">
               <Routes>
-                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route
+                  path="/"
+                  element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Landing />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/pricing"
+                  element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Pricing />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/store"
+                  element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Store />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/reset"
+                  element={
+                    <Suspense fallback={<LoadingFallback />}>
+                      <ResetPassword />
+                    </Suspense>
+                  }
+                />
                 <Route path="/login" element={<Auth />} />
                 <Route
                   path="/app"
@@ -214,6 +286,18 @@ function App() {
                       <Suspense fallback={<LoadingFallback />}>
                         <PageTransition>
                           <MyItineraries />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/store"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <Store />
                         </PageTransition>
                       </Suspense>
                     </RequireAuth>
@@ -327,7 +411,7 @@ function App() {
                     </RequireAuth>
                   }
                 />
-                <Route path="*" element={<Navigate to="/static" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
             {showWidgetsSidebar && <WidgetsSidebar />}
@@ -339,4 +423,3 @@ function App() {
 }
 
 export default App;
-

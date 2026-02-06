@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
 import { PandaLogo } from '../components/PandaLogo';
@@ -14,7 +14,6 @@ function DynamicItinerary() {
   const [itinerary, setItinerary] = useState<TravelItinerary | null>(null);
   const [hasNoItineraries, setHasNoItineraries] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -42,13 +41,6 @@ function DynamicItinerary() {
         } else {
           setItinerary(dataItinerary);
           setHasNoItineraries(false);
-          
-          // Actualizar la URL para que muestre el ID del itinerario cargado
-          // Solo si no está ya en la URL
-          const currentPath = location.pathname + location.search;
-          if (!currentPath.includes(`itineraryId=${dataItinerary.id}`)) {
-            navigate(`/app?itineraryId=${dataItinerary.id}`, { replace: true });
-          }
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el itinerario.';
@@ -60,7 +52,7 @@ function DynamicItinerary() {
       }
     };
     load();
-  }, [location.search, navigate]);
+  }, [location.search]);
 
   if (isLoading) {
     return (

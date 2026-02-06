@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { supabase } from '../lib/supabase';
 import { acceptShareLink, createShareLink, deleteItinerary, listCollaborators, listUserItineraries, removeCollaborator } from '../services/sharing';
 import { createEmptyItinerary } from '../services/itinerary';
+import { getUserPlan } from '../services/billing';
 import { useToast } from '../hooks/useToast';
 
 type ShareRole = 'editor' | 'viewer';
@@ -41,6 +42,8 @@ function MyItineraries() {
   const [newTitle, setNewTitle] = useState('');
   const [newDateRange, setNewDateRange] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [plan, setPlan] = useState<'free' | 'pro'>('free');
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -60,6 +63,12 @@ function MyItineraries() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los itinerarios.');
     } finally {
+      try {
+        const currentPlan = await getUserPlan(user.id);
+        setPlan(currentPlan);
+      } catch {
+        setPlan('free');
+      }
       setIsLoading(false);
     }
   };
@@ -69,6 +78,7 @@ function MyItineraries() {
   }, []);
 
   const ownedItineraries = useMemo(() => itineraries.filter(item => item.role === 'owner'), [itineraries]);
+  const isFreeLimitReached = plan === 'free' && ownedItineraries.length >= 2;
 
   const openShare = async (itineraryId: string) => {
     setShareTarget(itineraryId);
@@ -158,7 +168,11 @@ function MyItineraries() {
       await load();
       navigate(`/app/admin?itineraryId=${newItineraryId}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo crear el itinerario.');
+      const message = err instanceof Error ? err.message : 'No se pudo crear el itinerario.';
+      if (message.toLowerCase().includes('row level') || message.toLowerCase().includes('security')) {
+        setShowUpgrade(true);
+      }
+      toast.error(message);
     } finally {
       setIsCreating(false);
     }
@@ -194,17 +208,32 @@ function MyItineraries() {
           </Link>
           <div>
             <h1 className="text-2xl font-semibold flex items-center gap-2">
-              <span className="text-3xl">🗺️</span>
               Mis viajes
             </h1>
             <p className="text-sm text-mutedForeground">Crea, comparte y gestiona.</p>
           </div>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} size="lg">
+        <Button onClick={() => setShowCreateModal(true)} size="lg" disabled={isFreeLimitReached}>
           <Plus className="h-5 w-5 mr-2" />
-          Crear Nuevo Viaje
+          {isFreeLimitReached ? 'Límite alcanzado' : 'Crear Nuevo Viaje'}
         </Button>
       </div>
+      {isFreeLimitReached && (
+        <Card className="border border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Hazte Pro para crear más viajes</CardTitle>
+            <CardDescription>El plan gratis permite hasta 2 itinerarios activos.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-2">
+            <Link to="/pricing">
+              <Button>Mejorar a Pro</Button>
+            </Link>
+            <span className="text-xs text-mutedForeground">
+              Actualmente tienes {ownedItineraries.length} viajes propios.
+            </span>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -396,7 +425,7 @@ function MyItineraries() {
               <div className="flex gap-2 pt-2">
                 <Button 
                   onClick={handleCreateItinerary} 
-                  disabled={isCreating || !newTitle.trim() || !newDateRange.trim()}
+                  disabled={isCreating || !newTitle.trim() || !newDateRange.trim() || isFreeLimitReached}
                   className="flex-1"
                 >
                   {isCreating ? 'Creando...' : 'Crear Itinerario'}
@@ -427,6 +456,19 @@ function MyItineraries() {
         variant="destructive"
         onConfirm={confirmDeleteItinerary}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={showUpgrade}
+        title="Límite de viajes alcanzado"
+        message="El plan gratis permite hasta 2 viajes. Mejora a Pro para desbloquear itinerarios ilimitados."
+        confirmText="Mejorar a Pro"
+        cancelText="Cerrar"
+        onConfirm={() => {
+          setShowUpgrade(false);
+          navigate('/pricing');
+        }}
+        onCancel={() => setShowUpgrade(false)}
       />
     </div>
   );

@@ -99,13 +99,16 @@ const buildFallbackQueries = (query: string) => {
   ].filter(Boolean);
 };
 
-const allowedOrigins = new Set([
-  "https://routeit.vercel.app",
-  "http://localhost:5173",
-]);
+const siteUrl = Deno.env.get("SITE_URL") ?? "https://routeit.vercel.app";
+const allowedOrigins = new Set(
+  (Deno.env.get("ALLOWED_ORIGINS") ?? `${siteUrl},http://localhost:5173`)
+    .split(",")
+    .map(value => value.trim())
+    .filter(Boolean),
+);
 
 const corsHeaders = (origin: string | null) => ({
-  "Access-Control-Allow-Origin": origin ?? "https://routeit.vercel.app",
+  "Access-Control-Allow-Origin": origin ?? siteUrl,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 });

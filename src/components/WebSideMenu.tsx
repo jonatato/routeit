@@ -1,6 +1,6 @@
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
-import { Home, Receipt, Plane, ShoppingBag, Settings, Video } from 'lucide-react';
+import { Home, Receipt, Plane, ShoppingBag, Settings, Video, Store } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
@@ -40,6 +40,7 @@ function WebSideMenu() {
   
   const baseMenuItems = [
     { path: '/app', label: 'Inicio', icon: Home },
+    { path: '/app/store', label: 'Tienda', icon: Store },
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
     { path: '/app/memories', label: 'Vídeos', icon: Video },
