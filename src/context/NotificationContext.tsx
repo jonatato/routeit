@@ -2,6 +2,9 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { supabase } from '../lib/supabase';
 import { subscribeToUserItineraries, subscribeToSplitwiseChanges, type ItineraryChangeEvent } from '../services/realtime';
 import { requestNotificationPermission, subscribeToPushNotifications, sendLocalNotification } from '../services/pushNotifications';
+import { fetchUserItinerary } from '../services/itinerary';
+import { fetchUserPreferences } from '../services/userPreferences';
+import { getItineraryStartDate, isSameDay } from '../utils/itineraryDates';
 
 export type Notification = {
   id: string;
@@ -32,11 +35,42 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const preferences = await fetchUserPreferences(user.id);
+      if (preferences && preferences.notifications === false) {
+        return;
+      }
+
       // Request push notification permission
       await requestNotificationPermission();
       await subscribeToPushNotifications();
 
       const channels: any[] = [];
+
+      const itinerary = await fetchUserItinerary(user.id);
+      if (itinerary) {
+        const startDate = getItineraryStartDate(itinerary);
+        if (startDate) {
+          const today = new Date();
+          const dateKey = startDate.toISOString().slice(0, 10);
+          const storageKey = `routeit-itinerary-start-${itinerary.id}-${dateKey}`;
+          const alreadyNotified = localStorage.getItem(storageKey) === '1';
+          if (isSameDay(startDate, today) && !alreadyNotified) {
+            const notification: Notification = {
+              id: `itinerary-start-${itinerary.id}-${Date.now()}`,
+              type: 'itinerary',
+              title: 'Hoy empieza tu viaje',
+              message: 'Revisa el dia actual y tu lista de actividades.',
+              read: false,
+              created_at: new Date().toISOString(),
+              data: {
+                route: `/app/today${itinerary.id ? `?itineraryId=${itinerary.id}` : ''}`,
+              },
+            };
+            setNotifications(prev => [notification, ...prev]);
+            localStorage.setItem(storageKey, '1');
+          }
+        }
+      }
 
       // Subscribe to user itineraries
       const itineraryChannel = subscribeToUserItineraries(user.id, (event: ItineraryChangeEvent) => {

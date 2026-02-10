@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { createRoot } from 'react-dom/client';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'driver.js/dist/driver.css';
 import './index.css';
 import './i18n/config';
 import App from './App.tsx';

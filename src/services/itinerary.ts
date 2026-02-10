@@ -233,12 +233,7 @@ export async function createEmptyItinerary(userId: string, title: string, dateRa
   return created.id as string;
 }
 
-export async function seedUserItinerary(userId: string, base: TravelItinerary): Promise<TravelItinerary> {
-  const existing = await fetchSingleItinerary(userId);
-  if (existing) {
-    const current = await fetchUserItinerary(userId);
-    if (current) return current;
-  }
+async function createItineraryAndSeed(userId: string, base: TravelItinerary): Promise<TravelItinerary> {
   const { data: created, error } = await supabase
     .from('itineraries')
     .insert({
@@ -258,36 +253,41 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
   const itineraryId = created.id as string;
   const seed = buildSeedPayloads(base, itineraryId);
 
-  const { data: insertedDays, error: daysError } = await supabase
-    .from('days')
-    .insert(seed.days)
-    .select('*');
-  if (daysError) throw daysError;
-
   const dayIdByOrder = new Map<number, string>();
-  (insertedDays as DbDay[]).forEach(day => {
-    dayIdByOrder.set(day.order_index, day.id);
-  });
+  if (seed.days.length > 0) {
+    const { data: insertedDays, error: daysError } = await supabase
+      .from('days')
+      .insert(seed.days)
+      .select('*');
+    if (daysError) throw daysError;
+    (insertedDays as DbDay[]).forEach(day => {
+      dayIdByOrder.set(day.order_index, day.id);
+    });
+  }
 
-  const schedulePayload = seed.scheduleItems.map(item => ({
-    day_id: dayIdByOrder.get(item.dayOrder) ?? '',
-    time: item.time,
-    activity: item.activity,
-    link: item.link ?? null,
-    map_link: item.map_link ?? null,
-    lat: item.lat,
-    lng: item.lng,
-    order_index: item.order_index,
-    cost: item.cost,
-    cost_currency: item.cost_currency,
-    cost_payer_id: item.cost_payer_id,
-    cost_split_expense_id: item.cost_split_expense_id,
-  }));
-  const notePayload = seed.dayNotes.map(item => ({
-    day_id: dayIdByOrder.get(item.dayOrder) ?? '',
-    note: item.note,
-    order_index: item.order_index,
-  }));
+  const schedulePayload = seed.scheduleItems
+    .map(item => ({
+      day_id: dayIdByOrder.get(item.dayOrder) ?? '',
+      time: item.time,
+      activity: item.activity,
+      link: item.link ?? null,
+      map_link: item.map_link ?? null,
+      lat: item.lat,
+      lng: item.lng,
+      order_index: item.order_index,
+      cost: item.cost,
+      cost_currency: item.cost_currency,
+      cost_payer_id: item.cost_payer_id,
+      cost_split_expense_id: item.cost_split_expense_id,
+    }))
+    .filter(item => item.day_id);
+  const notePayload = seed.dayNotes
+    .map(item => ({
+      day_id: dayIdByOrder.get(item.dayOrder) ?? '',
+      note: item.note,
+      order_index: item.order_index,
+    }))
+    .filter(item => item.day_id);
 
   let insertedScheduleItems: DbScheduleItem[] = [];
   if (schedulePayload.length > 0) {
@@ -463,11 +463,27 @@ export async function seedUserItinerary(userId: string, base: TravelItinerary): 
     }
   }
 
-  const seeded = await fetchUserItinerary(userId);
+  const seeded = await fetchItineraryById(itineraryId);
   if (!seeded) {
     throw new Error('No se pudo cargar el itinerario recién creado.');
   }
   return seeded;
+}
+
+export async function seedUserItinerary(userId: string, base: TravelItinerary): Promise<TravelItinerary> {
+  const existing = await fetchSingleItinerary(userId);
+  if (existing) {
+    const current = await fetchUserItinerary(userId);
+    if (current) return current;
+  }
+  return createItineraryAndSeed(userId, base);
+}
+
+export async function createItineraryFromTemplate(
+  userId: string,
+  base: TravelItinerary,
+): Promise<TravelItinerary> {
+  return createItineraryAndSeed(userId, base);
 }
 
 export async function saveUserItinerary(

@@ -26,6 +26,7 @@ const Landing = lazy(() => import('./pages/Landing'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Store = lazy(() => import('./pages/Store'));
+const TodayItinerary = lazy(() => import('./pages/TodayItinerary'));
 
 const LoadingFallback = () => <FullscreenLoader />;
 
@@ -83,6 +84,18 @@ function App() {
                   <Suspense fallback={<LoadingFallback />}>
                     <PageTransition>
                       <DynamicItinerary />
+                    </PageTransition>
+                  </Suspense>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/app/today"
+              element={
+                <RequireAuth>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <PageTransition>
+                      <TodayItinerary />
                     </PageTransition>
                   </Suspense>
                 </RequireAuth>
@@ -270,6 +283,18 @@ function App() {
                       <Suspense fallback={<LoadingFallback />}>
                         <PageTransition>
                           <DynamicItinerary />
+                        </PageTransition>
+                      </Suspense>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/app/today"
+                  element={
+                    <RequireAuth>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <PageTransition>
+                          <TodayItinerary />
                         </PageTransition>
                       </Suspense>
                     </RequireAuth>

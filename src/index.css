@@ -154,6 +154,48 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+.driver-popover.routeit-onboarding {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 244, 255, 0.96));
+  border: 1px solid hsl(var(--border));
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+  color: hsl(var(--foreground));
+  max-width: 320px;
+}
+
+.driver-popover.routeit-onboarding .driver-popover-title {
+  font-weight: 700;
+  font-size: 16px;
+  color: hsl(var(--foreground));
+}
+
+.driver-popover.routeit-onboarding .driver-popover-description {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.driver-popover.routeit-onboarding .driver-popover-footer {
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 10px;
+}
+
+.driver-popover.routeit-onboarding .driver-popover-footer button {
+  border-radius: 12px;
+  border: 1px solid hsl(var(--border));
+  padding: 6px 12px;
+  font-size: 12px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.driver-popover.routeit-onboarding .driver-popover-footer button.driver-popover-next-btn,
+.driver-popover.routeit-onboarding .driver-popover-footer button.driver-popover-done-btn {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: transparent;
+}
+
 /* Custom animations for video section */
 @keyframes slideInFromBottom {
   from {

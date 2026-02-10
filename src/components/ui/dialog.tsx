@@ -1,5 +1,6 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./card"
+import { cn } from "../../lib/utils"
 
 const Dialog = React.forwardRef<
   HTMLDivElement,
@@ -33,7 +34,7 @@ const DialogContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, children, ...props }, ref) => (
-  <Card ref={ref} className="w-full max-w-lg" {...props}>
+  <Card ref={ref} className={cn("w-full max-w-lg", className)} {...props}>
     <CardContent className="p-6">
       {children}
     </CardContent>

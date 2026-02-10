@@ -14,7 +14,7 @@ function FullscreenLoader({ message = 'Cargando...' }: FullscreenLoaderProps) {
       role="status"
     >
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="h-40 w-40">
+        <div className="h-80 w-80">
           <Lottie animationData={loaderAnimation} loop />
         </div>
         <p className="text-sm font-medium text-mutedForeground">{message}</p>

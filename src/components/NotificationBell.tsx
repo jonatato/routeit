@@ -4,12 +4,13 @@ import { Bell } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { useNotifications } from '../context/NotificationContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const isNotificationsActive = isOpen;
 
   return (
@@ -92,6 +93,13 @@ export function NotificationBell() {
                       e.stopPropagation();
                       if (!notification.read) {
                         markAsRead(notification.id);
+                      }
+                      const targetRoute = notification.data?.route;
+                      if (typeof targetRoute === 'string' && targetRoute.length > 0) {
+                        setIsOpen(false);
+                        if (location.pathname + location.search !== targetRoute) {
+                          navigate(targetRoute);
+                        }
                       }
                     }}
                   >

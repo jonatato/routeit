@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { ItineraryTutorial } from '../components/ItineraryTutorial';
+import { AiItineraryLoadingModal } from '../components/AiItineraryLoadingModal';
+import { AiItineraryDialog } from '../components/AiItineraryDialog';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { supabase } from '../lib/supabase';
 import { acceptShareLink, createShareLink, deleteItinerary, listCollaborators, listUserItineraries, removeCollaborator } from '../services/sharing';
-import { createEmptyItinerary } from '../services/itinerary';
+import { createEmptyItinerary, createItineraryFromTemplate } from '../services/itinerary';
+import {
+  enrichItineraryWithMaps,
+  generateAiItinerary,
+  mapAiDraftToTravelItinerary,
+  type AiItineraryAnswers,
+} from '../services/aiItinerary';
 import { getUserPlan } from '../services/billing';
 import { useToast } from '../hooks/useToast';
 import FullscreenLoader from '../components/FullscreenLoader';
@@ -45,8 +54,40 @@ function MyItineraries() {
   const [isCreating, setIsCreating] = useState(false);
   const [plan, setPlan] = useState<'free' | 'pro'>('free');
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialDismissed, setTutorialDismissed] = useState(false);
+  const [startOnboardingAfterCreate, setStartOnboardingAfterCreate] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [showAiUpgrade, setShowAiUpgrade] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const getFriendlyAiErrorMessage = (err: unknown) => {
+    const raw = err instanceof Error ? err.message : '';
+    const message = raw.toLowerCase();
+
+    if (message.includes('401') || message.includes('unauthorized') || message.includes('jwt')) {
+      return 'Tu sesion expiro. Vuelve a iniciar sesion y reintenta.';
+    }
+    if (message.includes('403') || message.includes('forbidden') || message.includes('origin')) {
+      return 'No podemos validar tu acceso ahora. Reintenta en un minuto.';
+    }
+    if (message.includes('429') || message.includes('rate') || message.includes('quota')) {
+      return 'La IA esta con mucha demanda. Dame un respiro y prueba otra vez.';
+    }
+    if (message.includes('502') || message.includes('gemini') || message.includes('ia')) {
+      return 'La IA se perdio en un desvio. Probemos de nuevo en unos segundos.';
+    }
+    if (message.includes('invalid ai response') || message.includes('json')) {
+      return 'El resultado salio desordenado. Intentemos generar el viaje otra vez.';
+    }
+    if (message.includes('network') || message.includes('failed to fetch')) {
+      return 'No pude conectar con el servicio. Revisa tu conexion y reintenta.';
+    }
+
+    return 'Ups, algo salio mal creando tu viaje. Intentalo de nuevo.';
+  };
 
   const load = async () => {
     setIsLoading(true);
@@ -80,6 +121,16 @@ function MyItineraries() {
 
   const ownedItineraries = useMemo(() => itineraries.filter(item => item.role === 'owner'), [itineraries]);
   const isFreeLimitReached = plan === 'free' && ownedItineraries.length >= 2;
+
+  useEffect(() => {
+    if (tutorialDismissed) return;
+    if (!isLoading && ownedItineraries.length === 0) {
+      setShowTutorial(true);
+    }
+    if (ownedItineraries.length > 0) {
+      setShowTutorial(false);
+    }
+  }, [isLoading, ownedItineraries.length, tutorialDismissed]);
 
   const openShare = async (itineraryId: string) => {
     setShareTarget(itineraryId);
@@ -124,6 +175,11 @@ function MyItineraries() {
     setConfirmDelete({ id: itineraryId, title });
   };
 
+  const openCreateModal = (startOnboarding = false) => {
+    setStartOnboardingAfterCreate(startOnboarding);
+    setShowCreateModal(true);
+  };
+
   const confirmDeleteItinerary = async () => {
     if (!confirmDelete) return;
 
@@ -162,12 +218,15 @@ function MyItineraries() {
       }
 
       const newItineraryId = await createEmptyItinerary(user.id, newTitle, newDateRange);
+      const shouldStartOnboarding = startOnboardingAfterCreate || ownedItineraries.length === 0;
       toast.success(`Itinerario "${newTitle}" creado correctamente`);
       setShowCreateModal(false);
       setNewTitle('');
       setNewDateRange('');
+      setStartOnboardingAfterCreate(false);
       await load();
-      navigate(`/app/admin?itineraryId=${newItineraryId}`);
+      const onboardingQuery = shouldStartOnboarding ? '&onboarding=1' : '';
+      navigate(`/app/admin?itineraryId=${newItineraryId}${onboardingQuery}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo crear el itinerario.';
       if (message.toLowerCase().includes('row level') || message.toLowerCase().includes('security')) {
@@ -176,6 +235,34 @@ function MyItineraries() {
       toast.error(message);
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleGenerateAiItinerary = async (answers: AiItineraryAnswers) => {
+    if (plan !== 'pro') {
+      setShowAiUpgrade(true);
+      return;
+    }
+    setShowAiModal(false);
+    setIsGeneratingAi(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Debes estar autenticado para crear un itinerario.');
+        return;
+      }
+      const draft = await generateAiItinerary(answers);
+      const baseItinerary = mapAiDraftToTravelItinerary(draft);
+      const enriched = await enrichItineraryWithMaps(baseItinerary, draft).catch(() => baseItinerary);
+      const created = await createItineraryFromTemplate(user.id, enriched);
+      toast.success(`Viaje "${created.title}" creado con IA.`);
+      setShowAiModal(false);
+      void load();
+      navigate(`/app/admin?itineraryId=${created.id ?? ''}&onboarding=1`);
+    } catch (err) {
+      toast.error(getFriendlyAiErrorMessage(err));
+    } finally {
+      setIsGeneratingAi(false);
     }
   };
 
@@ -193,6 +280,27 @@ function MyItineraries() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 pb-24 md:pb-10">
+      {showTutorial && (
+        <ItineraryTutorial
+          primaryAction={
+            <Button size="lg" onClick={() => openCreateModal(true)} disabled={isFreeLimitReached}>
+              Crear mi primer viaje
+            </Button>
+          }
+          secondaryAction={
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowTutorial(false);
+                setTutorialDismissed(true);
+              }}
+            >
+              Cerrar tutorial
+            </Button>
+          }
+        />
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link to="/app" aria-label="Volver">
@@ -207,10 +315,31 @@ function MyItineraries() {
             <p className="text-sm text-mutedForeground">Crea, comparte y gestiona.</p>
           </div>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} size="lg" disabled={isFreeLimitReached}>
-          <Plus className="h-5 w-5 mr-2" />
-          {isFreeLimitReached ? 'Límite alcanzado' : 'Crear Nuevo Viaje'}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => setShowTutorial(true)}>
+            Iniciar tutorial
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (plan !== 'pro') {
+                setShowAiUpgrade(true);
+              } else {
+                setShowAiModal(true);
+              }
+            }}
+          >
+            Crear con IA
+          </Button>
+          <Button
+            onClick={() => openCreateModal(ownedItineraries.length === 0)}
+            size="lg"
+            disabled={isFreeLimitReached}
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            {isFreeLimitReached ? 'Límite alcanzado' : 'Crear Nuevo Viaje'}
+          </Button>
+        </div>
       </div>
       {isFreeLimitReached && (
         <Card className="border border-primary/30 bg-primary/5">
@@ -387,7 +516,13 @@ function MyItineraries() {
       {/* Modal de creación */}
       {showCreateModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowCreateModal(false)} />
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => {
+              setShowCreateModal(false);
+              setStartOnboardingAfterCreate(false);
+            }}
+          />
           <Card className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg z-50 shadow-2xl">
             <CardHeader>
               <CardTitle>Crear Nuevo Viaje</CardTitle>
@@ -430,6 +565,7 @@ function MyItineraries() {
                     setShowCreateModal(false);
                     setNewTitle('');
                     setNewDateRange('');
+                    setStartOnboardingAfterCreate(false);
                   }}
                   disabled={isCreating}
                 >
@@ -464,6 +600,28 @@ function MyItineraries() {
         }}
         onCancel={() => setShowUpgrade(false)}
       />
+
+      <ConfirmDialog
+        isOpen={showAiUpgrade}
+        title="Crear con IA es Pro"
+        message="Esta funcion esta disponible solo en el plan Pro. Mejora para generar viajes con IA."
+        confirmText="Mejorar a Pro"
+        cancelText="Cerrar"
+        onConfirm={() => {
+          setShowAiUpgrade(false);
+          navigate('/pricing');
+        }}
+        onCancel={() => setShowAiUpgrade(false)}
+      />
+
+      <AiItineraryDialog
+        isOpen={showAiModal}
+        isLoading={isGeneratingAi}
+        onClose={() => setShowAiModal(false)}
+        onGenerate={handleGenerateAiItinerary}
+      />
+
+      <AiItineraryLoadingModal isOpen={isGeneratingAi} />
     </div>
   );
 }

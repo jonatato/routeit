@@ -1,6 +1,6 @@
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
-import { Home, Receipt, Plane, ShoppingBag, Settings, Video, Store } from 'lucide-react';
+import { Home, Receipt, Plane, ShoppingBag, Settings, Video, Store, LogOut } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
@@ -101,6 +101,18 @@ function WebSideMenu() {
             </Link>
           );
         })}
+      </div>
+
+      <div className="mt-auto pt-4">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3"
+          size="sm"
+          onClick={() => void supabase.auth.signOut()}
+        >
+          <LogOut className="h-4 w-4" />
+          Cerrar sesion
+        </Button>
       </div>
     </aside>
   );

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CloudinaryUpload } from '../components/CloudinaryUpload';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { driver } from 'driver.js';
 import RichTextEditor from '../components/RichTextEditor';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { DaySelector } from '../components/DaySelector';
@@ -161,6 +162,106 @@ const buildListHtml = (items: string[]) => {
   return `<ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
 };
 
+type OnboardingSection =
+  | 'general'
+  | 'flights'
+  | 'budget'
+  | 'lists'
+  | 'phrases'
+  | 'map'
+  | 'days'
+  | 'tags';
+
+type OnboardingStep = {
+  element: string | (() => Element);
+  section?: OnboardingSection;
+  popover: {
+    title: string;
+    description: string;
+    side?: 'top' | 'right' | 'bottom' | 'left';
+    align?: 'start' | 'center' | 'end';
+  };
+};
+
+const findVisibleElement = (selectors: string[]) => {
+  if (typeof document === 'undefined') return {} as Element;
+  for (const selector of selectors) {
+    const element = document.querySelector(selector) as HTMLElement | null;
+    if (element && element.offsetParent !== null) {
+      return element;
+    }
+  }
+  return document.body;
+};
+
+const onboardingSteps: OnboardingStep[] = [
+  {
+    element: '[data-onboarding="admin-tabs"]',
+    section: 'general',
+    popover: {
+      title: 'Paneles del itinerario',
+      description: 'Te guiaremos panel por panel. Empieza por General y luego pasamos a Dias y Mapa.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-onboarding="general-title"]',
+    section: 'general',
+    popover: {
+      title: 'Titulo del viaje',
+      description: 'Escribe un nombre claro. Ejemplo: "Japon 2026" o "Roma en 5 dias".',
+      side: 'right',
+    },
+  },
+  {
+    element: '[data-onboarding="general-daterange"]',
+    section: 'general',
+    popover: {
+      title: 'Rango de fechas',
+      description: 'Usa un formato simple. Ejemplo: "15-30 Marzo 2026".',
+      side: 'right',
+    },
+  },
+  {
+    element: '[data-onboarding="days-section"]',
+    section: 'days',
+    popover: {
+      title: 'Dias y actividades',
+      description: 'Aqui defines el plan diario. Selecciona un dia y anade horarios con actividades.',
+      side: 'top',
+    },
+  },
+  {
+    element: '[data-onboarding="days-add-schedule"]',
+    section: 'days',
+    popover: {
+      title: 'Anade un horario',
+      description: 'Ejemplo: "09:00-11:30" y "Museo del Prado". Puedes pegar un link de Maps.',
+      side: 'right',
+    },
+  },
+  {
+    element: '[data-onboarding="map-route"]',
+    section: 'map',
+    popover: {
+      title: 'Ruta y ciudades',
+      description: 'Escribe una ciudad por linea. Ejemplo: "Madrid", "Barcelona", "Valencia".',
+      side: 'top',
+    },
+  },
+  {
+    element: () => findVisibleElement([
+      '[data-onboarding="save-itinerary"]',
+      '[data-onboarding="save-itinerary-mobile"]',
+    ]),
+    popover: {
+      title: 'Guardar cambios',
+      description: 'Cuando termines, guarda y revisa el itinerario publicado.',
+      side: 'left',
+    },
+  },
+];
+
 const normalizeTimeRange = (value: string) => {
   const cleaned = value.trim().replace(/(\d{1,2})[.,](\d{2})/g, '$1:$2');
   const matches = [...cleaned.matchAll(/(\d{1,2})(?::(\d{2}))?/g)];
@@ -206,8 +307,77 @@ function AdminItinerary() {
   const [mapCoordInputs, setMapCoordInputs] = useState<Record<number, string>>({});
   const [dayCoordInputs, setDayCoordInputs] = useState<Record<string, string>>({});
   const [mapResolveStatus, setMapResolveStatus] = useState<Record<string, boolean>>({});
+  const [hasStartedOnboarding, setHasStartedOnboarding] = useState(false);
+  const driverRef = useRef<ReturnType<typeof driver> | null>(null);
+  const activeSectionRef = useRef(activeSection);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    activeSectionRef.current = activeSection;
+  }, [activeSection]);
+
+  const startOnboarding = useCallback((source: 'auto' | 'manual') => {
+    if (driverRef.current?.isActive()) return;
+
+    setActiveSection('general');
+
+    const driverObj = driver({
+      showProgress: true,
+      overlayOpacity: 0.55,
+      overlayColor: 'rgb(15, 23, 42)',
+      smoothScroll: true,
+      stagePadding: 8,
+      stageRadius: 12,
+      popoverClass: 'routeit-onboarding',
+      nextBtnText: 'Siguiente',
+      prevBtnText: 'Atras',
+      doneBtnText: 'Listo',
+      onNextClick: () => {
+        const nextIndex = driverObj.getActiveIndex() + 1;
+        if (nextIndex >= onboardingSteps.length) {
+          driverObj.destroy();
+          return;
+        }
+        const nextSection = onboardingSteps[nextIndex]?.section;
+        if (nextSection && nextSection !== activeSectionRef.current) {
+          setActiveSection(nextSection);
+          setTimeout(() => driverObj.moveTo(nextIndex), 250);
+          return;
+        }
+        driverObj.moveNext();
+      },
+      onPrevClick: () => {
+        const prevIndex = driverObj.getActiveIndex() - 1;
+        if (prevIndex < 0) {
+          driverObj.moveTo(0);
+          return;
+        }
+        const prevSection = onboardingSteps[prevIndex]?.section;
+        if (prevSection && prevSection !== activeSectionRef.current) {
+          setActiveSection(prevSection);
+          setTimeout(() => driverObj.moveTo(prevIndex), 250);
+          return;
+        }
+        driverObj.movePrevious();
+      },
+      onCloseClick: () => {
+        driverObj.destroy();
+      },
+    });
+
+    driverRef.current = driverObj;
+    setHasStartedOnboarding(true);
+
+    driverObj.setSteps(onboardingSteps.map(step => ({
+      element: step.element,
+      popover: step.popover,
+    })));
+
+    setTimeout(() => {
+      driverObj.drive(0);
+    }, source === 'manual' ? 150 : 250);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -280,6 +450,16 @@ function AdminItinerary() {
       }
     }
   }, [draft, location.search]);
+
+  useEffect(() => {
+    if (!draft || hasStartedOnboarding) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('onboarding') !== '1') return;
+    startOnboarding('auto');
+    params.delete('onboarding');
+    const search = params.toString();
+    navigate({ search: search ? `?${search}` : '' }, { replace: true });
+  }, [draft, hasStartedOnboarding, location.search, navigate, startOnboarding]);
 
   useEffect(() => {
     if (!draft) return;
@@ -568,7 +748,15 @@ function AdminItinerary() {
               Administrar Itinerario
             </h1>
           </div>
-          <Button onClick={handleSave} disabled={isSaving || isResolvingMaps} size="sm">
+          <Button variant="outline" size="sm" onClick={() => startOnboarding('manual')}>
+            Tutorial
+          </Button>
+          <Button
+            data-onboarding="save-itinerary-mobile"
+            onClick={handleSave}
+            disabled={isSaving || isResolvingMaps}
+            size="sm"
+          >
             {isSaving ? 'Guardando...' : 'Guardar'}
           </Button>
         </div>
@@ -597,14 +785,20 @@ function AdminItinerary() {
             <Link to="/app">
               <Button variant="outline">Ver itinerario</Button>
             </Link>
-            <Button onClick={handleSave} disabled={isSaving || isResolvingMaps}>
+            <Button variant="outline" onClick={() => startOnboarding('manual')}>
+              Iniciar tutorial
+            </Button>
+            <Button data-onboarding="save-itinerary" onClick={handleSave} disabled={isSaving || isResolvingMaps}>
               {isSaving ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
         </div>
 
         {/* Tabs Navigation */}
-        <div className="flex gap-0.5 overflow-x-auto no-scrollbar bg-muted/30 p-1 rounded-t-lg">
+        <div
+          className="flex gap-0.5 overflow-x-auto no-scrollbar bg-muted/30 p-1 rounded-t-lg"
+          data-onboarding="admin-tabs"
+        >
           <button
             onClick={() => setActiveSection('general')}
             className={`px-4 py-2.5 text-sm font-medium shrink-0 rounded-t-lg transition-all ${
@@ -707,6 +901,7 @@ function AdminItinerary() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Título</label>
             <input
+              data-onboarding="general-title"
               value={draft.title}
               onChange={event => updateDraft({ title: event.target.value })}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm"
@@ -715,6 +910,7 @@ function AdminItinerary() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Rango de fechas</label>
             <input
+              data-onboarding="general-daterange"
               value={draft.dateRange}
               onChange={event => updateDraft({ dateRange: event.target.value })}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm"
@@ -1173,6 +1369,7 @@ function AdminItinerary() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Ruta (una ciudad por línea)</label>
             <textarea
+              data-onboarding="map-route"
               value={draft.route.join('\n')}
               onChange={event => updateDraft({ route: splitLines(event.target.value) })}
               className="min-h-[120px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
@@ -1431,7 +1628,7 @@ function AdminItinerary() {
           )}
 
           {activeSection === 'days' && (
-            <Card className="shadow-md">
+            <Card className="shadow-md" data-onboarding="days-section">
         <CardHeader>
           <CardTitle>Días del itinerario</CardTitle>
           <CardDescription>Editar detalles, horarios, notas y etiquetas.</CardDescription>
@@ -1903,6 +2100,7 @@ function AdminItinerary() {
                         ))}
                         </div>
                         <Button
+                          data-onboarding="days-add-schedule"
                           variant="outline"
                           size="sm"
                           onClick={() =>

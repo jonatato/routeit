@@ -15,7 +15,7 @@ function MobileTabs() {
   const tabs: Tab[] = [
     { key: 'split', label: 'Gastos', path: '/app/split', icon: Receipt },
     { key: 'bag', label: 'Maleta', path: '/app/bag', icon: ShoppingBag },
-    { key: 'itinerary', label: 'Ruta', path: '/app', icon: MapPin, isCentral: true },
+    { key: 'itinerary', label: '', path: '/app', icon: MapPin, isCentral: true },
     { key: 'store', label: 'Tienda', path: '/app/store', icon: Store },
     { key: 'itineraries', label: 'Mis viajes', path: '/app/itineraries', icon: Plane },
   ];

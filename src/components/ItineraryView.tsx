@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import { Link } from 'react-router-dom';
@@ -106,6 +107,31 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const mapSectionRef = useRef<HTMLDivElement | null>(null);
   const listStartX = useRef(0);
   const listStartTime = useRef(0);
+  const mapDragState = useRef({ startX: 0, startY: 0, dragged: false });
+  const dayMapDragState = useRef({ startX: 0, startY: 0, dragged: false });
+
+  const handleMapPointerDown = (state: typeof mapDragState) => (event: ReactPointerEvent) => {
+    state.current.startX = event.clientX;
+    state.current.startY = event.clientY;
+    state.current.dragged = false;
+  };
+
+  const handleMapPointerMove = (state: typeof mapDragState) => (event: ReactPointerEvent) => {
+    if (state.current.dragged) return;
+    const dx = Math.abs(event.clientX - state.current.startX);
+    const dy = Math.abs(event.clientY - state.current.startY);
+    if (dx > 6 || dy > 6) {
+      state.current.dragged = true;
+    }
+  };
+
+  const shouldOpenMapModal = (state: typeof mapDragState) => {
+    if (state.current.dragged) {
+      state.current.dragged = false;
+      return false;
+    }
+    return true;
+  };
   
   // Convert legacy flights to new format if flightsList is not available
   const flightsList: Flight[] = useMemo(() => {
@@ -945,7 +971,18 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
             </Card>
             <Card className="relative z-0 overflow-hidden">
               <CardContent className="p-0">
-                <div className="relative z-0 h-[420px] w-full cursor-pointer group" onClick={() => setIsMapModalOpen(true)}>
+                <div
+                  className="relative z-0 h-[420px] w-full cursor-pointer group"
+                  onPointerDown={handleMapPointerDown(mapDragState)}
+                  onPointerMove={handleMapPointerMove(mapDragState)}
+                  onPointerCancel={() => {
+                    mapDragState.current.dragged = false;
+                  }}
+                  onClick={() => {
+                    if (!shouldOpenMapModal(mapDragState)) return;
+                    setIsMapModalOpen(true);
+                  }}
+                >
                   {isMapVisible && (
                     <>
                       <MapContainer center={mapCenter} zoom={5} className="h-full w-full" ref={mapRef}>
@@ -1138,7 +1175,13 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                   {shouldShowDayMap && (
                     <div
                       className="overflow-hidden rounded-xl border border-border cursor-pointer group relative"
+                      onPointerDown={handleMapPointerDown(dayMapDragState)}
+                      onPointerMove={handleMapPointerMove(dayMapDragState)}
+                      onPointerCancel={() => {
+                        dayMapDragState.current.dragged = false;
+                      }}
                       onClick={() => {
+                        if (!shouldOpenMapModal(dayMapDragState)) return;
                         setDayMapModalData({
                           center: dayMapCenter,
                           points: dayMapPoints.map(point => ({
@@ -1153,7 +1196,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                         setIsDayMapModalOpen(true);
                       }}
                     >
-                      <div className="h-64 w-full">
+                      <div className="h-72 w-full md:h-80 lg:h-96">
                         <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
                           <TileLayer
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -1314,9 +1357,15 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       </CardContent>
                     </Card>
                     {dayPoints.length > 0 && (
-                      <div 
-                        className="overflow-hidden rounded-xl border border-border cursor-pointer group relative" 
+                      <div
+                        className="overflow-hidden rounded-xl border border-border cursor-pointer group relative"
+                        onPointerDown={handleMapPointerDown(dayMapDragState)}
+                        onPointerMove={handleMapPointerMove(dayMapDragState)}
+                        onPointerCancel={() => {
+                          dayMapDragState.current.dragged = false;
+                        }}
                         onClick={() => {
+                          if (!shouldOpenMapModal(dayMapDragState)) return;
                           setDayMapModalData({
                             center: dayCenter,
                             points: dayPoints.map(point => ({

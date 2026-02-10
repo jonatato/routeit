@@ -1,15 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { gsap } from 'gsap';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import FullscreenLoader from '../components/FullscreenLoader';
 import { useToast } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
 
 type StoreItineraryPreview = {
   id: string;
   title: string;
-  coverImage: string;
+  subtitle?: string | null;
+  coverImageUrl?: string | null;
+  galleryImageUrls?: string[] | null;
   summary: string;
   price: number;
   days: number;
@@ -17,64 +22,32 @@ type StoreItineraryPreview = {
   region: string;
   tags: string[];
   highlights: string[];
+  hook?: string | null;
+  whoIsFor?: string[] | null;
+  whatYouGet?: string[] | null;
+  durationDays?: number | null;
+  bestSeason?: string[] | null;
+  difficulty?: string | null;
+  styleTags?: string[] | null;
+  country?: string | null;
+  regions?: string[] | null;
+  citiesList?: string[] | null;
+  pricingTier?: string | null;
+  estimatedDaily?: number | null;
+  currency?: string | null;
+  itineraryOverview?: string | null;
+  extras?: Record<string, string[]> | null;
+  assets?: Record<string, string[] | string> | null;
 };
-
-const STORE_ITINERARIES: StoreItineraryPreview[] = [
-  {
-    id: 'tokyo-classic-5d',
-    title: 'Tokio clásico en 5 días',
-    coverImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1600&auto=format&fit=crop',
-    summary: 'Ruta compacta con barrios clave, transporte optimizado y horarios realistas.',
-    price: 19,
-    days: 5,
-    cities: 1,
-    region: 'Japón',
-    tags: ['Cultura', 'Gastronomía', 'Urbano'],
-    highlights: ['Shibuya y Shinjuku', 'Templos esenciales', 'Mapa de traslados optimizado'],
-  },
-  {
-    id: 'italy-8d',
-    title: 'Italia esencial 8 días',
-    coverImage: 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?q=80&w=1600&auto=format&fit=crop',
-    summary: 'Roma, Florencia y Venecia con tiempos equilibrados y tips de ahorro.',
-    price: 29,
-    days: 8,
-    cities: 3,
-    region: 'Italia',
-    tags: ['Historia', 'Arte', 'Clásicos'],
-    highlights: ['Itinerario balanceado', 'Checklists por ciudad', 'Sugerencias de pase diario'],
-  },
-  {
-    id: 'mexico-6d',
-    title: 'México CDMX + Teotihuacán',
-    coverImage: 'https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?q=80&w=1600&auto=format&fit=crop',
-    summary: 'Ruta urbana con gastronomía local y excursión histórica incluida.',
-    price: 15,
-    days: 6,
-    cities: 1,
-    region: 'México',
-    tags: ['Gastronomía', 'Historia', 'Local'],
-    highlights: ['Itinerario por zonas', 'Food spots recomendados', 'Tiempo libre planificado'],
-  },
-  {
-    id: 'thailand-10d',
-    title: 'Tailandia play + cultura',
-    coverImage: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?q=80&w=1600&auto=format&fit=crop',
-    summary: 'Bangkok, Chiang Mai y playas con transiciones eficientes.',
-    price: 35,
-    days: 10,
-    cities: 3,
-    region: 'Tailandia',
-    tags: ['Playas', 'Templos', 'Aventura'],
-    highlights: ['Rutas de vuelo internas', 'Guía de mercados nocturnos', 'Plan día por día resumido'],
-  },
-];
 
 function Store() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<StoreItineraryPreview | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState<StoreItineraryPreview[]>([]);
+  const previewRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -85,28 +58,107 @@ function Store() {
     void loadUser();
   }, []);
 
+  useEffect(() => {
+    let isActive = true;
+    setIsLoading(true);
+
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabase.functions.invoke('store-search', {
+        body: {
+          query: searchQuery.trim(),
+          tags: activeTag ? [activeTag] : [],
+        },
+      });
+      if (!isActive) return;
+      if (error) {
+        toast.error('No se pudieron cargar los viajes de la tienda.');
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
+      const rows = (data?.data ?? []) as Array<{
+        id: string;
+        title: string;
+        subtitle?: string | null;
+        preview_summary?: string | null;
+        preview_price?: number | null;
+        preview_days?: number | null;
+        preview_cities?: number | null;
+        preview_region?: string | null;
+        preview_tags?: string[] | null;
+        preview_highlights?: string[] | null;
+        cover_image_url?: string | null;
+      }>;
+
+      setItems(
+        rows.map(row => ({
+          id: row.id,
+          title: row.title,
+          subtitle: row.subtitle,
+          coverImageUrl: row.cover_image_url ?? null,
+          summary: row.preview_summary ?? row.hook ?? '',
+          price: Number(row.preview_price ?? 0),
+          days: Number(row.preview_days ?? 0),
+          cities: Number(row.preview_cities ?? 0),
+          region: row.preview_region ?? '',
+          tags: row.preview_tags ?? [],
+          highlights: row.preview_highlights ?? [],
+        })),
+      );
+      setIsLoading(false);
+    }, 250);
+
+    return () => {
+      isActive = false;
+      clearTimeout(timer);
+    };
+  }, [activeTag, searchQuery, toast]);
+
   const tags = useMemo(() => {
     const tagSet = new Set<string>();
-    STORE_ITINERARIES.forEach(item => item.tags.forEach(tag => tagSet.add(tag)));
+    items.forEach(item => item.tags.forEach(tag => tagSet.add(tag)));
     return Array.from(tagSet);
-  }, []);
+  }, [items]);
 
-  const filtered = useMemo(() => {
-    const normalized = searchQuery.trim().toLowerCase();
-    return STORE_ITINERARIES.filter(item => {
-      const matchesQuery =
-        !normalized ||
-        item.title.toLowerCase().includes(normalized) ||
-        item.summary.toLowerCase().includes(normalized) ||
-        item.region.toLowerCase().includes(normalized);
-      const matchesTag = !activeTag || item.tags.includes(activeTag);
-      return matchesQuery && matchesTag;
-    });
-  }, [activeTag, searchQuery]);
+  const filtered = useMemo(() => items, [items]);
 
   const handlePurchase = (title: string) => {
     toast.error(`Compra de "${title}" disponible próximamente.`);
   };
+
+  useEffect(() => {
+    if (!previewItem || !previewRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.set('[data-preview-hero]', { opacity: 0, y: 16 });
+      gsap.set('[data-preview-step]', { opacity: 0, y: 24 });
+      gsap.set('[data-preview-card]', { opacity: 0, y: 20 });
+
+      const tl = gsap.timeline({ defaults: { ease: 'power2.out', duration: 0.5 } });
+      tl.to('[data-preview-hero]', { opacity: 1, y: 0, stagger: 0.08 })
+        .to('[data-preview-card]', { opacity: 1, y: 0, stagger: 0.08 }, '-=0.2')
+        .to('[data-preview-step]', { opacity: 1, y: 0, stagger: 0.12 }, '-=0.2');
+    }, previewRef);
+
+    return () => ctx.revert();
+  }, [previewItem]);
+
+  const renderExtras = (label: string, items?: string[] | null) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">{label}</p>
+        <ul className="space-y-1 text-sm text-mutedForeground">
+          {items.map(item => (
+            <li key={item}>• {item}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
+  if (isLoading) {
+    return <FullscreenLoader message="Cargando viajes..." />;
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 md:py-12">
@@ -149,12 +201,16 @@ function Store() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {filtered.map(item => {
-          const isExpanded = expandedId === item.id;
-          return (
+        {filtered.map(item => (
             <Card key={item.id} className="overflow-hidden">
               <div className="h-48 w-full overflow-hidden">
-                <img src={item.coverImage} alt={item.title} className="h-full w-full object-cover" />
+                {item.coverImageUrl ? (
+                  <img src={item.coverImageUrl} alt={item.title} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-muted text-sm text-mutedForeground">
+                    Sin imagen
+                  </div>
+                )}
               </div>
               <CardHeader className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -177,19 +233,6 @@ function Store() {
                   ))}
                 </div>
 
-                {isExpanded && (
-                  <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-mutedForeground">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                      Vista previa
-                    </p>
-                    <ul className="mt-2 space-y-1">
-                      {item.highlights.map(highlight => (
-                        <li key={highlight}>• {highlight}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-mutedForeground">Precio</p>
@@ -197,9 +240,9 @@ function Store() {
                   </div>
                   <Button
                     variant="outline"
-                    onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                    onClick={() => setPreviewItem(item)}
                   >
-                    {isExpanded ? 'Ocultar vista previa' : 'Ver vista previa'}
+                    Ver vista previa
                   </Button>
                 </div>
 
@@ -219,9 +262,182 @@ function Store() {
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
+        ))}
       </div>
+
+      <Dialog open={Boolean(previewItem)} onOpenChange={() => setPreviewItem(null)}>
+        <DialogContent className="max-w-5xl">
+          {previewItem && (
+            <div
+              ref={previewRef}
+              className="grid gap-6 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
+            >
+              <div className="space-y-5">
+                <DialogHeader data-preview-hero>
+                  <DialogTitle>{previewItem.title}</DialogTitle>
+                  <p className="text-sm text-mutedForeground">
+                    {previewItem.subtitle ?? previewItem.hook}
+                  </p>
+                </DialogHeader>
+
+                <div className="flex flex-wrap gap-2 text-xs" data-preview-hero>
+                  {(previewItem.styleTags ?? previewItem.tags).map(tag => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-border px-3 py-1 font-semibold text-mutedForeground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+
+                {previewItem.itineraryOverview && (
+                  <p className="text-sm text-mutedForeground" data-preview-hero>
+                    {previewItem.itineraryOverview}
+                  </p>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-2" data-preview-card>
+                  <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm">
+                    <p className="text-xs uppercase tracking-[0.2em] text-mutedForeground">Duracion</p>
+                    <p className="font-semibold">
+                      {previewItem.durationDays ?? previewItem.days} dias
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm">
+                    <p className="text-xs uppercase tracking-[0.2em] text-mutedForeground">Destino</p>
+                    <p className="font-semibold">
+                      {previewItem.country ?? previewItem.region}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm">
+                    <p className="text-xs uppercase tracking-[0.2em] text-mutedForeground">Temporada</p>
+                    <p className="font-semibold">
+                      {(previewItem.bestSeason ?? []).join(', ') || 'Todo el ano'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm">
+                    <p className="text-xs uppercase tracking-[0.2em] text-mutedForeground">Precio diario</p>
+                    <p className="font-semibold">
+                      {previewItem.estimatedDaily ?? previewItem.price} {previewItem.currency ?? 'EUR'}
+                    </p>
+                  </div>
+                </div>
+
+                {previewItem.whatYouGet && previewItem.whatYouGet.length > 0 && (
+                  <div className="space-y-2" data-preview-card>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                      Lo que incluye
+                    </p>
+                    <ul className="space-y-1 text-sm text-mutedForeground">
+                      {previewItem.whatYouGet.map(item => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {previewItem.whoIsFor && previewItem.whoIsFor.length > 0 && (
+                  <div className="space-y-2" data-preview-card>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                      Ideal para
+                    </p>
+                    <ul className="space-y-1 text-sm text-mutedForeground">
+                      {previewItem.whoIsFor.map(item => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2" data-preview-card>
+                  {renderExtras('Sabores clave', previewItem.extras?.foods)}
+                  {renderExtras('Tips utiles', previewItem.extras?.tips)}
+                  {renderExtras('Que evitar', previewItem.extras?.avoid)}
+                  {renderExtras('Imprescindibles', previewItem.extras?.packing)}
+                </div>
+
+                <div className="space-y-3" data-preview-card>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                    Recorrido del viaje
+                  </p>
+                  <div className="grid gap-3">
+                    {[
+                      {
+                        title: 'Llegada suave',
+                        detail: 'Check-in rapido, ritmo calmado y primeras vistas clave.',
+                      },
+                      {
+                        title: 'Capas de cultura',
+                        detail: 'Iconos, barrios y rutas con tiempos realistas.',
+                      },
+                      {
+                        title: 'Sabores y momentos wow',
+                        detail: 'Gastronomia local + planes con chispa.',
+                      },
+                      {
+                        title: 'Cierre redondo',
+                        detail: 'Ultimos esenciales sin prisas ni carreras.',
+                      },
+                    ].map(step => (
+                      <div
+                        key={step.title}
+                        className="flex gap-3 rounded-2xl border border-border bg-white/80 p-3"
+                        data-preview-step
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {step.title.slice(0, 1)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{step.title}</p>
+                          <p className="text-xs text-mutedForeground">{step.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4" data-preview-card>
+                <div className="overflow-hidden rounded-2xl border border-border">
+                  {previewItem.coverImageUrl ? (
+                    <img
+                      src={previewItem.coverImageUrl}
+                      alt={previewItem.title}
+                      className="h-56 w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-56 w-full items-center justify-center bg-muted text-sm text-mutedForeground">
+                      Sin imagen
+                    </div>
+                  )}
+                </div>
+
+                {previewItem.galleryImageUrls && previewItem.galleryImageUrls.length > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {previewItem.galleryImageUrls.slice(0, 4).map(url => (
+                      <div key={url} className="overflow-hidden rounded-xl border border-border">
+                        <img src={url} alt="Vista del viaje" className="h-28 w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                    Highlights
+                  </p>
+                  <ul className="mt-2 space-y-1 text-mutedForeground">
+                    {previewItem.highlights.map(highlight => (
+                      <li key={highlight}>• {highlight}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
