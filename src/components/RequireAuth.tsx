@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import FullscreenLoader from './FullscreenLoader';
 
@@ -10,6 +10,7 @@ type RequireAuthProps = {
 function RequireAuth({ children }: RequireAuthProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasSession, setHasSession] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     let isMounted = true;
@@ -34,7 +35,8 @@ function RequireAuth({ children }: RequireAuthProps) {
   }
 
   if (!hasSession) {
-    return <Navigate to="/login" replace />;
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/login" replace state={{ from }} />;
   }
 
   return <>{children}</>;

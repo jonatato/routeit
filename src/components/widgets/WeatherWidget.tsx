@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Cloud, CloudRain, CloudSnow, Sun, Wind } from 'lucide-react';
+import { Wind } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 interface WeatherDay {
@@ -14,11 +14,17 @@ interface WeatherWidgetProps {
   countryCode?: string;
 }
 
+type ForecastEntry = {
+  dt?: number;
+  main?: { temp?: number };
+  weather?: Array<{ main?: string }>;
+};
+
 export function WeatherWidget({ city, countryCode = 'CN' }: WeatherWidgetProps) {
   const [forecast, setForecast] = useState<WeatherDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTemp, setCurrentTemp] = useState<number | null>(null);
-  const [bestSeason, setBestSeason] = useState('Primavera / Otoño');
+  const bestSeason = 'Primavera / Otoño';
 
   useEffect(() => {
     loadWeather();
@@ -44,11 +50,11 @@ export function WeatherWidget({ city, countryCode = 'CN' }: WeatherWidgetProps) 
           // Group forecast by day (local time)
           const daysMap: Record<string, { temps: number[]; conditions: string[] }> = {};
 
-          (data.list || []).forEach((entry: any) => {
+          ((data.list || []) as ForecastEntry[]).forEach((entry) => {
             const d = new Date((entry.dt || 0) * 1000);
             const key = d.toLocaleDateString('es-ES', { weekday: 'short' });
             daysMap[key] = daysMap[key] || { temps: [], conditions: [] };
-            daysMap[key].temps.push(Math.round(entry.main.temp));
+            daysMap[key].temps.push(Math.round(entry.main?.temp ?? 0));
             daysMap[key].conditions.push(entry.weather?.[0]?.main || 'Sunny');
           });
 
@@ -88,21 +94,6 @@ export function WeatherWidget({ city, countryCode = 'CN' }: WeatherWidgetProps) 
       console.error('Error loading weather:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getConditionIcon = (condition: string) => {
-    switch (condition) {
-      case 'sunny':
-        return <Sun className="h-5 w-5 text-yellow-500" />;
-      case 'cloudy':
-        return <Cloud className="h-5 w-5 text-gray-500" />;
-      case 'rainy':
-        return <CloudRain className="h-5 w-5 text-blue-500" />;
-      case 'snowy':
-        return <CloudSnow className="h-5 w-5 text-blue-300" />;
-      default:
-        return <Sun className="h-5 w-5" />;
     }
   };
 

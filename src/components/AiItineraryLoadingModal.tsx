@@ -66,7 +66,6 @@ export function AiItineraryLoadingModal({ isOpen }: AiItineraryLoadingModalProps
 
   useEffect(() => {
     if (!isOpen) return;
-    setIndex(0);
     const interval = setInterval(() => {
       setIndex(prev => (prev + 1) % shuffled.length);
     }, 6000);

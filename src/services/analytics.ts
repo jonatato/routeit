@@ -13,7 +13,15 @@ export type AnalyticsEventType =
 
 export type AnalyticsEvent = {
   event_type: AnalyticsEventType;
-  event_data?: Record<string, any>;
+  event_data?: Record<string, unknown>;
+};
+
+type StoredAnalyticsEvent = {
+  id: string;
+  user_id: string;
+  event_type: AnalyticsEventType;
+  event_data: Record<string, unknown> | null;
+  created_at: string;
 };
 
 export async function trackEvent(event: AnalyticsEvent): Promise<void> {
@@ -42,7 +50,7 @@ export async function getEventsByType(
   eventType: AnalyticsEventType,
   userId: string,
   limit = 100,
-): Promise<any[]> {
+): Promise<StoredAnalyticsEvent[]> {
   const { data, error } = await supabase
     .from('analytics_events')
     .select('*')
@@ -52,14 +60,14 @@ export async function getEventsByType(
     .limit(limit);
 
   if (error) throw error;
-  return data || [];
+  return (data ?? []) as StoredAnalyticsEvent[];
 }
 
 export async function getEventsByDateRange(
   userId: string,
   startDate: string,
   endDate: string,
-): Promise<any[]> {
+): Promise<StoredAnalyticsEvent[]> {
   const { data, error } = await supabase
     .from('analytics_events')
     .select('*')
@@ -69,5 +77,5 @@ export async function getEventsByDateRange(
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  return (data ?? []) as StoredAnalyticsEvent[];
 }

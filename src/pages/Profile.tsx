@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { supabase } from '../lib/supabase';
@@ -10,9 +10,10 @@ import { useTranslation } from '../hooks/useTranslation';
 import { createPortalSession, getUserPlan } from '../services/billing';
 import { useToast } from '../hooks/useToast';
 import FullscreenLoader from '../components/FullscreenLoader';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 function Profile() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { theme, setTheme } = useThemeContext();
@@ -60,7 +61,7 @@ function Profile() {
       setIsLoading(false);
     };
     void loadUser();
-  }, []);
+  }, [setTheme, theme]);
 
   const handleSavePreferences = async () => {
     if (!user) return;
@@ -167,7 +168,7 @@ function Profile() {
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-5 w-5 text-primary" />
+              <UserIcon className="h-5 w-5 text-primary" />
             </div>
             <div>
               <CardTitle>Información de la cuenta</CardTitle>

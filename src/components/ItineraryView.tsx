@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
@@ -15,7 +16,6 @@ import { DaySelectorCarousel } from './DaySelectorCarousel';
 import { FlightCarousel } from './FlightCarousel';
 import { fetchSectionPreferences, type SectionPreference } from '../services/sections';
 import { supabase } from '../lib/supabase';
-import { exportItineraryToPDF } from '../services/pdfExport';
 import { PDFExportDialog } from './PDFExportDialog';
 import { MapModal } from './MapModal';
 import { useIsMobileShell } from '../hooks/useIsMobileShell';
@@ -802,6 +802,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
     if (!itineraryContainerRef.current) {
       throw new Error('No se pudo encontrar el contenedor del itinerario');
     }
+    const { exportItineraryToPDF } = await import('../services/pdfExport');
     await exportItineraryToPDF(itinerary, itineraryContainerRef.current, options);
   };
 

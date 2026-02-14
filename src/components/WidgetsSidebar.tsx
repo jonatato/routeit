@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ComponentType } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ExpenseSummaryWidget } from './widgets/ExpenseSummaryWidget';
 import { TravelChecklistWidget } from './widgets/TravelChecklistWidget';
@@ -11,11 +11,23 @@ import { DocumentsWidget } from './widgets/DocumentsWidget';
 import { PhrasesWidget } from './widgets/PhrasesWidget';
 import { StatsWidget } from './widgets/StatsWidget';
 import { EmergencyWidget } from './widgets/EmergencyWidget';
+import type { WidgetPref } from '../services/widgets';
+
+type WidgetStateItem = {
+  key: string;
+  Component: ComponentType<Record<string, unknown>>;
+  props: Record<string, unknown>;
+  order: number;
+  is_visible: boolean;
+  is_collapsed: boolean;
+  is_pinned: boolean;
+  settings?: Record<string, unknown>;
+};
 
 function WidgetsSidebar() {
   const [searchParams] = useSearchParams();
   const itineraryId = searchParams.get('itineraryId');
-  const [widgetsState, setWidgetsState] = useState<any[] | null>(null);
+  const [widgetsState, setWidgetsState] = useState<WidgetStateItem[] | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -56,7 +68,7 @@ function WidgetsSidebar() {
 
       if (prefs && prefs.length > 0) {
         // Merge prefs: visibility/order/pinned/collapsed/settings
-        const prefsByKey = Object.fromEntries(prefs.map((p: any) => [p.widget_key, p]));
+        const prefsByKey = Object.fromEntries((prefs as WidgetPref[]).map((p) => [p.widget_key, p]));
         state = state
           .map(s => ({ ...s, ...(prefsByKey[s.key] ? { order: prefsByKey[s.key].order_index, is_visible: prefsByKey[s.key].is_visible, is_collapsed: prefsByKey[s.key].is_collapsed, is_pinned: prefsByKey[s.key].is_pinned, settings: prefsByKey[s.key].settings } : {}) }))
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -66,7 +78,7 @@ function WidgetsSidebar() {
     })();
   }, [itineraryId]);
 
-  const savePrefs = async (nextState: any[]) => {
+  const savePrefs = async (nextState: WidgetStateItem[]) => {
     setWidgetsState(nextState);
     const { saveUserWidgetPreferences } = await import('../services/widgets');
     const prefs = nextState.map((w, idx) => ({ widget_key: w.key, order_index: idx, is_visible: !!w.is_visible, is_pinned: !!w.is_pinned, is_collapsed: !!w.is_collapsed, settings: w.settings ?? {} }));
@@ -83,7 +95,7 @@ function WidgetsSidebar() {
     awaitSave(next);
   };
 
-  const awaitSave = (next: any[]) => {
+  const awaitSave = (next: WidgetStateItem[]) => {
     // Reassign indexes and save
     next.forEach((n, i) => (n.order = i));
     savePrefs(next);

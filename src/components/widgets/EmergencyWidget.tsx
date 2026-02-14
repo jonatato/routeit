@@ -29,7 +29,7 @@ export function EmergencyWidget({
   ];
 
   const handleCall = (number: string) => {
-    window.location.href = `tel:${number}`;
+    window.open(`tel:${number}`, '_self');
   };
 
   return (

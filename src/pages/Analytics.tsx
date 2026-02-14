@@ -5,6 +5,18 @@ import { getEventCount, getEventsByDateRange } from '../services/analytics';
 import { supabase } from '../lib/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+type AnalyticsEvent = {
+  id: string;
+  event_type: string;
+  event_data?: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type ChartPoint = {
+  date: string;
+  count: number;
+};
+
 export default function Analytics() {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -15,8 +27,8 @@ export default function Analytics() {
     paymentAdded: 0,
     pdfExported: 0,
   });
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<AnalyticsEvent[]>([]);
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -47,7 +59,7 @@ export default function Analytics() {
       // Load recent events (last 30 days)
       const endDate = new Date().toISOString();
       const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const events = await getEventsByDateRange(user.id, startDate, endDate);
+      const events = await getEventsByDateRange(user.id, startDate, endDate) as AnalyticsEvent[];
       setRecentEvents(events.slice(0, 20));
 
       // Prepare chart data (events by day)

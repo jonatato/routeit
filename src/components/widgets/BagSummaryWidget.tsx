@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Backpack, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useNavigate } from 'react-router-dom';
 import { fetchChecklist } from '../../services/bag';
@@ -22,6 +22,7 @@ export function BagSummaryWidget({ itineraryId, userId }: BagSummaryWidgetProps)
   const [pendingCategories, setPendingCategories] = useState<CategoryProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  void itineraryId;
 
   useEffect(() => {
     loadBagProgress();

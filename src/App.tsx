@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import MobileTabs from './components/MobileTabs';
@@ -9,6 +9,9 @@ import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
 import FullscreenLoader from './components/FullscreenLoader';
 import Auth from './pages/Auth';
+import { DeepLinkHandler } from './components/DeepLinkHandler';
+import { NotificationIntentHandler } from './components/NotificationIntentHandler';
+import { SessionLifecycleHandler } from './components/SessionLifecycleHandler';
 
 // Lazy load heavy components
 const AdminItinerary = lazy(() => import('./pages/AdminItinerary'));
@@ -30,6 +33,50 @@ const TodayItinerary = lazy(() => import('./pages/TodayItinerary'));
 
 const LoadingFallback = () => <FullscreenLoader />;
 
+type AppRoute = {
+  path: string;
+  element: ReactNode;
+  requiresAuth?: boolean;
+  useTransition?: boolean;
+};
+
+const appRoutes: AppRoute[] = [
+  { path: '/', element: <Landing /> },
+  { path: '/pricing', element: <Pricing /> },
+  { path: '/store', element: <Store /> },
+  { path: '/reset', element: <ResetPassword /> },
+  { path: '/login', element: <Auth /> },
+  { path: '/app', element: <DynamicItinerary />, requiresAuth: true, useTransition: true },
+  { path: '/app/today', element: <TodayItinerary />, requiresAuth: true, useTransition: true },
+  { path: '/app/itineraries', element: <MyItineraries />, requiresAuth: true, useTransition: true },
+  { path: '/app/store', element: <Store />, requiresAuth: true, useTransition: true },
+  { path: '/app/bag', element: <MyBag />, requiresAuth: true, useTransition: true },
+  { path: '/app/split', element: <Split />, requiresAuth: true, useTransition: true },
+  { path: '/app/share', element: <ShareAccept />, requiresAuth: true, useTransition: true },
+  { path: '/app/admin', element: <AdminItinerary />, requiresAuth: true, useTransition: true },
+  { path: '/app/admin/sections', element: <AdminSections />, requiresAuth: true, useTransition: true },
+  { path: '/app/profile', element: <Profile />, requiresAuth: true, useTransition: true },
+  { path: '/app/analytics', element: <Analytics />, requiresAuth: true, useTransition: true },
+  { path: '/app/memories', element: <SocialVideos />, requiresAuth: true, useTransition: true },
+  { path: '/app/search', element: <SearchPage />, requiresAuth: true, useTransition: true },
+];
+
+const renderRouteElement = ({ element, requiresAuth, useTransition }: AppRoute) => {
+  const wrappedElement = useTransition ? <PageTransition>{element}</PageTransition> : element;
+  const suspenseWrapped = <Suspense fallback={<LoadingFallback />}>{wrappedElement}</Suspense>;
+  if (!requiresAuth) return suspenseWrapped;
+  return <RequireAuth>{suspenseWrapped}</RequireAuth>;
+};
+
+const AppRoutes = () => (
+  <Routes>
+    {appRoutes.map(route => (
+      <Route key={route.path} path={route.path} element={renderRouteElement(route)} />
+    ))}
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>
+);
+
 function App() {
   const isMobileShell = useIsMobileShell();
   const location = useLocation();
@@ -40,201 +87,13 @@ function App() {
   
   return (
     <>
+      <DeepLinkHandler />
+      <NotificationIntentHandler />
+      <SessionLifecycleHandler />
       {isMobileShell ? (
         <div className="min-h-screen pb-14">
           {showMobileHeader && <MobileHeader />}
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <Landing />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/pricing"
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <Pricing />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/store"
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <Store />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/reset"
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <ResetPassword />
-                </Suspense>
-              }
-            />
-            <Route path="/login" element={<Auth />} />
-            <Route
-              path="/app"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <DynamicItinerary />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/today"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <TodayItinerary />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/itineraries"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <MyItineraries />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/store"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <Store />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/bag"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <MyBag />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/split"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <Split />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/share"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <ShareAccept />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/admin"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <AdminItinerary />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/admin/sections"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <AdminSections />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/profile"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <Profile />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/analytics"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <Analytics />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/memories"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <SocialVideos />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/app/search"
-              element={
-                <RequireAuth>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <PageTransition>
-                      <SearchPage />
-                    </PageTransition>
-                  </Suspense>
-                </RequireAuth>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AppRoutes />
           {isAppRoute && <MobileTabs />}
         </div>
       ) : (
@@ -242,198 +101,7 @@ function App() {
           <div className="mx-auto flex w-full">
             {showSideMenu && <WebSideMenu />}
             <div className="flex-1">
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <Suspense fallback={<LoadingFallback />}>
-                      <Landing />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/pricing"
-                  element={
-                    <Suspense fallback={<LoadingFallback />}>
-                      <Pricing />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/store"
-                  element={
-                    <Suspense fallback={<LoadingFallback />}>
-                      <Store />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/reset"
-                  element={
-                    <Suspense fallback={<LoadingFallback />}>
-                      <ResetPassword />
-                    </Suspense>
-                  }
-                />
-                <Route path="/login" element={<Auth />} />
-                <Route
-                  path="/app"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <DynamicItinerary />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/today"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <TodayItinerary />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/itineraries"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <MyItineraries />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/store"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <Store />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/bag"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <MyBag />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/split"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <Split />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/share"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <ShareAccept />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/admin"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <AdminItinerary />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/admin/sections"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <AdminSections />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/profile"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <Profile />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/analytics"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <Analytics />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/memories"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <SocialVideos />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/app/search"
-                  element={
-                    <RequireAuth>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <PageTransition>
-                          <SearchPage />
-                        </PageTransition>
-                      </Suspense>
-                    </RequireAuth>
-                  }
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+              <AppRoutes />
             </div>
             {showWidgetsSidebar && <WidgetsSidebar />}
           </div>

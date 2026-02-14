@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import type { ScheduleItem } from '../data/itinerary';
@@ -28,9 +28,10 @@ export function ActivityEditModal({
   });
 
   useEffect(() => {
-    if (item) {
-      setFormData(item);
-    }
+    if (!item) return;
+    // The form needs to be rehydrated when switching the edited activity.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFormData(item);
   }, [item]);
 
   const handleSave = () => {

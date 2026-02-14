@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RouteIt</string>
+    <string name="title_activity_main">RouteIt</string>
+    <string name="package_name">com.routeit.app</string>
+    <string name="custom_url_scheme">com.routeit.app</string>
+</resources>

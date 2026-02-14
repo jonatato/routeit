@@ -66,7 +66,7 @@ export function SplitCharts({ expenses, categories }: SplitChartsProps) {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: any) => (typeof value === 'number' ? `€${value.toFixed(2)}` : '')} />
+              <Tooltip formatter={(value: unknown) => (typeof value === 'number' ? `€${value.toFixed(2)}` : '')} />
             </PieChart>
           </ResponsiveContainer>
         </CardContent>
@@ -83,7 +83,7 @@ export function SplitCharts({ expenses, categories }: SplitChartsProps) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value: any) => (typeof value === 'number' ? `€${value.toFixed(2)}` : '')} />
+              <Tooltip formatter={(value: unknown) => (typeof value === 'number' ? `€${value.toFixed(2)}` : '')} />
               <Legend />
               <Bar dataKey="total" fill="#8b5cf6" />
             </BarChart>

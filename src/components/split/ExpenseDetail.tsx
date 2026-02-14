@@ -23,6 +23,13 @@ type ExpenseDetailProps = {
   onDelete?: () => void;
 };
 
+type ExpenseComment = {
+  id: string;
+  member_id: string;
+  comment: string;
+  created_at: string;
+};
+
 
 export function ExpenseDetail({
   expense,
@@ -34,7 +41,7 @@ export function ExpenseDetail({
   onEdit,
   onDelete,
 }: ExpenseDetailProps) {
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<ExpenseComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<string | null>(null);

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Plus, Filter, Video as VideoIcon } from 'lucide-react';
-import { VideoCard } from '../components/social/VideoCard';
 import { VideoPreview } from '../components/social/VideoPreview';
 import { VideoFullscreenModal } from '../components/social/VideoFullscreenModal';
 import { VideoReactions } from '../components/social/VideoReactions';
@@ -16,6 +15,7 @@ import { PandaLogo } from '../components/PandaLogo';
 import { useIsMobileShell } from '../hooks/useIsMobileShell';
 import { useLocation } from 'react-router-dom';
 import FullscreenLoader from '../components/FullscreenLoader';
+import type { User } from '@supabase/supabase-js';
 
 interface Tag {
   id: string;
@@ -31,12 +31,11 @@ function SocialVideos() {
   const [filteredVideos, setFilteredVideos] = useState<SocialVideo[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'embed' | 'thumbnail'>('embed');
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [itineraryId, setItineraryId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedVideoForComments, setSelectedVideoForComments] = useState<string | null>(null);

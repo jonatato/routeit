@@ -37,6 +37,7 @@ export function TravelChecklistWidget({ itineraryId, userId }: TravelChecklistWi
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>('before');
+  void itineraryId;
 
   useEffect(() => {
     loadChecklist();

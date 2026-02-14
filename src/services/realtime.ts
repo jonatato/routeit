@@ -1,13 +1,15 @@
 import { supabase } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-export type RealtimeCallback<T = any> = (payload: T) => void;
+type RealtimePayload = Record<string, unknown>;
+
+export type RealtimeCallback<T = unknown> = (payload: T) => void;
 
 export type ItineraryChangeEvent = {
   type: 'itinerary_updated' | 'day_added' | 'day_updated' | 'day_deleted' | 'schedule_item_added' | 'schedule_item_updated' | 'schedule_item_deleted';
   itinerary_id: string;
   user_id: string;
-  data: any;
+  data: RealtimePayload;
 };
 
 export function subscribeToItineraryChanges(
@@ -25,13 +27,13 @@ export function subscribeToItineraryChanges(
         filter: `id=eq.${itineraryId}`,
       },
       (payload) => {
-        const newData = payload.new as any;
-        const oldData = payload.old as any;
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
         onChange({
           type: 'itinerary_updated',
           itinerary_id: itineraryId,
           user_id: newData?.user_id || oldData?.user_id || '',
-          data: newData || oldData,
+          data: (newData || oldData || {}) as RealtimePayload,
         });
       },
     )
@@ -44,8 +46,8 @@ export function subscribeToItineraryChanges(
         filter: `itinerary_id=eq.${itineraryId}`,
       },
       (payload) => {
-        const newData = payload.new as any;
-        const oldData = payload.old as any;
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
         const eventType =
           payload.eventType === 'INSERT'
             ? 'day_added'
@@ -56,7 +58,7 @@ export function subscribeToItineraryChanges(
           type: eventType,
           itinerary_id: itineraryId,
           user_id: newData?.itinerary_id ? '' : oldData?.itinerary_id || '',
-          data: newData || oldData,
+          data: (newData || oldData || {}) as RealtimePayload,
         });
       },
     )
@@ -68,8 +70,8 @@ export function subscribeToItineraryChanges(
         table: 'schedule_items',
       },
       async (payload) => {
-        const newData = payload.new as any;
-        const oldData = payload.old as any;
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
         // Get day_id to check itinerary_id
         const { data: day } = await supabase.from('days').select('itinerary_id').eq('id', newData?.day_id || oldData?.day_id).single();
         if (day?.itinerary_id === itineraryId) {
@@ -83,7 +85,7 @@ export function subscribeToItineraryChanges(
             type: eventType,
             itinerary_id: itineraryId,
             user_id: '',
-            data: newData || oldData,
+            data: (newData || oldData || {}) as RealtimePayload,
           });
         }
       },
@@ -108,13 +110,13 @@ export function subscribeToUserItineraries(
         filter: `user_id=eq.${userId}`,
       },
       (payload) => {
-        const newData = payload.new as any;
-        const oldData = payload.old as any;
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
         onItineraryChange({
           type: 'itinerary_updated',
           itinerary_id: newData?.id || oldData?.id || '',
           user_id: userId,
-          data: newData || oldData,
+          data: (newData || oldData || {}) as RealtimePayload,
         });
       },
     )
@@ -127,8 +129,8 @@ export function subscribeToUserItineraries(
         filter: `user_id=eq.${userId}`,
       },
       async (payload) => {
-        const newData = payload.new as any;
-        const oldData = payload.old as any;
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
         const itineraryId = newData?.itinerary_id || oldData?.itinerary_id;
         if (itineraryId) {
           onItineraryChange({
@@ -147,7 +149,7 @@ export function subscribeToUserItineraries(
 
 export function subscribeToSplitwiseChanges(
   groupId: string,
-  onChange: RealtimeCallback<{ type: string; group_id: string; data: any }>,
+  onChange: RealtimeCallback<{ type: string; group_id: string; data: RealtimePayload }>,
 ): RealtimeChannel {
   const channel = supabase
     .channel(`splitwise:${groupId}`)
@@ -160,12 +162,12 @@ export function subscribeToSplitwiseChanges(
         filter: `group_id=eq.${groupId}`,
       },
       (payload) => {
-        const newData = payload.new as any;
-        const oldData = payload.old as any;
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
         onChange({
           type: payload.eventType === 'INSERT' ? 'expense_added' : payload.eventType === 'UPDATE' ? 'expense_updated' : 'expense_deleted',
           group_id: groupId,
-          data: newData || oldData,
+          data: (newData || oldData || {}) as RealtimePayload,
         });
       },
     )
@@ -178,12 +180,12 @@ export function subscribeToSplitwiseChanges(
         filter: `group_id=eq.${groupId}`,
       },
       (payload) => {
-        const newData = payload.new as any;
-        const oldData = payload.old as any;
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
         onChange({
           type: payload.eventType === 'INSERT' ? 'payment_added' : payload.eventType === 'UPDATE' ? 'payment_updated' : 'payment_deleted',
           group_id: groupId,
-          data: newData || oldData,
+          data: (newData || oldData || {}) as RealtimePayload,
         });
       },
     )

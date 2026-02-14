@@ -31,6 +31,10 @@ export type VideoTag = {
   tag_id: string;
 };
 
+type TagJoinRow = {
+  tags: { id: string; name: string };
+};
+
 // Parsear URL y extraer información de la plataforma
 export function parseVideoUrl(url: string): { platform: 'tiktok' | 'instagram' | 'youtube'; videoId: string } | null {
   // TikTok: https://www.tiktok.com/@username/video/1234567890 o https://vm.tiktok.com/ABC123/
@@ -147,7 +151,7 @@ export async function fetchVideos(itineraryId: string): Promise<SocialVideo[]> {
   // Transformar datos para formato más amigable
   const videos = (data || []).map(video => ({
     ...video,
-    tags: video.video_tags?.map((vt: any) => vt.tags) || [],
+    tags: (video.video_tags as TagJoinRow[] | undefined)?.map((vt) => vt.tags) || [],
     reactions: video.video_reactions || [],
   }));
   
@@ -173,7 +177,7 @@ export async function fetchVideo(videoId: string): Promise<SocialVideo | null> {
   
   return {
     ...data,
-    tags: data.video_tags?.map((vt: any) => vt.tags) || [],
+    tags: (data.video_tags as TagJoinRow[] | undefined)?.map((vt) => vt.tags) || [],
     reactions: data.video_reactions || [],
   } as SocialVideo;
 }
@@ -200,7 +204,7 @@ export async function addVideo(
       if (oembedHtml) {
         embedCode = oembedHtml;
       }
-    } catch (error) {
+    } catch {
       console.log('Using fallback embed code for', parsed.platform);
     }
   }
@@ -340,7 +344,7 @@ export async function filterVideosByTags(itineraryId: string, tagIds: string[]):
   
   const videos = (data || []).map(video => ({
     ...video,
-    tags: video.video_tags?.map((vt: any) => vt.tags) || [],
+    tags: (video.video_tags as TagJoinRow[] | undefined)?.map((vt) => vt.tags) || [],
     reactions: video.video_reactions || [],
   }));
   

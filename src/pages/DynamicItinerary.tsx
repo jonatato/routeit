@@ -32,7 +32,7 @@ function DynamicItinerary() {
         const params = new URLSearchParams(location.search);
         const queryItineraryId = params.get('itineraryId');
         
-        let dataItinerary = queryItineraryId ? await fetchItineraryById(queryItineraryId) : await fetchUserItinerary(user.id);
+        const dataItinerary = queryItineraryId ? await fetchItineraryById(queryItineraryId) : await fetchUserItinerary(user.id);
         
         if (!dataItinerary) {
           // Si no hay itinerario en BD, mostrar mensaje

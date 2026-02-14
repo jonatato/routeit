@@ -116,7 +116,6 @@ export function AddItemsModal({
               Todas
             </Button>
             {BAG_CATEGORIES.map(category => {
-              const CategoryIcon = category.icon;
               return (
                 <Button
                   key={category.id}
@@ -152,7 +151,7 @@ export function AddItemsModal({
             </div>
           ) : (
             <div className="space-y-6 pt-4">
-              {Array.from(itemsByCategory.entries()).map(([categoryId, items], categoryIndex) => {
+              {Array.from(itemsByCategory.entries()).map(([categoryId, items]) => {
                 const category = BAG_CATEGORIES.find(c => c.id === categoryId)!;
                 const CategoryIcon = category.icon;
 

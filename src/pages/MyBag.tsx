@@ -15,15 +15,21 @@ function MyBag() {
   const [checklistItems, setChecklistItems] = useState<Array<{ id: string; name: string; checked: boolean; tags: string[] }>>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const load = async () => {
-    setIsLoading(true);
-    const data = await fetchChecklist();
-    setChecklistItems(data);
-    setIsLoading(false);
-  };
-
   useEffect(() => {
-    void load();
+    let isActive = true;
+
+    const loadChecklist = async () => {
+      const data = await fetchChecklist();
+      if (!isActive) return;
+      setChecklistItems(data);
+      setIsLoading(false);
+    };
+
+    void loadChecklist();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   // Group items by category

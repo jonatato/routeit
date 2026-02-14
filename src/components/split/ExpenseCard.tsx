@@ -51,8 +51,6 @@ export function ExpenseCard({
   categoryIcon,
   categoryColor,
   onClick,
-  onEdit,
-  onDelete,
 }: ExpenseCardProps) {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Sin fecha';

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { subscribeToUserItineraries, subscribeToSplitwiseChanges, type ItineraryChangeEvent } from '../services/realtime';
@@ -5,6 +6,7 @@ import { requestNotificationPermission, subscribeToPushNotifications, sendLocalN
 import { fetchUserItinerary } from '../services/itinerary';
 import { fetchUserPreferences } from '../services/userPreferences';
 import { getItineraryStartDate, isSameDay } from '../utils/itineraryDates';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export type Notification = {
   id: string;
@@ -13,7 +15,7 @@ export type Notification = {
   message: string;
   read: boolean;
   created_at: string;
-  data?: any;
+  data?: unknown;
 };
 
 type NotificationContextType = {
@@ -22,7 +24,7 @@ type NotificationContextType = {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearNotifications: () => void;
-  subscribeToSplitwise: (groupId: string) => any;
+  subscribeToSplitwise: (groupId: string) => RealtimeChannel;
 };
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -44,7 +46,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       await requestNotificationPermission();
       await subscribeToPushNotifications();
 
-      const channels: any[] = [];
+      const channels: RealtimeChannel[] = [];
 
       const itinerary = await fetchUserItinerary(user.id);
       if (itinerary) {
@@ -89,6 +91,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         sendLocalNotification(notification.title, {
           body: notification.message,
           icon: '/panda-logo.svg',
+          data: {
+            type: 'itinerary',
+            itineraryId: event.itinerary_id,
+          },
         });
       });
       channels.push(itineraryChannel);
@@ -122,6 +128,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       sendLocalNotification(notification.title, {
         body: notification.message,
         icon: '/panda-logo.svg',
+        data: {
+          type: 'splitwise',
+          groupId: event.group_id,
+        },
       });
     });
     return channel;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, ExternalLink, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import type { SocialVideo } from '../../services/socialVideos';
@@ -35,12 +35,23 @@ export function VideoFullscreenModal({
   const embedRef = useRef<HTMLDivElement>(null);
   const retryCountRef = useRef(0);
 
+  const loadReactionStats = useCallback(async () => {
+    try {
+      const stats = await getVideoReactionStats(video.id);
+      setReactionStats(stats);
+    } catch (error) {
+      console.error('Error loading reaction stats:', error);
+    }
+  }, [video.id]);
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReactionStats();
-  }, [video.reactions]);
+  }, [video.reactions, loadReactionStats]);
 
   // Force reload when video changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEmbedError(false);
     if (embedRef.current) {
       embedRef.current.innerHTML = '';
@@ -70,6 +81,7 @@ export function VideoFullscreenModal({
       
       try {
         embedRef.current.innerHTML = video.embed_code;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setEmbedError(false);
         
         // Ajustar iframes para móvil
@@ -100,7 +112,7 @@ export function VideoFullscreenModal({
               return;
             }
             
-            const tiktokEmbed = (window as any).tiktokEmbed;
+            const tiktokEmbed = (window as Window & { tiktokEmbed?: { process: () => void } }).tiktokEmbed;
             if (tiktokEmbed && typeof tiktokEmbed.process === 'function') {
               try {
                 tiktokEmbed.process();
@@ -120,7 +132,7 @@ export function VideoFullscreenModal({
           const processInstagram = () => {
             if (retryCountRef.current >= 10) return;
             
-            const instagramEmbed = (window as any).instgrm;
+            const instagramEmbed = (window as Window & { instgrm?: { Embeds?: { process: () => void } } }).instgrm;
             if (instagramEmbed && typeof instagramEmbed.Embeds?.process === 'function') {
               try {
                 instagramEmbed.Embeds.process();
@@ -141,15 +153,6 @@ export function VideoFullscreenModal({
       }
     }
   }, [video.embed_code, video.platform]);
-
-  const loadReactionStats = async () => {
-    try {
-      const stats = await getVideoReactionStats(video.id);
-      setReactionStats(stats);
-    } catch (error) {
-      console.error('Error loading reaction stats:', error);
-    }
-  };
 
   const handleReactionToggle = () => {
     if (onReactionUpdate) {

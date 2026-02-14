@@ -8,7 +8,6 @@ import {
   deleteReaction, 
   getVideoReactionStats 
 } from '../../services/socialVideos';
-import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 
 interface VideoReactionsProps {

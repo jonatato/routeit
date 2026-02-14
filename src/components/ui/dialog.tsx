@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "./card"
+import { Card, CardContent, CardTitle } from "./card"
 import { cn } from "../../lib/utils"
 
 const Dialog = React.forwardRef<
@@ -20,7 +20,7 @@ const Dialog = React.forwardRef<
       />
       <div
         ref={ref}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className={cn("fixed inset-0 z-50 flex items-center justify-center p-4", className)}
         {...props}
       >
         {children}
@@ -48,7 +48,7 @@ const DialogHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className="flex flex-col space-y-1.5 text-center sm:text-left"
+    className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)}
     {...props}
   />
 ))
@@ -60,7 +60,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CardTitle
     ref={ref}
-    className="text-lg font-semibold leading-none tracking-tight"
+    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
     {...props}
   />
 ))

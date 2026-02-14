@@ -1,4 +1,4 @@
-import { BarChart3, Calendar, MapPin, Target, TrendingUp, DollarSign } from 'lucide-react';
+import { Calendar, MapPin, Target, TrendingUp, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import type { TravelItinerary } from '../../data/itinerary';
 

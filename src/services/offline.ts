@@ -23,7 +23,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export async function cacheItinerary(itineraryId: string, userId: string, data: any) {
+export async function cacheItinerary(itineraryId: string, userId: string, data: unknown) {
   await db.itineraries.put({
     itinerary_id: itineraryId,
     user_id: userId,
@@ -32,12 +32,12 @@ export async function cacheItinerary(itineraryId: string, userId: string, data: 
   });
 }
 
-export async function getCachedItinerary(itineraryId: string): Promise<any | null> {
+export async function getCachedItinerary(itineraryId: string): Promise<unknown | null> {
   const cached = await db.itineraries.where('itinerary_id').equals(itineraryId).first();
   return cached?.data || null;
 }
 
-export async function cacheSplit(groupId: string, data: any) {
+export async function cacheSplit(groupId: string, data: unknown) {
   await db.splits.put({
     group_id: groupId,
     data,
@@ -45,12 +45,12 @@ export async function cacheSplit(groupId: string, data: any) {
   });
 }
 
-export async function getCachedSplit(groupId: string): Promise<any | null> {
+export async function getCachedSplit(groupId: string): Promise<unknown | null> {
   const cached = await db.splits.where('group_id').equals(groupId).first();
   return cached?.data || null;
 }
 
-export async function addPendingSync(type: PendingSync['type'], action: PendingSync['action'], data: any) {
+export async function addPendingSync(type: PendingSync['type'], action: PendingSync['action'], data: unknown) {
   await db.pendingSyncs.add({
     type,
     action,

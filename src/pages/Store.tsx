@@ -50,6 +50,16 @@ function Store() {
   const previewRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
 
+  const handleSearchChange = (value: string) => {
+    setIsLoading(true);
+    setSearchQuery(value);
+  };
+
+  const handleTagChange = (tag: string | null) => {
+    setIsLoading(true);
+    setActiveTag(tag);
+  };
+
   useEffect(() => {
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -60,7 +70,6 @@ function Store() {
 
   useEffect(() => {
     let isActive = true;
-    setIsLoading(true);
 
     const timer = setTimeout(async () => {
       const { data, error } = await supabase.functions.invoke('store-search', {
@@ -173,7 +182,7 @@ function Store() {
         <div className="relative w-full md:max-w-md">
           <input
             value={searchQuery}
-            onChange={event => setSearchQuery(event.target.value)}
+            onChange={event => handleSearchChange(event.target.value)}
             placeholder="Buscar por destino o estilo"
             className="w-full rounded-full border border-border bg-white px-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             aria-label="Buscar itinerarios"
@@ -183,7 +192,7 @@ function Store() {
           <Button
             variant={activeTag ? 'outline' : 'secondary'}
             size="sm"
-            onClick={() => setActiveTag(null)}
+            onClick={() => handleTagChange(null)}
           >
             Todos
           </Button>
@@ -192,7 +201,7 @@ function Store() {
               key={tag}
               variant={activeTag === tag ? 'secondary' : 'outline'}
               size="sm"
-              onClick={() => setActiveTag(tag)}
+              onClick={() => handleTagChange(tag)}
             >
               {tag}
             </Button>

@@ -8,15 +8,31 @@ interface CloudinaryUploadProps {
   currentImage?: string;
 }
 
+type CloudinaryUploadResult = {
+  event?: string;
+  info?: { secure_url?: string };
+};
+
+type CloudinaryWidget = {
+  open: () => void;
+};
+
+type CloudinaryGlobal = {
+  createUploadWidget: (
+    options: Record<string, unknown>,
+    callback: (error: unknown, result: CloudinaryUploadResult) => void,
+  ) => CloudinaryWidget;
+};
+
 declare global {
   interface Window {
-    cloudinary: any;
+    cloudinary?: CloudinaryGlobal;
   }
 }
 
 export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadProps) {
   const [isReady, setIsReady] = useState(false);
-  const widgetRef = useRef<any>(null);
+  const widgetRef = useRef<CloudinaryWidget | null>(null);
   const { success, error: showError } = useToast();
 
   useEffect(() => {
@@ -74,8 +90,8 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
           maxFileSize: 20000000,
           resourceType: 'image',
         },
-        (error: any, result: any) => {
-          if (!error && result && result.event === 'success') {
+        (error: unknown, result: CloudinaryUploadResult) => {
+          if (!error && result && result.event === 'success' && result.info?.secure_url) {
             onUpload(result.info.secure_url);
             success('Imagen seleccionada exitosamente');
           }

@@ -190,5 +190,8 @@ export async function createShareLink(itineraryId: string, role: CollaboratorRol
 export async function acceptShareLink(token: string) {
   const { data, error } = await supabase.rpc('accept_share_link', { token_text: token });
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error('Token invalido o expirado.');
+  }
   return data as Array<{ itinerary_id: string; role: CollaboratorRole }>;
 }

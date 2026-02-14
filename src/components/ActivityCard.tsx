@@ -14,7 +14,6 @@ interface ActivityCardProps {
 
 export function ActivityCard({
   item,
-  index,
   onEdit,
   onMove,
   onDelete,

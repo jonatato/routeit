@@ -49,7 +49,7 @@ export async function exportItineraryToPDF(
 
   // Get all sections to include
   const sectionsToInclude = Object.entries(opts.sections)
-    .filter(([_, include]) => include)
+    .filter(([, include]) => include)
     .map(([key]) => key);
 
   try {

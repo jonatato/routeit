@@ -6,9 +6,6 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { driver } from 'driver.js';
 import RichTextEditor from '../components/RichTextEditor';
-import { AdminSidebar } from '../components/AdminSidebar';
-import { DaySelector } from '../components/DaySelector';
-import { ActivityCard } from '../components/ActivityCard';
 import { ActivityEditModal } from '../components/ActivityEditModal';
 import type { ItineraryDay, TravelItinerary, Flight, FlightSegment } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
@@ -393,7 +390,7 @@ function AdminItinerary() {
       try {
         const params = new URLSearchParams(location.search);
         const itineraryId = params.get('itineraryId');
-        let dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
+        const dataItinerary = itineraryId ? await fetchItineraryById(itineraryId) : await fetchUserItinerary(user.id);
         if (!dataItinerary) {
           // Si no hay itinerario, redirigir a crear uno nuevo
           setStatus('No se encontró ningún itinerario. Por favor, crea uno nuevo.');

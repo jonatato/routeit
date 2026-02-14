@@ -34,6 +34,7 @@ export function VideoCard({
       
       try {
         embedRef.current.innerHTML = video.embed_code;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setEmbedError(false);
         
         if (video.platform === 'tiktok' && video.embed_code.includes('tiktok-embed')) {
@@ -61,7 +62,7 @@ export function VideoCard({
               return;
             }
             
-            const tiktokEmbed = (window as any).tiktokEmbed;
+            const tiktokEmbed = (window as Window & { tiktokEmbed?: { process: () => void } }).tiktokEmbed;
             if (tiktokEmbed && typeof tiktokEmbed.process === 'function') {
               try {
                 tiktokEmbed.process();
@@ -81,7 +82,7 @@ export function VideoCard({
           const processInstagram = () => {
             if (retryCountRef.current >= 10) return;
             
-            const instagramEmbed = (window as any).instgrm;
+            const instagramEmbed = (window as Window & { instgrm?: { Embeds?: { process: () => void } } }).instgrm;
             if (instagramEmbed && typeof instagramEmbed.Embeds?.process === 'function') {
               try {
                 instagramEmbed.Embeds.process();

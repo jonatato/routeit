@@ -35,12 +35,12 @@ export function NotificationBell() {
       {isOpen && (
         <>
           <div 
-            className="fixed inset-0 z-[100]" 
+            className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-[1px]" 
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <Card className="absolute right-0 top-full z-[101] mt-2 w-80 max-h-96 overflow-y-auto shadow-lg border-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b">
+          <Card className="absolute right-0 top-full z-[101] mt-3 w-[min(22rem,90vw)] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/80 bg-popover shadow-2xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 pb-3">
               <CardTitle className="text-sm font-medium">Notificaciones</CardTitle>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
@@ -51,7 +51,7 @@ export function NotificationBell() {
                       e.stopPropagation();
                       markAllAsRead();
                     }} 
-                    className="text-xs h-7"
+                    className="h-7 text-xs"
                   >
                     Marcar todas como leídas
                   </Button>
@@ -63,16 +63,16 @@ export function NotificationBell() {
                     e.stopPropagation();
                     setIsOpen(false);
                   }}
-                  className="text-xs h-7 w-7 p-0"
+                  className="h-7 w-7 p-0 text-xs"
                 >
                   ×
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2 p-3">
+            <CardContent className="space-y-3 p-4">
               {notifications.length === 0 ? (
-                <div className="text-center py-8">
-                  <Bell className="h-12 w-12 mx-auto text-mutedForeground/30 mb-2" />
+                <div className="rounded-xl border border-dashed border-border/70 bg-muted/50 py-8 text-center">
+                  <Bell className="mx-auto mb-2 h-12 w-12 text-mutedForeground/40" />
                   <p className="text-sm text-mutedForeground">
                     No hay notificaciones
                   </p>
@@ -84,10 +84,10 @@ export function NotificationBell() {
                 notifications.map(notification => (
                   <div
                     key={notification.id}
-                    className={`rounded-lg border p-3 cursor-pointer transition-colors hover:bg-primary/5 hover:border-primary/30 ${
+                    className={`rounded-xl border p-3 cursor-pointer transition-colors hover:bg-primary/10 hover:border-primary/30 ${
                       notification.read 
                         ? 'bg-background border-border' 
-                        : 'bg-primary/5 border-primary/20'
+                        : 'bg-primary/10 border-primary/25'
                     }`}
                     onClick={(e: MouseEvent) => {
                       e.stopPropagation();

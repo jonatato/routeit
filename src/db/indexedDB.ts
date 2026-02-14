@@ -4,14 +4,14 @@ export interface ItineraryCache {
   id?: string;
   itinerary_id: string;
   user_id: string;
-  data: any;
+  data: unknown;
   updated_at: string;
 }
 
 export interface SplitCache {
   id?: string;
   group_id: string;
-  data: any;
+  data: unknown;
   updated_at: string;
 }
 
@@ -19,7 +19,7 @@ export interface PendingSync {
   id?: string;
   type: 'itinerary' | 'split' | 'expense' | 'payment';
   action: 'create' | 'update' | 'delete';
-  data: any;
+  data: unknown;
   created_at: string;
 }
 

@@ -41,7 +41,6 @@ import {
 } from '../services/split';
 import { ExpenseForm } from '../components/split/ExpenseForm';
 import { PaymentForm } from '../components/split/PaymentForm';
-import { DebtSimplification } from '../components/split/DebtSimplification';
 import { ExpenseDetail } from '../components/split/ExpenseDetail';
 import { SplitHistory } from '../components/split/SplitHistory';
 import { SplitReports } from '../components/split/SplitReports';
@@ -811,4 +810,3 @@ function Split() {
 }
 
 export default Split;
-

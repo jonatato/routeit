@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Mail } from 'lucide-react';
 import { PandaLogo } from '../components/PandaLogo';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { supabase } from '../lib/supabase';
+import { buildAuthRedirect } from '../utils/authRedirect';
 
 function Auth() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,12 @@ function Auth() {
   const [hasSession, setHasSession] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const location = useLocation();
+  const from =
+    (location.state as { from?: string } | null)?.from &&
+    (location.state as { from?: string } | null)?.from?.startsWith('/')
+      ? (location.state as { from?: string } | null)?.from
+      : '/app';
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -42,7 +49,7 @@ function Auth() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/login`,
+        emailRedirectTo: buildAuthRedirect('/login'),
       },
     });
     if (error) {
@@ -61,7 +68,7 @@ function Auth() {
     setIsBusy(true);
     setStatus(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset`,
+      redirectTo: buildAuthRedirect('/reset'),
     });
     if (error) {
       setStatus(error.message);
@@ -72,7 +79,7 @@ function Auth() {
   };
 
   if (hasSession) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to={from} replace />;
   }
 
   return (

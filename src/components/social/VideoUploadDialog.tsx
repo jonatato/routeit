@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { X, Plus, Check, ExternalLink, AlertCircle } from 'lucide-react';
+import { X, Plus, ExternalLink, AlertCircle } from 'lucide-react';
 import { parseVideoUrl, generateThumbnailUrl, addVideo, addVideoTags } from '../../services/socialVideos';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
@@ -209,9 +209,9 @@ export function VideoUploadDialog({
       
       if (onSuccess) onSuccess();
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding video:', error);
-      toast.error(error.message || 'Error al agregar video');
+      toast.error(error instanceof Error ? error.message : 'Error al agregar video');
     } finally {
       setLoading(false);
     }

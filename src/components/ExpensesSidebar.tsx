@@ -49,7 +49,7 @@ function ExpensesSidebar({ expenses }: ExpensesSidebarProps) {
         // If no itinerary ID in URL, get the most recent one
         if (!itineraryId) {
           // First try owned itineraries
-          let { data: ownedItinerary } = await supabase
+          const { data: ownedItinerary } = await supabase
             .from('itineraries')
             .select('id')
             .eq('user_id', user.id)

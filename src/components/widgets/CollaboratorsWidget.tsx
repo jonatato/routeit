@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { UserPlus, Settings, Circle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { listCollaborators } from '../../services/sharing';
 
 interface Collaborator {
@@ -22,7 +21,6 @@ interface CollaboratorsWidgetProps {
 
 export function CollaboratorsWidget({
   itineraryId,
-  currentUserId,
   onInvite,
   onManagePermissions,
 }: CollaboratorsWidgetProps) {

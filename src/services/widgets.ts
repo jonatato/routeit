@@ -7,7 +7,7 @@ export interface WidgetPref {
   is_visible: boolean;
   is_pinned?: boolean;
   is_collapsed?: boolean;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 const localKey = (userId: string | null, itineraryId: string | null) => `routeit:widgets:${userId ?? 'anon'}:${itineraryId ?? 'global'}`;
@@ -74,7 +74,7 @@ export async function saveUserWidgetPreferences(prefs: WidgetPref[], itineraryId
 
     if (error) throw error;
 
-    return (data ?? []) as any[];
+    return (data ?? []) as WidgetPref[];
   } catch (error) {
     console.warn('Could not save widget preferences to Supabase, falling back to localStorage', error);
     localStorage.setItem(localKey(null, itineraryId ?? null), JSON.stringify(prefs));

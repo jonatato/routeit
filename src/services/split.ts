@@ -170,7 +170,16 @@ export async function addExpense(
   categoryId?: string,
   scheduleItemId?: string, // Enlace bidireccional
 ) {
-  const expenseData: any = {
+  const expenseData: {
+    group_id: string;
+    payer_id: string;
+    title: string;
+    amount: number;
+    division_type: 'equal' | 'percentage' | 'exact' | 'shares';
+    expense_date?: string;
+    category_id?: string;
+    schedule_item_id?: string;
+  } = {
     group_id: groupId,
     payer_id: payerId,
     title,
