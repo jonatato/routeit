@@ -257,12 +257,12 @@ function SocialVideos() {
       {tags.length > 0 && (
             <button
               onClick={() => setShowFilters(true)}
-              className="relative h-10 w-10 rounded-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-primary/10 hover:border-primary/50 dark:hover:bg-primary/20 active:scale-95 transition-all shadow-lg"
+              className="relative h-10 w-10 rounded-full bg-card/95 backdrop-blur-sm border border-border flex items-center justify-center hover:bg-primary/10 hover:border-primary/50 dark:hover:bg-primary/20 active:scale-95 transition-all shadow-lg"
               aria-label="Abrir filtros"
             >
-              <Filter className="h-5 w-5 text-gray-700 dark:text-gray-200" />
+              <Filter className="h-5 w-5 text-foreground" />
               {selectedTags.length > 0 && (
-                <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center">
+                <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-danger flex items-center justify-center">
                   <span className="text-xs font-bold text-white">{selectedTags.length}</span>
                 </div>
               )}
@@ -400,3 +400,4 @@ function SocialVideos() {
 }
 
 export default SocialVideos;
+

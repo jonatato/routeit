@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -46,7 +46,7 @@ function MyBag() {
         grouped.set(category.id, []);
       }
       grouped.get(category.id)!.push(item);
-      });
+    });
 
     return grouped;
   }, [checklistItems]);
@@ -99,9 +99,7 @@ function MyBag() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              Mi Maleta
-            </h1>
+            <h1 className="flex items-center gap-2 text-2xl font-bold md:text-3xl">Mi Maleta</h1>
             <p className="text-sm text-mutedForeground">Organiza tu equipaje por categorías</p>
           </div>
         </div>
@@ -112,17 +110,17 @@ function MyBag() {
 
       {/* Empty State */}
       {totalItems === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-          <div className="text-8xl mb-4">🧳</div>
+        <div className="flex flex-col items-center justify-center space-y-4 py-16 text-center">
+          <div className="mb-4 text-8xl">🧳</div>
           <h2 className="text-2xl font-bold">Tu maleta está vacía</h2>
-          <p className="text-muted-foreground max-w-md">
+          <p className="max-w-md text-muted-foreground">
             Comienza a añadir items para organizar tu equipaje de viaje
           </p>
           <Button onClick={() => setShowAddModal(true)} size="lg" className="mt-4">
-            <Plus className="h-5 w-5 mr-2" />
-            Añadir Items
-                  </Button>
-                </div>
+            <Plus className="mr-2 h-5 w-5" />
+            Añadir items
+          </Button>
+        </div>
       ) : (
         <>
           {/* Categories */}
@@ -145,10 +143,10 @@ function MyBag() {
       {totalItems > 0 && (
         <button
           onClick={() => setShowAddModal(true)}
-          className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 hover:shadow-2xl"
+          className="group fixed bottom-20 right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card/95 text-primary shadow-[0_12px_28px_hsl(var(--foreground)/0.12)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0 active:scale-[0.98] md:bottom-8 md:right-8"
           aria-label="Añadir items"
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-6 w-6 transition-transform duration-200 group-hover:rotate-90" />
         </button>
       )}
 

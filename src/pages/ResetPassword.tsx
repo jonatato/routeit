@@ -43,7 +43,7 @@ function ResetPassword() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="mx-auto flex min-h-screen w-full items-center justify-center bg-background px-4 py-12">
       <Card className="w-full max-w-md border border-border bg-card shadow-lg">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -59,7 +59,7 @@ function ResetPassword() {
               type="password"
               value={password}
               onChange={event => setPassword(event.target.value)}
-              className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm shadow-sm"
+              className="w-full rounded-xl border border-border bg-card px-4 py-2 text-sm shadow-sm"
             />
           </div>
           <div>
@@ -68,7 +68,7 @@ function ResetPassword() {
               type="password"
               value={confirm}
               onChange={event => setConfirm(event.target.value)}
-              className="w-full rounded-xl border border-border bg-white px-4 py-2 text-sm shadow-sm"
+              className="w-full rounded-xl border border-border bg-card px-4 py-2 text-sm shadow-sm"
             />
           </div>
           <Button onClick={handleReset} disabled={isBusy} className="w-full">

@@ -59,10 +59,13 @@ function WebSideMenu() {
   };
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-background/50 px-3 py-4 md:flex">
+    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-background/85 px-3 py-4 backdrop-blur-sm md:flex">
       {/* Logo */}
-      <Link to="/app" className="flex items-center gap-2 mb-6 px-2">
-        <PandaLogo size="sm" />
+      <Link to="/app" className="mb-6 flex items-center gap-2 px-2">
+        <PandaLogo
+          size="2xl"
+          className="[&_img]:rounded-full [&_img]:border [&_img]:border-border [&_img]:bg-card [&_img]:p-1"
+        />
         <span className="text-xl font-bold">
           Route<span className="text-primary">it</span>
         </span>
@@ -81,6 +84,7 @@ function WebSideMenu() {
       </div>
 
       {/* Menu Items */}
+      <div className="flex-1 overflow-y-auto">
       <div className="flex flex-col gap-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
@@ -92,7 +96,7 @@ function WebSideMenu() {
             <Link key={item.path} to={item.path}>
               <Button 
                 variant={isActive ? 'secondary' : 'ghost'} 
-                className="w-full justify-start gap-3"
+                className="w-full justify-start gap-3 text-foreground hover:!bg-muted hover:!text-foreground dark:hover:!bg-secondary/70"
                 size="sm"
               >
                 <Icon className={`h-4 w-4 ${isActive ? 'text-primary' : ''}`} />
@@ -102,11 +106,12 @@ function WebSideMenu() {
           );
         })}
       </div>
+      </div>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-4 shrink-0 border-t border-border/70 pt-4">
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3"
+          className="w-full justify-start gap-3 text-foreground hover:!bg-muted hover:!text-foreground dark:hover:!bg-secondary/70"
           size="sm"
           onClick={() => void supabase.auth.signOut()}
         >

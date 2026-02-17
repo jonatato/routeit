@@ -8,7 +8,7 @@ type FullscreenLoaderProps = {
 function FullscreenLoader({ message = 'Cargando...' }: FullscreenLoaderProps) {
   return (
     <div
-      className="fixed inset-0 z-[9999] flex min-h-screen w-full items-center justify-center bg-white/80 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex min-h-screen w-full items-center justify-center bg-background/85 backdrop-blur-sm dark:bg-background/92"
       aria-busy="true"
       aria-live="polite"
       role="status"

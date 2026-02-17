@@ -12,6 +12,8 @@ import Auth from './pages/Auth';
 import { DeepLinkHandler } from './components/DeepLinkHandler';
 import { NotificationIntentHandler } from './components/NotificationIntentHandler';
 import { SessionLifecycleHandler } from './components/SessionLifecycleHandler';
+import CookieConsentBanner from './components/CookieConsentBanner';
+import MarketingFooter from './components/MarketingFooter';
 
 // Lazy load heavy components
 const AdminItinerary = lazy(() => import('./pages/AdminItinerary'));
@@ -30,6 +32,11 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Store = lazy(() => import('./pages/Store'));
 const TodayItinerary = lazy(() => import('./pages/TodayItinerary'));
+const LegalTerms = lazy(() => import('./pages/legal/LegalTerms'));
+const LegalPrivacy = lazy(() => import('./pages/legal/LegalPrivacy'));
+const LegalCookies = lazy(() => import('./pages/legal/LegalCookies'));
+const LegalImprint = lazy(() => import('./pages/legal/LegalImprint'));
+const LegalContact = lazy(() => import('./pages/legal/LegalContact'));
 
 const LoadingFallback = () => <FullscreenLoader />;
 
@@ -44,6 +51,11 @@ const appRoutes: AppRoute[] = [
   { path: '/', element: <Landing /> },
   { path: '/pricing', element: <Pricing /> },
   { path: '/store', element: <Store /> },
+  { path: '/legal/terms', element: <LegalTerms /> },
+  { path: '/legal/privacy', element: <LegalPrivacy /> },
+  { path: '/legal/cookies', element: <LegalCookies /> },
+  { path: '/legal/imprint', element: <LegalImprint /> },
+  { path: '/legal/contact', element: <LegalContact /> },
   { path: '/reset', element: <ResetPassword /> },
   { path: '/login', element: <Auth /> },
   { path: '/app', element: <DynamicItinerary />, requiresAuth: true, useTransition: true },
@@ -94,19 +106,22 @@ function App() {
         <div className="min-h-screen pb-14">
           {showMobileHeader && <MobileHeader />}
           <AppRoutes />
+          <MarketingFooter />
           {isAppRoute && <MobileTabs />}
         </div>
       ) : (
         <div className="min-h-screen">
           <div className="mx-auto flex w-full">
             {showSideMenu && <WebSideMenu />}
-            <div className="flex-1">
+            <div className={showSideMenu ? 'flex-1 md:ml-64' : 'flex-1'}>
               <AppRoutes />
+              <MarketingFooter />
             </div>
             {showWidgetsSidebar && <WidgetsSidebar />}
           </div>
         </div>
       )}
+      <CookieConsentBanner />
     </>
   );
 }

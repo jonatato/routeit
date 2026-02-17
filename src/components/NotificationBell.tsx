@@ -21,10 +21,10 @@ export function NotificationBell() {
           setIsOpen(!isOpen);
         }}
         className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${
-          isNotificationsActive ? 'bg-primary/10' : 'hover:bg-gray-100'
+          isNotificationsActive ? 'bg-primary/10' : 'hover:bg-muted'
         }`}
       >
-        <Bell className={`h-5 w-5 ${isNotificationsActive ? 'text-primary' : 'text-gray-600'}`} />
+        <Bell className={`h-5 w-5 ${isNotificationsActive ? 'text-primary' : 'text-mutedForeground'}`} />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
             {unreadCount > 9 ? '9+' : unreadCount}

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
@@ -854,25 +854,25 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           </div>
 
           {shouldShowSection('overview') && (
-            <Card className="mt-2 bg-gradient-to-br from-white to-muted hidden lg:block">
+            <Card className="mt-2 hidden bg-gradient-to-br from-card to-muted/80 lg:block">
               <CardHeader>
                 <CardTitle>Resumen rápido</CardTitle>
                 <CardDescription>Todo lo esencial a un vistazo.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
                   <p className="text-sm text-mutedForeground">Total de días</p>
                   <p className="text-3xl font-semibold">{totalDays}</p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
                   <p className="text-sm text-mutedForeground">Ciudades</p>
                   <p className="text-3xl font-semibold">{itinerary.locations.length}</p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
                   <p className="text-sm text-mutedForeground">Traslados</p>
                   <p className="text-3xl font-semibold">{travelCount}</p>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
                   <p className="text-sm text-mutedForeground">Vuelos</p>
                   <p className="text-3xl font-semibold">
                     {itinerary.days.filter(day => day.kind === 'flight').length}
@@ -1001,7 +1001,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                           </Marker>
                         ))}
                       </MapContainer>
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                      <div className="absolute inset-0 bg-transparent group-hover:bg-primary/10 dark:group-hover:bg-primary/15 transition-colors flex items-center justify-center pointer-events-none">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
                           <Maximize2 className="h-6 w-6 text-primary" />
                         </div>
@@ -1028,7 +1028,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                   className="w-full rounded-full border border-border bg-white px-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 pl-10"
                   aria-label="Buscar en el itinerario"
                 />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-mutedForeground" />
               </div>
               {editable && (
                 <Link to="/app/admin?section=days">
@@ -1136,13 +1136,13 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                                       href={item.mapLink}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                      className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success transition hover:bg-success/25"
                                     >
                                       Maps
                                     </a>
                                   )}
                                   {item.cost && (
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning">
                                       €{item.cost.toFixed(2)}
                                     </span>
                                   )}
@@ -1215,7 +1215,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                           ))}
                         </MapContainer>
                       </div>
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                      <div className="absolute inset-0 bg-transparent group-hover:bg-primary/10 dark:group-hover:bg-primary/15 transition-colors flex items-center justify-center pointer-events-none">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
                           <Maximize2 className="h-6 w-6 text-primary" />
                         </div>
@@ -1339,7 +1339,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                                         href={item.mapLink}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition active:bg-emerald-200"
+                                        className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success transition active:bg-success/25"
                                       >
                                         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                           <path d="M3 6l8-3 10 4-8 3-10-4z" />
@@ -1399,7 +1399,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                             ))}
                           </MapContainer>
                         </div>
-                        <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                        <div className="absolute inset-0 bg-transparent active:bg-primary/10 dark:active:bg-primary/15 transition-colors flex items-center justify-center pointer-events-none">
                           <div className="opacity-0 group-active:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-full p-3 shadow-lg">
                             <Maximize2 className="h-6 w-6 text-primary" />
                           </div>
@@ -1625,16 +1625,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         </section>
         )}
       </main>
-
-      <footer className="border-t border-border bg-muted">
-        <div className="mx-auto flex w-full  flex-col gap-2 px-4 py-6 text-sm text-mutedForeground md:flex-row md:items-center md:justify-between">
-          <span>
-            Route<span className="text-primary">it</span> · Mi Itinerario
-          </span>
-          <span>Diseñado para móvil y escritorio</span>
-        </div>
-      </footer>
-    </div>
+      </div>
     
     {/* Modals - Outside main layout */}
     {/* Main Map Modal */}
@@ -1668,4 +1659,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 }
 
 export default ItineraryView;
+
+
+
 

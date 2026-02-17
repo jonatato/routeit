@@ -57,7 +57,7 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
   const shouldRenderMenu = isMenuOpen && typeof document !== 'undefined';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/20 bg-white/95 backdrop-blur-md px-4 py-3">
+    <header className="sticky top-0 z-50 border-b border-border/20 bg-background/95 px-4 py-3 backdrop-blur-md">
       <div className="flex items-center justify-between">
         {/* Logo */}
         <Link to="/app" className="flex items-center gap-2">
@@ -77,8 +77,8 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
         <div className="flex items-center gap-2">
           {canEdit && (
             <Link to="/app/admin">
-              <button className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isAdminActive ? 'bg-primary/10' : 'hover:bg-gray-100'}`}>
-                <Settings className={`h-5 w-5 ${isAdminActive ? 'text-primary' : 'text-gray-600'}`} />
+              <button className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isAdminActive ? 'bg-primary/10' : 'hover:bg-muted'}`}>
+                <Settings className={`h-5 w-5 ${isAdminActive ? 'text-primary' : 'text-mutedForeground'}`} />
               </button>
           </Link>
           )}
@@ -86,7 +86,7 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
           <button
             type="button"
             onClick={() => setIsMenuOpen(true)}
-            className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isProfileActive ? 'bg-primary/10' : 'hover:bg-gray-100'}`}
+            className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isProfileActive ? 'bg-primary/10' : 'hover:bg-muted'}`}
             aria-label="Abrir menu"
             aria-expanded={isMenuOpen}
           >
@@ -106,7 +106,7 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
               onClick={() => setIsMenuOpen(false)}
               aria-label="Cerrar menu"
             />
-            <aside className="fixed left-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
+            <aside className="fixed left-0 top-0 flex h-full w-72 flex-col bg-card shadow-xl">
               <div className="flex items-center justify-between border-b border-border px-4 py-4">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">

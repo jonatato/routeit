@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "save": "Guardar",
     "cancel": "Cancelar",
@@ -41,5 +41,31 @@
     "balances": "Balances",
     "addExpense": "Añadir gasto",
     "addPayment": "Añadir pago"
+  },
+  "footer": {
+    "claim": "Planifica, comparte y viaja con control real de tu itinerario.",
+    "legalNote": "La información legal mostrada puede incluir campos pendientes de completar por el titular final.",
+    "product": "Producto",
+    "legal": "Legal",
+    "contact": "Contacto",
+    "features": "Funcionalidades",
+    "how": "Cómo funciona",
+    "pricing": "Precios",
+    "login": "Iniciar sesión",
+    "terms": "Términos de uso",
+    "privacy": "Política de privacidad",
+    "cookies": "Política de cookies",
+    "imprint": "Aviso legal",
+    "legalContact": "Contacto legal",
+    "cookiePrefs": "Preferencias de cookies",
+    "rights": "Todos los derechos reservados.",
+    "language": "Idioma"
+  },
+  "cookies": {
+    "title": "Usamos cookies para mejorar tu experiencia.",
+    "description": "Puedes aceptar todas, rechazar las no esenciales o configurar preferencias.",
+    "configure": "Configurar",
+    "reject": "Rechazar no esenciales",
+    "accept": "Aceptar todo"
   }
 }

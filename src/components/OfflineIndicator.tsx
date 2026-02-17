@@ -24,8 +24,8 @@ export function OfflineIndicator() {
       <div
         className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm ${
           status === 'offline'
-            ? 'border-yellow-500 bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'
-            : 'border-purple-500 bg-purple-50 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+            ? 'border-warning/40 bg-warning/15 text-warning'
+            : 'border-info/40 bg-info/15 text-info'
         }`}
       >
         {status === 'offline' ? (
@@ -43,3 +43,4 @@ export function OfflineIndicator() {
     </div>
   );
 }
+

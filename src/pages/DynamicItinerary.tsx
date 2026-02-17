@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { PandaLogo } from '../components/PandaLogo';
@@ -28,14 +28,14 @@ function DynamicItinerary() {
         return;
       }
       try {
-        // Primero intentamos obtener el ID de la URL query params
         const params = new URLSearchParams(location.search);
         const queryItineraryId = params.get('itineraryId');
-        
-        const dataItinerary = queryItineraryId ? await fetchItineraryById(queryItineraryId) : await fetchUserItinerary(user.id);
-        
+
+        const dataItinerary = queryItineraryId
+          ? await fetchItineraryById(queryItineraryId)
+          : await fetchUserItinerary(user.id);
+
         if (!dataItinerary) {
-          // Si no hay itinerario en BD, mostrar mensaje
           setHasNoItineraries(true);
           setItinerary(null);
         } else {
@@ -51,7 +51,7 @@ function DynamicItinerary() {
         setIsLoading(false);
       }
     };
-    load();
+    void load();
   }, [location.search]);
 
   if (isLoading) {
@@ -60,33 +60,37 @@ function DynamicItinerary() {
 
   if (error) {
     return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="text-sm text-mutedForeground">{error}</p>
-        <Button variant="outline" onClick={() => supabase.auth.signOut()}>
-          Cerrar sesión
-        </Button>
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-3 px-4 text-center">
+          <p className="text-sm text-mutedForeground">{error}</p>
+          <Button variant="outline" onClick={() => void supabase.auth.signOut()}>
+            Cerrar sesión
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (hasNoItineraries) {
     return (
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-6 px-4 text-center">
-        <PandaLogo size="lg" className="mb-4" />
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold">¡Aún no tienes viajes!</h1>
-          <p className="text-lg text-mutedForeground max-w-md">
-            Crea tu primer itinerario personalizado y comienza a planificar tu viaje perfecto.
-          </p>
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link to="/app/itineraries">
-              <Button size="lg" className="w-full sm:w-auto">
-                Crear mi primer itinerario
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-6 px-4 text-center">
+          <PandaLogo size="lg" className="mb-4" />
+          <div className="space-y-4">
+            <h1 className="text-3xl font-bold">¡Aún no tienes viajes!</h1>
+            <p className="max-w-md text-lg text-mutedForeground">
+              Crea tu primer itinerario personalizado y comienza a planificar tu viaje perfecto.
+            </p>
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Link to="/app/itineraries">
+                <Button size="lg" className="w-full sm:w-auto">
+                  Crear mi primer itinerario
+                </Button>
+              </Link>
+              <Button variant="outline" size="lg" onClick={() => void supabase.auth.signOut()} className="w-full sm:w-auto">
+                Cerrar sesión
               </Button>
-            </Link>
-            <Button variant="outline" size="lg" onClick={() => supabase.auth.signOut()} className="w-full sm:w-auto">
-              Cerrar sesión
-            </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -105,4 +109,3 @@ function DynamicItinerary() {
 }
 
 export default DynamicItinerary;
-

@@ -26,7 +26,7 @@ function MobileTabs() {
   };
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[70] bg-white/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.12)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-[70] bg-background/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.12)]">
       <div className="relative flex items-center justify-around px-6 py-3 pb-safe">
         {tabs.map(tab => {
           const isActive = tab.key === 'itinerary' 
@@ -41,10 +41,10 @@ function MobileTabs() {
                 to={tab.path}
                 className="flex flex-col items-center justify-center gap-1 -mt-12 relative z-10"
               >
-                <div className={`rounded-full p-5 shadow-[0_8px_24px_rgba(111,99,216,0.6)] border-4 border-white ${isActive ? 'bg-primary' : 'bg-gray-100'}`}>
-                  <Icon className={`h-7 w-7 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                <div className={`rounded-full p-5 shadow-lg border-4 border-background ${isActive ? 'bg-primary' : 'bg-muted'}`}>
+                  <Icon className={`h-7 w-7 ${isActive ? 'text-white' : 'text-mutedForeground'}`} />
                 </div>
-                <span className={`text-xs font-medium mt-1 ${isActive ? 'text-foreground' : 'text-gray-600'}`}>
+                <span className={`text-xs font-medium mt-1 ${isActive ? 'text-foreground' : 'text-mutedForeground'}`}>
                   {tab.label}
                 </span>
               </Link>
@@ -58,9 +58,9 @@ function MobileTabs() {
               className="flex flex-col items-center justify-center gap-1"
             >
               <div className={`rounded-xl p-2 ${isActive ? 'bg-primary' : 'bg-transparent'}`}>
-                <Icon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-gray-600'}`} />
+                <Icon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-mutedForeground'}`} />
               </div>
-              <span className={`text-xs font-medium ${isActive ? 'text-foreground' : 'text-gray-600'}`}>
+              <span className={`text-xs font-medium ${isActive ? 'text-foreground' : 'text-mutedForeground'}`}>
                 {tab.label}
               </span>
             </Link>
@@ -72,4 +72,5 @@ function MobileTabs() {
 }
 
 export default MobileTabs;
+
 

@@ -59,7 +59,7 @@ function Pricing() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-white to-slate-50">
+    <div className="min-h-screen bg-background">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
         <Link to="/" className="flex items-center gap-2 font-semibold text-lg">
           <span className="text-2xl">🗺️</span>
@@ -82,14 +82,14 @@ function Pricing() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Free</h2>
             <p className="text-sm text-mutedForeground">Ideal para organizar tus primeros viajes.</p>
             <div className="mt-4 text-3xl font-semibold">$0</div>
             <ul className="mt-5 space-y-2 text-sm text-mutedForeground">
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" /> 2 itinerarios activos</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" /> Compartir y colaborar</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" /> Gastos y reportes</li>
+              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-success" /> 2 itinerarios activos</li>
+              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-success" /> Compartir y colaborar</li>
+              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-success" /> Gastos y reportes</li>
             </ul>
             <div className="mt-6">
               {isLoggedIn && plan === 'free' ? (
@@ -108,7 +108,7 @@ function Pricing() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-primary/40 bg-primary/5 p-6 shadow-[0_20px_40px_rgba(99,102,241,0.18)]">
+          <div className="rounded-3xl border border-primary/40 bg-primary/5 p-6 shadow-lg">
             <div className="flex items-center gap-2 text-primary">
               <Sparkles className="h-4 w-4" />
               <span className="text-sm font-semibold">Pro</span>
@@ -118,9 +118,9 @@ function Pricing() {
             <div className="mt-4 text-3xl font-semibold">$5/mes</div>
             <div className="text-xs text-mutedForeground">o $50/año</div>
             <ul className="mt-5 space-y-2 text-sm text-mutedForeground">
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" /> Itinerarios ilimitados</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" /> Prioridad en nuevas funciones</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" /> Soporte prioritario</li>
+              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-success" /> Itinerarios ilimitados</li>
+              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-success" /> Prioridad en nuevas funciones</li>
+              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-success" /> Soporte prioritario</li>
             </ul>
             <div className="mt-6 space-y-2">
               {plan === 'pro' ? (
@@ -150,3 +150,4 @@ function Pricing() {
 }
 
 export default Pricing;
+

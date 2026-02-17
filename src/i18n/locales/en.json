@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -41,5 +41,31 @@
     "balances": "Balances",
     "addExpense": "Add expense",
     "addPayment": "Add payment"
+  },
+  "footer": {
+    "claim": "Plan, collaborate and travel with real control over your itinerary.",
+    "legalNote": "Legal information may include pending placeholders to be completed by the final legal owner.",
+    "product": "Product",
+    "legal": "Legal",
+    "contact": "Contact",
+    "features": "Features",
+    "how": "How it works",
+    "pricing": "Pricing",
+    "login": "Sign in",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy",
+    "cookies": "Cookie policy",
+    "imprint": "Legal notice",
+    "legalContact": "Legal contact",
+    "cookiePrefs": "Cookie preferences",
+    "rights": "All rights reserved.",
+    "language": "Language"
+  },
+  "cookies": {
+    "title": "We use cookies to improve your experience.",
+    "description": "You can accept all, reject non-essential cookies or configure preferences.",
+    "configure": "Configure",
+    "reject": "Reject non-essential",
+    "accept": "Accept all"
   }
 }

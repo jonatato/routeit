@@ -170,21 +170,22 @@ function Store() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 md:py-12">
-      <header className="space-y-2">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 md:py-12">
+        <header className="space-y-2">
         <h1 className="text-3xl font-semibold md:text-4xl">Tienda de itinerarios</h1>
         <p className="text-sm text-mutedForeground md:text-base">
           Explora itinerarios listos para usar. Vista previa sin detalles; desbloquea el contenido completo al comprar.
         </p>
-      </header>
+        </header>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="relative w-full md:max-w-md">
           <input
             value={searchQuery}
             onChange={event => handleSearchChange(event.target.value)}
             placeholder="Buscar por destino o estilo"
-            className="w-full rounded-full border border-border bg-white px-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            className="w-full rounded-full border border-border bg-card px-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             aria-label="Buscar itinerarios"
           />
         </div>
@@ -207,9 +208,9 @@ function Store() {
             </Button>
           ))}
         </div>
-      </div>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
         {filtered.map(item => (
             <Card key={item.id} className="overflow-hidden">
               <div className="h-48 w-full overflow-hidden">
@@ -272,9 +273,9 @@ function Store() {
               </CardContent>
             </Card>
         ))}
-      </div>
+        </div>
 
-      <Dialog open={Boolean(previewItem)} onOpenChange={() => setPreviewItem(null)}>
+        <Dialog open={Boolean(previewItem)} onOpenChange={() => setPreviewItem(null)}>
         <DialogContent className="max-w-5xl">
           {previewItem && (
             <div
@@ -391,7 +392,7 @@ function Store() {
                     ].map(step => (
                       <div
                         key={step.title}
-                        className="flex gap-3 rounded-2xl border border-border bg-white/80 p-3"
+                        className="flex gap-3 rounded-2xl border border-border bg-card/85 p-3"
                         data-preview-step
                       >
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -446,7 +447,8 @@ function Store() {
             </div>
           )}
         </DialogContent>
-      </Dialog>
+        </Dialog>
+      </div>
     </div>
   );
 }

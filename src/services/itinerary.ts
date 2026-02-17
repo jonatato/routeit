@@ -1,4 +1,4 @@
-import type { TravelItinerary } from '../data/itinerary';
+﻿import type { TravelItinerary } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
 import {
   buildSeedPayloads,
@@ -506,14 +506,15 @@ export async function saveUserItinerary(
 
   const itineraryIdResolved = existing.data.id as string;
   
-  console.log('� Itinerary ID to update:', itineraryIdResolved);  console.log('👤 Itinerary owner (user_id from DB):', existing.data.user_id);
+  console.log('[update] Itinerary ID to update:', itineraryIdResolved);
+  console.log('[update] Itinerary owner (user_id from DB):', existing.data.user_id);
   
   // Get current authenticated user
   const { data: authData } = await supabase.auth.getUser();
-  console.log('🔐 Current authenticated user:', authData.user?.id);
-  console.log('✅ User IDs match?', existing.data.user_id === authData.user?.id);
-    console.log('🚀 BEFORE UPDATE - coverImage value:', updated.coverImage);
-  console.log('📋 Existing data from DB:', existing.data);
+  console.log('[auth] Current authenticated user:', authData.user?.id);
+  console.log('[auth] User IDs match?', existing.data.user_id === authData.user?.id);
+  console.log('[update] BEFORE UPDATE - coverImage value:', updated.coverImage);
+  console.log('[update] Existing data from DB:', existing.data);
   
   const updatePayload = {
     title: updated.title,
@@ -523,14 +524,14 @@ export async function saveUserItinerary(
     updated_at: new Date().toISOString(),
   };
   
-  console.log('📤 UPDATE payload:', JSON.stringify(updatePayload, null, 2));
+  console.log('[update] UPDATE payload:', JSON.stringify(updatePayload, null, 2));
   
   const updateResult = await supabase
     .from('itineraries')
     .update(updatePayload)
     .eq('id', itineraryIdResolved);
     
-  console.log('📥 UPDATE result (without select):', updateResult);
+  console.log('[update] UPDATE result (without select):', updateResult);
   
   if (updateResult.error) throw updateResult.error;
   
@@ -541,10 +542,10 @@ export async function saveUserItinerary(
     .eq('id', itineraryIdResolved)
     .single();
     
-  console.log('🔍 VERIFY SELECT after UPDATE:', verifyResult);
+  console.log('[verify] VERIFY SELECT after UPDATE:', verifyResult);
   
   if (verifyResult.data) {
-    console.log('✅ cover_image in DB:', verifyResult.data.cover_image);
+    console.log('[verify] cover_image in DB:', verifyResult.data.cover_image);
   }
 
   const daysResult = await supabase.from('days').select('id').eq('itinerary_id', itineraryIdResolved);
@@ -816,3 +817,4 @@ export async function saveUserItinerary(
   if (!reloaded) throw new Error('No se pudo recargar el itinerario guardado.');
   return reloaded;
 }
+
