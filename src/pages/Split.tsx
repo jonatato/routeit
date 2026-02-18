@@ -130,7 +130,6 @@ function Split() {
     expenseDate?: string;
     categoryId?: string;
     tagIds: string[];
-    receiptFile?: File;
   }) => {
     if (!groupId) {
       toast.error('No hay grupo seleccionado');
@@ -138,22 +137,6 @@ function Split() {
     }
 
     try {
-      let receiptUrl: string | undefined;
-
-      if (data.receiptFile) {
-        const fileExt = data.receiptFile.name.split('.').pop();
-        const fileName = `${groupId}/${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('split-receipts')
-          .upload(fileName, data.receiptFile);
-        if (uploadError) {
-          toast.error('Error al subir la imagen: ' + uploadError.message);
-          return;
-        }
-        const { data: urlData } = supabase.storage.from('split-receipts').getPublicUrl(fileName);
-        receiptUrl = urlData.publicUrl;
-      }
-
       if (editingExpense) {
         await updateExpense(
           editingExpense.id,
@@ -164,7 +147,6 @@ function Split() {
             division_type: data.divisionType,
             expense_date: data.expenseDate,
             category_id: data.categoryId,
-            receipt_url: receiptUrl,
           },
           data.shares,
         );
@@ -188,13 +170,6 @@ function Split() {
           data.expenseDate,
           data.categoryId,
         );
-
-        if (receiptUrl) {
-          await supabase
-            .from('split_expenses')
-            .update({ receipt_url: receiptUrl })
-            .eq('id', expense.id);
-        }
 
         if (data.tagIds.length > 0) {
           await addExpenseTags(expense.id, data.tagIds);
@@ -331,6 +306,20 @@ function Split() {
   const getExpenseShares = (expenseId: string) => {
     return shares.filter(s => s.expense_id === expenseId);
   };
+  
+  const editingExpenseShares = editingExpense ? getExpenseShares(editingExpense.id) : [];
+  const editingCustomShares = editingExpense
+    ? Object.fromEntries(
+        editingExpenseShares.map(share => {
+          const rawValue =
+            editingExpense.division_type === 'percentage'
+              ? ((Number(share.amount) / Number(editingExpense.amount || 1)) * 100).toFixed(2)
+              : Number(share.amount).toFixed(2);
+          const normalizedValue = rawValue.replace(/\.00$/, '');
+          return [share.member_id, normalizedValue];
+        }),
+      )
+    : {};
 
   if (isLoading) {
     return <FullscreenLoader message="Cargando division de gastos..." />;
@@ -632,6 +621,8 @@ function Split() {
                       divisionType: editingExpense.division_type || 'equal',
                       expenseDate: editingExpense.expense_date,
                       categoryId: editingExpense.category_id,
+                      participantIds: editingExpenseShares.map(share => share.member_id),
+                      customShares: editingCustomShares,
                     }
                   : undefined
               }
