@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { checkUserRole } from '../services/itinerary';
 import { useUserInitials } from '../hooks/useUserInitials';
+import { openCookiePreferences } from '../hooks/useCookieConsent';
 
 interface MobileHeaderProps {
   title?: string;
@@ -158,6 +159,59 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
                       Administrar
                     </Link>
                   )}
+                </div>
+
+                <div className="mt-4 border-t border-border pt-3">
+                  <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-mutedForeground">
+                    Legal
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      to="/legal/terms"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                      Términos de uso
+                    </Link>
+                    <Link
+                      to="/legal/privacy"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                      Política de privacidad
+                    </Link>
+                    <Link
+                      to="/legal/cookies"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                      Política de cookies
+                    </Link>
+                    <Link
+                      to="/legal/imprint"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                      Aviso legal
+                    </Link>
+                    <Link
+                      to="/legal/contact"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                      Contacto legal
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        openCookiePreferences();
+                      }}
+                      className="rounded-lg px-3 py-2 text-left text-sm font-medium transition hover:bg-muted"
+                    >
+                      Preferencias de cookies
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-4 border-t border-border pt-3">

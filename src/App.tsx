@@ -106,7 +106,6 @@ function App() {
         <div className="min-h-screen pb-14">
           {showMobileHeader && <MobileHeader />}
           <AppRoutes />
-          <MarketingFooter />
           {isAppRoute && <MobileTabs />}
         </div>
       ) : (
