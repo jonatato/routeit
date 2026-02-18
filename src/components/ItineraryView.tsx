@@ -252,6 +252,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
+  const trimDisplayText = (value: string, maxLength: number) =>
+    value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 
 
   const renderHtml = (value: string) => ({
@@ -1288,6 +1290,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                   : (currentDayLocation ? [currentDayLocation.lat, currentDayLocation.lng] as [number, number] : mapCenter);
                 const customColor = getTagColor(day.kind, tagsCatalog);
                 const customLabel = getTagLabel(day.kind, tagsCatalog);
+                const mobileDayLabel = trimDisplayText(day.dayLabel, 24);
+                const mobileCity = trimDisplayText(day.city, 56);
                 
                 return (
                   <div key={day.id} className="mt-4 space-y-4">
@@ -1305,13 +1309,15 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                           ) : (
                             <Badge variant={kindVariants[day.kind] ?? 'primary'}>{kindLabels[day.kind] ?? day.kind}</Badge>
                           )}
-                          <Badge variant="secondary">{day.dayLabel}</Badge>
+                          <Badge variant="secondary" title={day.dayLabel}>
+                            {mobileDayLabel}
+                          </Badge>
                           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
                             {day.date}
                           </span>
                         </div>
-                        <CardTitle>{day.city}</CardTitle>
-                        <CardDescription>{day.plan}</CardDescription>
+                        <CardTitle className="truncate" title={day.city}>{mobileCity}</CardTitle>
+                        <CardDescription className="line-clamp-2">{day.plan}</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {/* Timeline de actividades */}

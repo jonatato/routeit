@@ -1,19 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import type { ItineraryDay } from '../data/itinerary';
 
 const kindLabels: Record<string, string> = {
-  flight: '✈️ Vuelo',
-  travel: '🚗 Traslado',
-  city: '🏙️ Ciudad',
+  flight: '\u2708\uFE0F Vuelo',
+  travel: '\uD83D\uDE97 Traslado',
+  city: '\uD83C\uDFD9\uFE0F Ciudad',
 };
 
 const kindIcons: Record<string, string> = {
-  flight: '✈️',
-  travel: '🚗',
-  city: '🏙️',
+  flight: '\u2708\uFE0F',
+  travel: '\uD83D\uDE97',
+  city: '\uD83C\uDFD9\uFE0F',
 };
 
 interface DaySelectorCarouselProps {
@@ -22,6 +22,14 @@ interface DaySelectorCarouselProps {
   onDayChange: (index: number) => void;
   tagsCatalog?: Array<{ name: string; slug: string; color?: string }>;
 }
+
+const MAX_DAY_LABEL_LENGTH = 24;
+const MAX_CITY_LENGTH = 52;
+
+const trimText = (value: string, maxLength: number) => {
+  if (!value) return '';
+  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
+};
 
 export function DaySelectorCarousel({ 
   days, 
@@ -52,7 +60,7 @@ export function DaySelectorCarousel({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Manejo de gestos táctiles
+  // Manejo de gestos tactiles
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
     startTime.current = Date.now();
@@ -70,8 +78,8 @@ export function DaySelectorCarousel({
     
     const deltaTime = Date.now() - startTime.current;
     const velocity = Math.abs(dragOffset) / deltaTime;
-    const threshold = 50; // px mínimos para cambiar
-    const velocityThreshold = 0.3; // px/ms para swipe rápido
+    const threshold = 50; // px minimos para cambiar
+    const velocityThreshold = 0.3; // px/ms para swipe rapido
 
     if (Math.abs(dragOffset) > threshold || velocity > velocityThreshold) {
       if (dragOffset > 0 && canGoPrev) {
@@ -128,10 +136,10 @@ export function DaySelectorCarousel({
       const emojiMatch = customLabel.match(/^(\p{Emoji})/u);
       if (emojiMatch) return emojiMatch[1];
     }
-    return kindIcons[kind] || '📍';
+    return kindIcons[kind] || '\uD83D\uDCCD';
   };
 
-  // Si no hay día actual, no renderizar nada (después de todos los hooks)
+  // Si no hay dia actual, no renderizar nada (despues de todos los hooks)
   if (!currentDay) {
     return null;
   };
@@ -140,26 +148,26 @@ export function DaySelectorCarousel({
     <div className="w-full min-w-0 space-y-3 overflow-hidden">
       {/* Selector principal */}
       <div className="flex w-full min-w-0 items-center gap-2">
-        {/* Botón ir al inicio */}
+        {/* Boton ir al inicio */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => onDayChange(0)}
           disabled={currentIndex === 0}
           className="hidden sm:flex h-10 w-10 shrink-0"
-          title="Ir al primer día"
+          title="Ir al primer dia"
         >
           <ChevronsLeft className="h-5 w-5" />
         </Button>
 
-        {/* Botón anterior */}
+        {/* Boton anterior */}
         <Button
           variant="outline"
           size="icon"
           onClick={() => canGoPrev && onDayChange(currentIndex - 1)}
           disabled={!canGoPrev}
           className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
-          title="Día anterior"
+          title="Dia anterior"
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
@@ -169,13 +177,13 @@ export function DaySelectorCarousel({
           ref={containerRef}
           className="relative min-w-0 flex-1"
         >
-          {/* Área de swipe */}
+          {/* Area de swipe */}
           <div
             className={`relative overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-transform ${
               isDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
             role="group"
-            aria-label="Selector de día con gesto de arrastre"
+            aria-label="Selector de dia con gesto de arrastre"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -200,7 +208,7 @@ export function DaySelectorCarousel({
               </div>
             )}
 
-            {/* Contenido del día actual */}
+            {/* Contenido del dia actual */}
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex w-full min-w-0 items-center justify-between gap-3 overflow-hidden p-4 text-left transition-colors hover:bg-muted/50"
@@ -209,7 +217,9 @@ export function DaySelectorCarousel({
                 <span className="text-2xl shrink-0">{getKindIcon(currentDay.kind)}</span>
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                    <span className="min-w-0 truncate font-semibold text-foreground">{currentDay.dayLabel}</span>
+                    <span className="min-w-0 truncate font-semibold text-foreground" title={currentDay.dayLabel}>
+                      {trimText(currentDay.dayLabel, MAX_DAY_LABEL_LENGTH)}
+                    </span>
                     {(() => {
                       const customColor = getTagColor(currentDay.kind);
                       const customLabel = getTagLabel(currentDay.kind);
@@ -227,7 +237,9 @@ export function DaySelectorCarousel({
                       );
                     })()}
                   </div>
-                  <p className="truncate text-sm text-muted-foreground">{currentDay.city}</p>
+                  <p className="truncate text-sm text-muted-foreground" title={currentDay.city}>
+                    {trimText(currentDay.city, MAX_CITY_LENGTH)}
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">{currentDay.date}</p>
                 </div>
               </div>
@@ -237,7 +249,7 @@ export function DaySelectorCarousel({
             </button>
           </div>
 
-          {/* Dropdown con lista de todos los días */}
+          {/* Dropdown con lista de todos los dias */}
           {isDropdownOpen && (
             <div 
               ref={dropdownRef}
@@ -262,8 +274,11 @@ export function DaySelectorCarousel({
                     <span className="text-lg shrink-0">{getKindIcon(day.kind)}</span>
                     <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                        <span className={`min-w-0 truncate font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}>
-                          {day.dayLabel}
+                        <span
+                          className={`min-w-0 truncate font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}
+                          title={day.dayLabel}
+                        >
+                          {trimText(day.dayLabel, MAX_DAY_LABEL_LENGTH)}
                         </span>
                         {customColor ? (
                           <span 
@@ -278,7 +293,9 @@ export function DaySelectorCarousel({
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">{day.city} · {day.date}</p>
+                      <p className="text-xs text-muted-foreground truncate" title={`${day.city} · ${day.date}`}>
+                        {trimText(day.city, MAX_CITY_LENGTH)} · {day.date}
+                      </p>
                     </div>
                     {isActive && (
                       <span className="text-xs text-primary font-medium shrink-0">Actual</span>
@@ -290,26 +307,26 @@ export function DaySelectorCarousel({
           )}
         </div>
 
-        {/* Botón siguiente */}
+        {/* Boton siguiente */}
         <Button
           variant="outline"
           size="icon"
           onClick={() => canGoNext && onDayChange(currentIndex + 1)}
           disabled={!canGoNext}
           className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
-          title="Día siguiente"
+          title="Dia siguiente"
         >
           <ChevronRight className="h-6 w-6" />
         </Button>
 
-        {/* Botón ir al final */}
+        {/* Boton ir al final */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => onDayChange(days.length - 1)}
           disabled={currentIndex === days.length - 1}
           className="hidden sm:flex h-10 w-10 shrink-0"
-          title="Ir al último día"
+          title="Ir al ultimo dia"
         >
           <ChevronsRight className="h-5 w-5" />
         </Button>
@@ -348,7 +365,7 @@ export function DaySelectorCarousel({
         </div>
       </div>
 
-      {/* Acceso rápido móvil */}
+      {/* Acceso rapido movil */}
       <div className="flex sm:hidden justify-center gap-2">
         <Button
           variant="ghost"
@@ -374,3 +391,4 @@ export function DaySelectorCarousel({
     </div>
   );
 }
+

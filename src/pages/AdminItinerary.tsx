@@ -1696,7 +1696,8 @@ function AdminItinerary() {
                     <div className="mt-2 grid gap-2 md:mt-3 md:gap-3 md:grid-cols-3">
                       <input
                         value={activeDay.dayLabel}
-                        onChange={event => updateDay(activeDayIndex, { dayLabel: event.target.value })}
+                        onChange={event => updateDay(activeDayIndex, { dayLabel: event.target.value.slice(0, 24) })}
+                        maxLength={24}
                         placeholder="Etiqueta día"
                         className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       />
@@ -1723,7 +1724,8 @@ function AdminItinerary() {
                       </select>
                       <input
                         value={activeDay.city}
-                        onChange={event => updateDay(activeDayIndex, { city: event.target.value })}
+                        onChange={event => updateDay(activeDayIndex, { city: event.target.value.slice(0, 72) })}
+                        maxLength={72}
                         placeholder="Ciudad"
                         className="min-w-0 md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       />
