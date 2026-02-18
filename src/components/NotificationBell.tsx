@@ -34,10 +34,11 @@ export function NotificationBell() {
 
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-[1px]" 
+          <button
+            type="button"
+            className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-[1px]"
             onClick={() => setIsOpen(false)}
-            aria-hidden="true"
+            aria-label="Cerrar notificaciones"
           />
           <Card className="absolute right-0 top-full z-[101] mt-3 w-[min(22rem,90vw)] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/80 bg-popover shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/70 pb-3">
@@ -82,9 +83,10 @@ export function NotificationBell() {
                 </div>
               ) : (
                 notifications.map(notification => (
-                  <div
+                  <button
                     key={notification.id}
-                    className={`rounded-xl border p-3 cursor-pointer transition-colors hover:bg-primary/10 hover:border-primary/30 ${
+                    type="button"
+                    className={`w-full rounded-xl border p-3 text-left cursor-pointer transition-colors hover:bg-primary/10 hover:border-primary/30 ${
                       notification.read 
                         ? 'bg-background border-border' 
                         : 'bg-primary/10 border-primary/25'
@@ -124,7 +126,7 @@ export function NotificationBell() {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </CardContent>

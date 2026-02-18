@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
 type PageTransitionProps = {
@@ -27,16 +27,20 @@ const pageTransition = {
 };
 
 export function PageTransition({ children }: PageTransitionProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <motion.div
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      variants={pageVariants}
-      transition={pageTransition}
-      className="w-full"
-    >
-      {children}
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={pageVariants}
+        transition={prefersReducedMotion ? { duration: 0 } : pageTransition}
+        className="w-full"
+      >
+        {children}
+      </m.div>
+    </LazyMotion>
   );
 }

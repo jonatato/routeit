@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CloudinaryUpload } from '../components/CloudinaryUpload';
-import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { MobilePageHeader } from '../components/MobilePageHeader';
 import { driver } from 'driver.js';
 import RichTextEditor from '../components/RichTextEditor';
 import { ActivityEditModal } from '../components/ActivityEditModal';
@@ -733,31 +733,27 @@ function AdminItinerary() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header Mobile */}
-      <div className="border-b border-border bg-white px-4 py-4 md:hidden">
-        <div className="flex items-center gap-3">
-          <Link to="/app">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
+      <MobilePageHeader
+        title="Administrar itinerario"
+        subtitle="Edición rápida del viaje"
+        backTo="/app"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => startOnboarding('manual')} className="w-full">
+              Tutorial
             </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold flex items-center gap-2">
-              Administrar Itinerario
-            </h1>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => startOnboarding('manual')}>
-            Tutorial
-          </Button>
-          <Button
-            data-onboarding="save-itinerary-mobile"
-            onClick={handleSave}
-            disabled={isSaving || isResolvingMaps}
-            size="sm"
-          >
-            {isSaving ? 'Guardando...' : 'Guardar'}
-          </Button>
-        </div>
-      </div>
+            <Button
+              data-onboarding="save-itinerary-mobile"
+              onClick={handleSave}
+              disabled={isSaving || isResolvingMaps}
+              size="sm"
+              className="w-full"
+            >
+              {isSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </>
+        }
+      />
 
       {/* Content */}
       <div className="mx-auto w-full px-4 py-6">
@@ -890,7 +886,7 @@ function AdminItinerary() {
       <div className="space-y-6 -mt-px">
           {activeSection === 'general' && (
             <Card className="shadow-md">
-        <CardHeader>
+        <CardHeader className="pb-3 md:pb-4">
           <CardTitle>Información general</CardTitle>
           <CardDescription>Título, rango de fechas y descripción.</CardDescription>
         </CardHeader>
@@ -1624,13 +1620,16 @@ function AdminItinerary() {
             </Card>
           )}
 
-          {activeSection === 'days' && (
-            <Card className="shadow-md" data-onboarding="days-section">
-        <CardHeader>
+	          {activeSection === 'days' && (
+	            <Card
+	              className="shadow-md [&>div]:gap-2 [&>div]:p-2 md:[&>div]:gap-4 md:[&>div]:p-6"
+	              data-onboarding="days-section"
+	            >
+	        <CardHeader className="gap-1 p-2 pb-2 md:pb-4">
           <CardTitle>Días del itinerario</CardTitle>
           <CardDescription>Editar detalles, horarios, notas y etiquetas.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 md:space-y-6 min-w-0 overflow-hidden">
+        <CardContent className="min-w-0 space-y-3 overflow-hidden p-2 pt-0 md:space-y-6 md:p-4 md:pt-0">
                 <div className="flex items-center gap-2 overflow-x-auto pb-2">
                   {draft.days.map((day, index) => (
                     <button
@@ -1648,10 +1647,10 @@ function AdminItinerary() {
                   ))}
                 </div>
                 {activeDay && (
-                  <div className="rounded-xl border border-border p-3 md:p-4 min-w-0 overflow-hidden">
+                  <div className="min-w-0 overflow-hidden rounded-xl border border-border p-2 md:p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold">Día {activeDayIndex + 1}</h3>
-                      <div className="flex items-center gap-2">
+                      <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:items-center">
                         <Button
                           variant="outline"
                           size="sm"
@@ -1683,6 +1682,7 @@ function AdminItinerary() {
                         <Button
                           variant="destructive"
                           size="sm"
+                          className="col-span-3 sm:col-span-1"
                           onClick={() => {
                             const next = draft.days.filter((_, i) => i !== activeDayIndex);
                             updateDraft({ days: next });
@@ -1693,7 +1693,7 @@ function AdminItinerary() {
                         </Button>
                       </div>
                     </div>
-                    <div className="mt-3 grid gap-2 md:gap-3 md:grid-cols-3">
+                    <div className="mt-2 grid gap-2 md:mt-3 md:gap-3 md:grid-cols-3">
                       <input
                         value={activeDay.dayLabel}
                         onChange={event => updateDay(activeDayIndex, { dayLabel: event.target.value })}
@@ -1709,7 +1709,7 @@ function AdminItinerary() {
                       <select
                         value={activeDay.kind}
                         onChange={event => updateDay(activeDayIndex, { kind: event.target.value as ItineraryDay['kind'] })}
-                        className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        className="min-w-0 w-full max-w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         style={{
                           borderLeftWidth: '4px',
                           borderLeftColor: (draft.tagsCatalog ?? []).find(t => t.slug === activeDay.kind)?.color ?? '#6366f1'
@@ -1742,18 +1742,18 @@ function AdminItinerary() {
                         className="min-w-0 md:col-span-3 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       />
                     </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="min-w-0 space-y-4">
+                    <div className="mt-3 grid gap-2 md:mt-4 md:gap-3 md:grid-cols-2">
+                      <div className="min-w-0 space-y-3 md:space-y-4">
                         <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
                           Horario
                         </h4>
-                        <div className="space-y-3">
+                        <div className="space-y-2 md:space-y-3">
                         {activeDay.schedule.map((item, scheduleIndex) => (
                           <div 
                             key={`${activeDay.id}-schedule-${scheduleIndex}`} 
-                            className="grid gap-2 md:grid-cols-3 min-w-0 p-4 rounded-xl border border-border bg-muted/60 dark:bg-muted/30 shadow-sm overflow-hidden"
+                            className="grid min-w-0 gap-2 overflow-hidden rounded-xl border border-border bg-muted/60 p-2 shadow-sm dark:bg-muted/30 md:grid-cols-3 md:p-4"
                           >
-                            <div className="flex items-center gap-2 md:col-span-3 pb-2 mb-2 border-b border-border/50">
+                            <div className="mb-1 flex items-center gap-2 border-b border-border/50 pb-1 md:col-span-3 md:mb-2 md:pb-2">
                               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
                                 {scheduleIndex + 1}
                               </span>
@@ -1921,7 +1921,7 @@ function AdminItinerary() {
                             />
                             
                             {/* Campos de costo */}
-                            <div className="md:col-span-3 min-w-0 space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+                            <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border border-primary/20 bg-primary/5 p-2 md:col-span-3 md:p-3">
                               <h5 className="text-xs font-semibold text-mutedForeground flex items-center gap-2">
                                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                                   <line x1="12" y1="1" x2="12" y2="23" />
@@ -1999,7 +1999,7 @@ function AdminItinerary() {
                               )}
                             </div>
                             
-                            <div className="flex items-center gap-1.5 md:gap-2 md:col-span-3 flex-wrap">
+                            <div className="grid w-full gap-2 md:col-span-3 md:grid-cols-[auto_auto_minmax(0,1fr)_auto] md:items-center">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -2055,7 +2055,7 @@ function AdminItinerary() {
                                   }
                                   event.target.value = '';
                                 }}
-                                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-xs max-w-full"
+                                className="min-w-0 w-full max-w-full rounded-lg border border-border bg-background px-2 py-1 text-xs md:w-auto"
                                 title="Mover a otro día"
                               >
                                 <option value="">Mover a día...</option>
@@ -2068,6 +2068,7 @@ function AdminItinerary() {
                               <Button
                                 variant="destructive"
                                 size="sm"
+                                className="w-full md:w-auto"
                                 onClick={async () => {
                                   const itemToRemove = activeDay.schedule[scheduleIndex];
                                   

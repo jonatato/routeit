@@ -137,9 +137,9 @@ export function DaySelectorCarousel({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="w-full min-w-0 space-y-3 overflow-hidden">
       {/* Selector principal */}
-      <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         {/* Botón ir al inicio */}
         <Button
           variant="ghost"
@@ -165,15 +165,17 @@ export function DaySelectorCarousel({
         </Button>
 
         {/* Contenedor central con swipe y dropdown */}
-        <div 
+        <div
           ref={containerRef}
-          className="relative flex-1"
+          className="relative min-w-0 flex-1"
         >
           {/* Área de swipe */}
           <div
             className={`relative overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-transform ${
               isDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
+            role="group"
+            aria-label="Selector de día con gesto de arrastre"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -201,32 +203,32 @@ export function DaySelectorCarousel({
             {/* Contenido del día actual */}
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-full p-4 text-left flex items-center justify-between gap-3 hover:bg-muted/50 transition-colors"
+              className="flex w-full min-w-0 items-center justify-between gap-3 overflow-hidden p-4 text-left transition-colors hover:bg-muted/50"
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
                 <span className="text-2xl shrink-0">{getKindIcon(currentDay.kind)}</span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-foreground">{currentDay.dayLabel}</span>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                    <span className="min-w-0 truncate font-semibold text-foreground">{currentDay.dayLabel}</span>
                     {(() => {
                       const customColor = getTagColor(currentDay.kind);
                       const customLabel = getTagLabel(currentDay.kind);
                       return customColor ? (
                         <span 
-                          className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                          className="inline-flex max-w-[7rem] shrink-0 items-center truncate rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
                           style={{ backgroundColor: customColor }}
                         >
                           {customLabel}
                         </span>
                       ) : (
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="max-w-[7rem] shrink-0 truncate text-[10px]">
                           {kindLabels[currentDay.kind] || currentDay.kind}
                         </Badge>
                       );
                     })()}
                   </div>
-                  <p className="text-sm text-muted-foreground truncate">{currentDay.city}</p>
-                  <p className="text-xs text-muted-foreground">{currentDay.date}</p>
+                  <p className="truncate text-sm text-muted-foreground">{currentDay.city}</p>
+                  <p className="truncate text-xs text-muted-foreground">{currentDay.date}</p>
                 </div>
               </div>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform shrink-0 ${
@@ -253,25 +255,25 @@ export function DaySelectorCarousel({
                       onDayChange(index);
                       setIsDropdownOpen(false);
                     }}
-                    className={`w-full p-3 text-left flex items-center gap-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-b-0 ${
+                    className={`flex w-full min-w-0 items-center gap-3 border-b border-border/50 p-3 text-left transition-colors last:border-b-0 hover:bg-muted/50 ${
                       isActive ? 'bg-primary/10' : ''
                     }`}
                   >
                     <span className="text-lg shrink-0">{getKindIcon(day.kind)}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                        <span className={`min-w-0 truncate font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}>
                           {day.dayLabel}
                         </span>
                         {customColor ? (
                           <span 
-                            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium text-white"
+                            className="inline-flex max-w-[6rem] shrink-0 items-center truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium text-white"
                             style={{ backgroundColor: customColor }}
                           >
                             {customLabel}
                           </span>
                         ) : (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="max-w-[6rem] shrink-0 truncate text-[10px] text-muted-foreground">
                             {kindLabels[day.kind] || day.kind}
                           </span>
                         )}

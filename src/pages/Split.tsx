@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { MobilePageHeader } from '../components/MobilePageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -327,8 +328,24 @@ function Split() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 overflow-x-hidden px-4 py-10 pb-24 md:pb-10">
+      <MobilePageHeader
+        title="División de gastos"
+        subtitle="Gestiona los gastos compartidos"
+        backTo="/app"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => handleExport('json')} className="w-full">
+              Exportar JSON
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport('csv')} className="w-full">
+              Exportar CSV
+            </Button>
+          </>
+        }
+      />
+
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="flex items-center gap-3">
           <Link to="/app" aria-label="Volver">
             <Button variant="ghost" size="sm" className="rounded-full">

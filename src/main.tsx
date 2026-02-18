@@ -1,9 +1,10 @@
-import { StrictMode } from 'react';
+﻿import { StrictMode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { createRoot } from 'react-dom/client';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'driver.js/dist/driver.css';
+import 'sileo/styles.css';
 import './index.css';
 import './i18n/config';
 import App from './App.tsx';
@@ -11,7 +12,7 @@ import { ThemeProvider } from './components/ThemeProvider.tsx';
 import { NotificationProvider } from './context/NotificationContext.tsx';
 import { I18nProvider } from './components/I18nProvider.tsx';
 import { OfflineIndicator } from './components/OfflineIndicator.tsx';
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from 'sileo';
 import * as Sentry from '@sentry/react';
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
@@ -42,5 +43,5 @@ createRoot(document.getElementById('root')!).render(
         </I18nProvider>
       </NotificationProvider>
     </ThemeProvider>
-  </StrictMode>
+  </StrictMode>,
 );

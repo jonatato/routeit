@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Lottie from 'lottie-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
 import { Dialog, DialogContent } from './ui/dialog';
 import routeAnimation from '../assets/lottie/route.json';
 
@@ -81,18 +81,20 @@ export function AiItineraryLoadingModal({ isOpen }: AiItineraryLoadingModalProps
           </div>
           <p className="text-xl font-semibold text-foreground sm:text-2xl">Generando viaje...</p>
           <div className="relative h-16 w-full overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={shuffled[index]}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -14 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="text-lg text-mutedForeground sm:text-xl"
-              >
-                {shuffled[index]}
-              </motion.p>
-            </AnimatePresence>
+            <LazyMotion features={domAnimation}>
+              <AnimatePresence mode="wait">
+                <m.p
+                  key={shuffled[index]}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -14 }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                  className="text-lg text-mutedForeground sm:text-xl"
+                >
+                  {shuffled[index]}
+                </m.p>
+              </AnimatePresence>
+            </LazyMotion>
           </div>
         </div>
       </DialogContent>

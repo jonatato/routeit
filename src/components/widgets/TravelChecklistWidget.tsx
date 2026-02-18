@@ -133,8 +133,8 @@ export function TravelChecklistWidget({ itineraryId, userId }: TravelChecklistWi
           <div className="space-y-3">
             <div className="h-2 w-full rounded bg-muted" />
             <div className="space-y-2">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-8 w-full rounded bg-muted" />
+              {['skel-1', 'skel-2', 'skel-3'].map(itemKey => (
+                <div key={itemKey} className="h-8 w-full rounded bg-muted" />
               ))}
             </div>
           </div>
@@ -242,7 +242,6 @@ export function TravelChecklistWidget({ itineraryId, userId }: TravelChecklistWi
               onKeyDown={e => e.key === 'Enter' && addTask()}
               placeholder="Nueva tarea..."
               className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              autoFocus
             />
             <Button onClick={addTask} size="sm">
               Añadir

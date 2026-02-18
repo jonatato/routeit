@@ -99,7 +99,6 @@ export function AddItemsModal({
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Buscar items..."
               className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              autoFocus
             />
           </div>
         </div>

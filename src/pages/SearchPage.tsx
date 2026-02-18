@@ -159,7 +159,6 @@ function SearchPage({ onClose }: SearchPageProps) {
               onChange={e => handleSearch(e.target.value)}
               placeholder="Buscar lugares, actividades, días..."
               className="w-full rounded-full border border-border bg-background py-2 pl-10 pr-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-              autoFocus
             />
           </div>
           {onClose && (
@@ -222,8 +221,8 @@ function SearchPage({ onClose }: SearchPageProps) {
                           )}
                           {result.tags && result.tags.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
-                              {result.tags.map((tag, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
+                              {result.tags.map(tag => (
+                                <Badge key={`${result.id}-${tag}`} variant="outline" className="text-xs">
                                   {tag}
                                 </Badge>
                               ))}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { MobilePageHeader } from '../components/MobilePageHeader';
 import { ItineraryTutorial } from '../components/ItineraryTutorial';
 import { AiItineraryLoadingModal } from '../components/AiItineraryLoadingModal';
 import { AiItineraryDialog } from '../components/AiItineraryDialog';
@@ -280,6 +281,27 @@ function MyItineraries() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 pb-24 md:pb-10">
+      <MobilePageHeader
+        title="Mis viajes"
+        subtitle="Crea, comparte y gestiona"
+        backTo="/app"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setShowTutorial(true)} className="w-full">
+              Tutorial
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openCreateModal(ownedItineraries.length === 0)}
+              disabled={isFreeLimitReached}
+              className="w-full"
+            >
+              {isFreeLimitReached ? 'Límite alcanzado' : 'Crear viaje'}
+            </Button>
+          </>
+        }
+      />
+
       {showTutorial && (
         <ItineraryTutorial
           primaryAction={
@@ -301,7 +323,7 @@ function MyItineraries() {
         />
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="flex items-center gap-3">
           <Link to="/app" aria-label="Volver">
             <Button variant="ghost" size="sm" className="rounded-full">
@@ -522,6 +544,16 @@ function MyItineraries() {
               setShowCreateModal(false);
               setStartOnboardingAfterCreate(false);
             }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setShowCreateModal(false);
+                setStartOnboardingAfterCreate(false);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Cerrar modal"
           />
           <Card className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg z-50 shadow-2xl">
             <CardHeader>
@@ -530,8 +562,9 @@ function MyItineraries() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Título del viaje</label>
+                <label htmlFor="new-itinerary-title" className="text-sm font-medium mb-1.5 block">Título del viaje</label>
                 <input
+                  id="new-itinerary-title"
                   type="text"
                   placeholder="Ej: Viaje a Japón 2026"
                   value={newTitle}
@@ -541,8 +574,9 @@ function MyItineraries() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Fechas del viaje</label>
+                <label htmlFor="new-itinerary-date-range" className="text-sm font-medium mb-1.5 block">Fechas del viaje</label>
                 <input
+                  id="new-itinerary-date-range"
                   type="text"
                   placeholder="Ej: 15-30 Marzo 2026"
                   value={newDateRange}

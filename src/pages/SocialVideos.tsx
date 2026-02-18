@@ -375,13 +375,17 @@ function SocialVideos() {
 
       {/* Comments Modal for Mobile */}
       {isMobile && selectedVideoForComments && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/90 flex items-end"
-          onClick={() => setSelectedVideoForComments(null)}
-        >
-          <div 
+        <div className="fixed inset-0 z-50 flex items-end">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/90"
+            onClick={() => setSelectedVideoForComments(null)}
+            aria-label="Cerrar comentarios"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
             className="bg-background rounded-t-3xl w-full max-h-[70vh] overflow-y-auto p-4"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-4" />
             <VideoReactions

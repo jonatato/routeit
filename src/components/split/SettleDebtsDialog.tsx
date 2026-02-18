@@ -131,6 +131,15 @@ export function SettleDebtsDialog({ currentUserId, balances, onSettle }: SettleD
           <div
             className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setIsOpen(false);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Cerrar modal"
           />
 
           {/* Modal Content */}
@@ -148,6 +157,7 @@ export function SettleDebtsDialog({ currentUserId, balances, onSettle }: SettleD
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
                   className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >

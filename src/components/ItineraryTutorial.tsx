@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Lottie from 'lottie-react';
-import { motion } from 'framer-motion';
+import { LazyMotion, domAnimation, m } from 'framer-motion';
 import {
   CalendarDays,
   CheckCircle2,
@@ -75,13 +75,14 @@ export function ItineraryTutorial({
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
         <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-amber-200/30 blur-3xl" />
 
-        <motion.div
-          initial="hidden"
-          animate="show"
-          variants={containerVariants}
-          className="relative flex flex-col gap-8 text-left"
-        >
-          <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <LazyMotion features={domAnimation}>
+          <m.div
+            initial="hidden"
+            animate="show"
+            variants={containerVariants}
+            className="relative flex flex-col gap-8 text-left"
+          >
+            <m.div variants={itemVariants} className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div className="flex flex-col gap-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-mutedForeground">
                 Tutorial visual
@@ -122,13 +123,13 @@ export function ItineraryTutorial({
                 </div>
               </div>
             </div>
-          </motion.div>
+            </m.div>
 
-          <motion.div variants={containerVariants} className="grid gap-4 md:grid-cols-2">
+            <m.div variants={containerVariants} className="grid gap-4 md:grid-cols-2">
             {steps.map((step, index) => {
               const Icon = step.icon;
               return (
-                <motion.div key={step.title} variants={itemVariants}>
+                <m.div key={step.title} variants={itemVariants}>
                   <div className="relative h-full overflow-hidden rounded-2xl border border-border/70 bg-white/90 p-4">
                     <div className={`absolute inset-0 bg-gradient-to-br ${step.accent}`} />
                     <div className="relative flex flex-col gap-3">
@@ -156,18 +157,19 @@ export function ItineraryTutorial({
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
-          </motion.div>
+            </m.div>
 
-          <motion.div
-            variants={itemVariants}
-            className="rounded-2xl border border-dashed border-border/70 bg-white/70 p-4 text-sm text-mutedForeground"
-          >
-            Tip: puedes crear un viaje basico en menos de 2 minutos y completarlo mas adelante.
-          </motion.div>
-        </motion.div>
+            <m.div
+              variants={itemVariants}
+              className="rounded-2xl border border-dashed border-border/70 bg-white/70 p-4 text-sm text-mutedForeground"
+            >
+              Tip: puedes crear un viaje basico en menos de 2 minutos y completarlo mas adelante.
+            </m.div>
+          </m.div>
+        </LazyMotion>
       </div>
     </div>
   );

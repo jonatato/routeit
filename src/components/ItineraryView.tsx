@@ -983,6 +983,16 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                     if (!shouldOpenMapModal(mapDragState)) return;
                     setIsMapModalOpen(true);
                   }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      if (!shouldOpenMapModal(mapDragState)) return;
+                      setIsMapModalOpen(true);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Abrir mapa en pantalla completa"
                 >
                   {isMapVisible && (
                     <>
@@ -1196,6 +1206,27 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                         });
                         setIsDayMapModalOpen(true);
                       }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          if (!shouldOpenMapModal(dayMapDragState)) return;
+                          setDayMapModalData({
+                            center: dayMapCenter,
+                            points: dayMapPoints.map(point => ({
+                              lat: point.position[0],
+                              lng: point.position[1],
+                              time: point.time,
+                              label: point.label,
+                              city: day.city,
+                              region: day.city,
+                            })),
+                          });
+                          setIsDayMapModalOpen(true);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Abrir mapa del día en pantalla completa"
                     >
                       <div className="h-72 w-full md:h-80 lg:h-96">
                         <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
@@ -1380,6 +1411,27 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                           });
                           setIsDayMapModalOpen(true);
                         }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            if (!shouldOpenMapModal(dayMapDragState)) return;
+                            setDayMapModalData({
+                              center: dayCenter,
+                              points: dayPoints.map(point => ({
+                                lat: point.position[0],
+                                lng: point.position[1],
+                                time: point.time,
+                                label: point.label,
+                                city: day.city,
+                                region: day.city,
+                              })),
+                            });
+                            setIsDayMapModalOpen(true);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Abrir mapa del día en pantalla completa"
                       >
                         <div className="h-64 w-full">
                           <MapContainer center={dayCenter} zoom={12} className="h-full w-full">
@@ -1453,11 +1505,11 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 />
               </div>
               <div className="grid gap-3 text-sm text-mutedForeground md:grid-cols-2">
-                {checklistItems.map((item, index) => {
+                {checklistItems.map((item) => {
                   const checked = checkedItems.includes(item);
                   return (
                     <label
-                      key={`check-${index}`}
+                      key={`check-${item}`}
                       className={`flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 transition ${
                         checked ? 'bg-muted text-foreground' : 'bg-background'
                       }`}
@@ -1555,9 +1607,9 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 
                 {/* Indicadores de posición */}
                 <div className="flex items-center justify-center gap-2">
-                  {listCards.map((_, idx) => (
+                  {listCards.map((card, idx) => (
                     <button
-                      key={idx}
+                      key={`list-indicator-${card.id}`}
                       onClick={() => setCurrentListIndex(idx)}
                       className={`h-2 rounded-full transition-all ${
                         idx === currentListIndex

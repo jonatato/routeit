@@ -10,7 +10,7 @@ export default defineConfig({
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'supabase-vendor': ['@supabase/supabase-js'],
-          'ui-vendor': ['framer-motion', 'react-hot-toast'],
+          'ui-vendor': ['framer-motion', 'sileo'],
           'chart-vendor': ['recharts'],
           'map-vendor': ['leaflet', 'react-leaflet'],
           'pdf-vendor': ['jspdf', 'html2canvas'],

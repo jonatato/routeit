@@ -48,8 +48,9 @@ export function ActivityEditModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Hora</label>
+            <label htmlFor="activity-edit-time" className="text-sm font-medium">Hora</label>
             <input
+              id="activity-edit-time"
               type="time"
               value={formData.time || ''}
               onChange={(e) => setFormData({ ...formData, time: e.target.value })}
@@ -58,8 +59,9 @@ export function ActivityEditModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Actividad</label>
+            <label htmlFor="activity-edit-name" className="text-sm font-medium">Actividad</label>
             <input
+              id="activity-edit-name"
               value={formData.activity || ''}
               onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
               placeholder="Ej: Visitar la Gran Muralla"
@@ -68,8 +70,9 @@ export function ActivityEditModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Enlace</label>
+            <label htmlFor="activity-edit-link" className="text-sm font-medium">Enlace</label>
             <input
+              id="activity-edit-link"
               value={formData.link || ''}
               onChange={(e) => setFormData({ ...formData, link: e.target.value })}
               placeholder="https://..."
@@ -78,9 +81,10 @@ export function ActivityEditModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Ubicación en Maps</label>
+            <label htmlFor="activity-edit-map" className="text-sm font-medium">Ubicación en Maps</label>
             <div className="flex gap-2">
               <input
+                id="activity-edit-map"
                 value={formData.mapLink || ''}
                 onChange={(e) => setFormData({ ...formData, mapLink: e.target.value })}
                 placeholder="Pegar enlace de Google Maps"
@@ -98,8 +102,9 @@ export function ActivityEditModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Etiquetas (separadas por coma)</label>
+            <label htmlFor="activity-edit-tags" className="text-sm font-medium">Etiquetas (separadas por coma)</label>
             <input
+              id="activity-edit-tags"
               value={(formData.tags || []).join(', ')}
               onChange={(e) =>
                 setFormData({
@@ -113,8 +118,9 @@ export function ActivityEditModal({
 
           {splitMembers.length > 0 && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Quién paga (opcional)</label>
+              <label htmlFor="activity-edit-payer" className="text-sm font-medium">Quién paga (opcional)</label>
               <select
+                id="activity-edit-payer"
                 value={formData.costPayerId || ''}
                 onChange={(e) => setFormData({ ...formData, costPayerId: e.target.value })}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
@@ -129,8 +135,9 @@ export function ActivityEditModal({
 
           <div className="grid gap-2 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Costo</label>
+              <label htmlFor="activity-edit-cost" className="text-sm font-medium">Costo</label>
               <input
+                id="activity-edit-cost"
                 type="number"
                 value={formData.cost || ''}
                 onChange={(e) => setFormData({ ...formData, cost: e.target.value ? parseFloat(e.target.value) : undefined })}
@@ -138,8 +145,9 @@ export function ActivityEditModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Moneda</label>
+              <label htmlFor="activity-edit-currency" className="text-sm font-medium">Moneda</label>
               <input
+                id="activity-edit-currency"
                 value={formData.costCurrency || ''}
                 onChange={(e) => setFormData({ ...formData, costCurrency: e.target.value })}
                 placeholder="USD, EUR, etc."

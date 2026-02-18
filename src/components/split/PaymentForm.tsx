@@ -1,7 +1,8 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import type { SplitMember } from '../../services/split';
+import { useToast } from '../../hooks/useToast';
 
 type PaymentFormProps = {
   members: SplitMember[];
@@ -15,6 +16,7 @@ export function PaymentForm({ members, onSave, onCancel }: PaymentFormProps) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
 
   const handleSave = async () => {
     if (!payerId || !payeeId || payerId === payeeId || !amount) return;
@@ -34,7 +36,7 @@ export function PaymentForm({ members, onSave, onCancel }: PaymentFormProps) {
       setAmount('');
       setNote('');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al registrar el pago');
+      toast.error(err instanceof Error ? err.message : 'Error al registrar el pago');
     } finally {
       setIsSaving(false);
     }
@@ -110,3 +112,4 @@ export function PaymentForm({ members, onSave, onCancel }: PaymentFormProps) {
     </Card>
   );
 }
+

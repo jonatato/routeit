@@ -72,6 +72,14 @@ export function ExpenseCard({
     <div
       className="group relative cursor-pointer rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:scale-[1.02] hover:border-primary/30 hover:shadow-md"
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick?.();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">

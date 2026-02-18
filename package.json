@@ -58,11 +58,11 @@
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-hot-toast": "^2.6.0",
     "react-i18next": "^16.5.3",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.13.0",
     "recharts": "^3.7.0",
+    "sileo": "^0.1.4",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

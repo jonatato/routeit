@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { MobilePageHeader } from '../components/MobilePageHeader';
 import { Button } from '../components/ui/button';
 import { allBagItems } from '../data/bagItems';
 import { BAG_CATEGORIES, getCategoryForItem } from '../data/bagCategories';
@@ -90,8 +91,14 @@ function MyBag() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 pb-24 md:py-10">
+      <MobilePageHeader
+        title="Mi maleta"
+        subtitle="Organiza tu equipaje por categorías"
+        backTo="/app"
+      />
+
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="flex items-center gap-3">
           <Link to="/app" aria-label="Volver">
             <Button variant="ghost" size="sm" className="rounded-full">

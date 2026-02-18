@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut, User as UserIcon } from 'lucide-react';
+import { MobilePageHeader } from '../components/MobilePageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { supabase } from '../lib/supabase';
@@ -28,6 +29,7 @@ function Profile() {
   const [plan, setPlan] = useState<'free' | 'pro'>('free');
   const [isLoadingPlan, setIsLoadingPlan] = useState(true);
   const { toast } = useToast();
+  const themeTouchedRef = useRef(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -44,8 +46,8 @@ function Profile() {
             largeText: dbPrefs.large_text,
             highContrast: dbPrefs.high_contrast,
           });
-          // Sincronizar tema con el contexto
-          if (dbPrefs.theme !== theme) {
+          // Sincronizar tema con el contexto solo si el usuario no lo cambió durante esta sesión.
+          if (!themeTouchedRef.current && dbPrefs.theme !== theme) {
             setTheme(dbPrefs.theme);
           }
         }
@@ -61,7 +63,7 @@ function Profile() {
       setIsLoading(false);
     };
     void loadUser();
-  }, [setTheme, theme]);
+  }, [setTheme]);
 
   const handleSavePreferences = async () => {
     if (!user) return;
@@ -76,16 +78,17 @@ function Profile() {
         large_text: preferences.largeText,
         high_contrast: preferences.highContrast,
       });
-      alert('Preferencias guardadas correctamente');
+      toast.success('Preferencias guardadas correctamente');
     } catch (err) {
       console.error('Error saving preferences:', err);
-      alert('Error al guardar preferencias');
+      toast.error('Error al guardar preferencias');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleThemeChange = async (newTheme: 'light' | 'dark' | 'system') => {
+    themeTouchedRef.current = true;
     setTheme(newTheme);
     if (user) {
       await updateTheme(user.id, newTheme);
@@ -127,7 +130,23 @@ function Profile() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-10 pb-24 md:pb-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <MobilePageHeader
+        title={t('profile.title')}
+        subtitle="Gestiona tu cuenta y preferencias"
+        backTo="/app"
+        actions={
+          <>
+            <Link to="/app" className="w-full">
+              <Button variant="outline" size="sm" className="w-full">{t('common.cancel')}</Button>
+            </Link>
+            <Button onClick={handleSavePreferences} disabled={isSaving} size="sm" className="w-full">
+              {isSaving ? t('common.loading') : t('common.save')}
+            </Button>
+          </>
+        }
+      />
+
+      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div>
           <h1 className="text-3xl font-semibold flex items-center gap-2">
             {t('profile.title')}
@@ -178,8 +197,9 @@ function Profile() {
         </CardHeader>
         <CardContent>
           <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
+            <label htmlFor="profile-email" className="mb-1 block text-sm font-medium">Email</label>
             <input
+              id="profile-email"
               type="email"
               value={user.email || ''}
               disabled
@@ -209,8 +229,9 @@ function Profile() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium">{t('profile.language')}</label>
+            <label htmlFor="profile-language" className="mb-2 block text-sm font-medium">{t('profile.language')}</label>
             <select
+              id="profile-language"
               value={preferences.language}
               onChange={e => handleLanguageChange(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
@@ -223,8 +244,9 @@ function Profile() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">{t('profile.theme')}</label>
+            <label htmlFor="profile-theme" className="mb-2 block text-sm font-medium">{t('profile.theme')}</label>
             <select
+              id="profile-theme"
               value={theme}
               onChange={e => handleThemeChange(e.target.value as 'light' | 'dark' | 'system')}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
@@ -245,7 +267,7 @@ function Profile() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium">Texto grande</label>
+              <p className="text-sm font-medium">Texto grande</p>
               <p className="text-xs text-mutedForeground">Aumenta el tamaño del texto para mejor legibilidad</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
@@ -261,7 +283,7 @@ function Profile() {
 
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium">Alto contraste</label>
+              <p className="text-sm font-medium">Alto contraste</p>
               <p className="text-xs text-mutedForeground">Mejora el contraste para mejor visibilidad</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
@@ -285,7 +307,7 @@ function Profile() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium">Notificaciones en la aplicación</label>
+              <p className="text-sm font-medium">Notificaciones en la aplicación</p>
               <p className="text-xs text-mutedForeground">Recibe notificaciones dentro de la aplicación</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
@@ -301,7 +323,7 @@ function Profile() {
 
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium">Notificaciones por email</label>
+              <p className="text-sm font-medium">Notificaciones por email</p>
               <p className="text-xs text-mutedForeground">Recibe notificaciones importantes por correo electrónico</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">

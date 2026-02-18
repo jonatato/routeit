@@ -1,7 +1,8 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import type { PDFExportOptions } from '../services/pdfExport';
+import { useToast } from '../hooks/useToast';
 
 type PDFExportDialogProps = {
   onExport: (options: PDFExportOptions) => Promise<void>;
@@ -25,6 +26,7 @@ export function PDFExportDialog({ onExport, onCancel, isOpen }: PDFExportDialogP
     includeMap: true,
   });
   const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
   if (!isOpen) return null;
 
@@ -45,7 +47,7 @@ export function PDFExportDialog({ onExport, onCancel, isOpen }: PDFExportDialogP
       onCancel();
     } catch (error) {
       console.error('Export error:', error);
-      alert(error instanceof Error ? error.message : 'Error al exportar PDF');
+      toast.error(error instanceof Error ? error.message : 'Error al exportar PDF');
     } finally {
       setIsExporting(false);
     }
@@ -130,3 +132,4 @@ export function PDFExportDialog({ onExport, onCancel, isOpen }: PDFExportDialogP
     </div>
   );
 }
+

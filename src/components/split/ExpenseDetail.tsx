@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { supabase } from '../../lib/supabase';
@@ -11,6 +11,7 @@ import {
   type SplitCategory,
   type SplitTag,
 } from '../../services/split';
+import { useToast } from '../../hooks/useToast';
 
 type ExpenseDetailProps = {
   expense: SplitExpense;
@@ -46,6 +47,7 @@ export function ExpenseDetail({
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<string | null>(null);
   const [expenseTagIds, setExpenseTagIds] = useState<string[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     void loadComments();
@@ -79,7 +81,7 @@ export function ExpenseDetail({
       setNewComment('');
       await loadComments();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al añadir comentario');
+      toast.error(err instanceof Error ? err.message : 'Error al añadir comentario');
     } finally {
       setIsAddingComment(false);
     }
@@ -213,3 +215,4 @@ export function ExpenseDetail({
     </div>
   );
 }
+
