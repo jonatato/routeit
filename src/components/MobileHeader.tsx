@@ -46,7 +46,6 @@ function MobileHeader({ title }: MobileHeaderProps) {
   };
 
   const currentTitle = getSectionTitle();
-  const otaTestLabel = 'Angel te quiero <3';
   
   useEffect(() => {
     const checkRole = async () => {
@@ -99,7 +98,6 @@ function MobileHeader({ title }: MobileHeaderProps) {
 
         {/* Título centrado */}
         <div className="flex-1 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">{otaTestLabel}</p>
           <h1 className="text-xl font-bold text-foreground">
             {currentTitle}
           </h1>
