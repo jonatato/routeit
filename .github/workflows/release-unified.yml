@@ -20,7 +20,7 @@ on:
       ota_channel:
         description: "OTA channel"
         required: true
-        default: "beta"
+        default: "production"
         type: choice
         options:
           - beta
@@ -81,6 +81,14 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Validate required web secrets
+        run: |
+          test -n "${{ secrets.VERCEL_TOKEN }}" || (echo "Missing VERCEL_TOKEN" && exit 1)
+          test -n "${{ secrets.VERCEL_ORG_ID }}" || (echo "Missing VERCEL_ORG_ID" && exit 1)
+          test -n "${{ secrets.VERCEL_PROJECT_ID }}" || (echo "Missing VERCEL_PROJECT_ID" && exit 1)
+          test -n "${{ secrets.VITE_SUPABASE_URL }}" || (echo "Missing VITE_SUPABASE_URL" && exit 1)
+          test -n "${{ secrets.VITE_SUPABASE_ANON_KEY }}" || (echo "Missing VITE_SUPABASE_ANON_KEY" && exit 1)
+
       - name: Pull Vercel Environment
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         env:
@@ -92,6 +100,9 @@ jobs:
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
 
       - name: Deploy to Vercel Production
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
@@ -116,6 +127,13 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Validate required OTA secrets
+        run: |
+          test -n "${{ secrets.VITE_SUPABASE_URL }}" || (echo "Missing VITE_SUPABASE_URL" && exit 1)
+          test -n "${{ secrets.VITE_SUPABASE_ANON_KEY }}" || (echo "Missing VITE_SUPABASE_ANON_KEY" && exit 1)
+          test -n "${{ secrets.OTA_ADMIN_TOKEN }}" || (echo "Missing OTA_ADMIN_TOKEN" && exit 1)
+          test -n "${{ secrets.OTA_BUNDLE_BUCKET }}" || (echo "Missing OTA_BUNDLE_BUCKET" && exit 1)
 
       - name: Publish OTA
         run: npm run ota:release -- --bump=${{ inputs.ota_bump }} --channel=${{ inputs.ota_channel }}

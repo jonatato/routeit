@@ -50,6 +50,7 @@ This repository now uses a single pipeline for web + OTA release:
 - Workflow file: `.github/workflows/release-unified.yml`
 - Push to `main` / `master`: runs quality checks and deploys web to Vercel.
 - Manual run (`workflow_dispatch`): can deploy web, publish OTA, or both in one execution.
+- OTA manual default channel is now `production` to avoid publishing to `beta` by mistake.
 
 ### OTA publish from GitHub
 
@@ -70,6 +71,8 @@ For web build / OTA:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+
+These two are now validated in GitHub Actions before deploying web, and injected into the Vercel build step.
 
 For OTA publish:
 
