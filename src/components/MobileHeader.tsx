@@ -1,6 +1,5 @@
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Home, Receipt, ShoppingBag, Plane, Video, Store, User, LogOut, Settings } from 'lucide-react';
-import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';

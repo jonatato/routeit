@@ -7,7 +7,6 @@ import WebSideMenu from './components/WebSideMenu';
 import WidgetsSidebar from './components/WidgetsSidebar';
 import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
-import FullscreenLoader from './components/FullscreenLoader';
 import { TabPageSkeleton } from './components/TabPageSkeleton';
 import Auth from './pages/Auth';
 import { supabase } from './lib/supabase';
