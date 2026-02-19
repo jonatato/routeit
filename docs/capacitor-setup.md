@@ -24,6 +24,7 @@
 - `npm run cap:add:android`
 - `npm run cap:add:ios`
 - `npm run cap:build`
+- `npm run dev:host`
 - `npm run cap:build:staging`
 - `npm run cap:build:production`
 - `npm run cap:copy`
@@ -34,6 +35,24 @@
 - `npm run cap:ios`
 - `npm run cap:run:android`
 - `npm run cap:run:ios`
+- `npm run cap:run:android:live`
+- `npm run cap:run:ios:live`
+
+## Live Reload (Android/iOS)
+1. Start Vite exposed in LAN:
+   - `npm run dev:mobile`
+2. In another terminal, run Capacitor live reload:
+   - Android: `npm run cap:run:android:live`
+   - iOS: `npm run cap:run:ios:live -- --host <TU_IP_LOCAL>`
+
+Note: in Capacitor v8, `--external` is not a valid option. Use `--host` and `--port`.
+Android script already uses `--forwardPorts 5173:5173` so it works without manual IP in most cases.
+
+If you see `ERR_CONNECTION_TIMED_OUT`, usually the device cannot reach your PC IP. Verify:
+- Phone and PC are on the same Wi-Fi network.
+- Firewall allows Node/Vite inbound connections on port 5173.
+- You are using `--host` + `--port` and `vite --host` (not localhost-only dev server).
+- Prefer `npm run dev:mobile` so Vite stays fixed at port 5173.
 
 ## Platform requirements
 

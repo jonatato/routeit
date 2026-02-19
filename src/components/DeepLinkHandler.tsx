@@ -8,7 +8,7 @@ function extractRouteFromUrl(url: string): string | null {
     const parsed = new URL(url);
     let path = parsed.pathname;
 
-    // Custom schemes like com.routeit.app://reset expose "reset" as host.
+    // Custom schemes like com.routeit.routeit://reset expose "reset" as host.
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       const hostSegment = parsed.hostname ? `/${parsed.hostname}` : '';
       const pathSegment = parsed.pathname && parsed.pathname !== '/' ? parsed.pathname : '';

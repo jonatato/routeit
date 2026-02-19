@@ -40,7 +40,7 @@ export function VideoFilters({
     return (
       <div className="fixed inset-0 z-50 bg-background animate-in fade-in-0 slide-in-from-bottom-5 duration-300">
         {/* Header */}
-        <div className="sticky top-0 bg-background border-b border-border p-4 flex items-center justify-between">
+        <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background p-4 pt-safe-top">
           <h2 className="text-xl font-bold text-foreground">Filtros</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -48,7 +48,7 @@ export function VideoFilters({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-6 pb-24 overflow-y-auto h-[calc(100vh-120px)]">
+        <div className="h-[calc(100dvh-120px)] overflow-y-auto space-y-6 p-4 pb-24">
           {/* City Tags */}
           {cityTags.length > 0 && (
             <div className="space-y-3">
@@ -133,7 +133,7 @@ export function VideoFilters({
         </div>
 
         {/* Footer - Sticky bottom */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 flex gap-2">
+        <div className="fixed bottom-0 left-0 right-0 flex gap-2 border-t border-border bg-background p-4 pb-safe pl-safe pr-safe">
           {selectedTags.length > 0 && (
             <Button
               variant="outline"

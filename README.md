@@ -43,6 +43,39 @@ export default defineConfig([
 ])
 ```
 
+## Unified release in GitHub Actions
+
+This repository now uses a single pipeline for web + OTA release:
+
+- Workflow file: `.github/workflows/release-unified.yml`
+- Push to `main` / `master`: runs quality checks and deploys web to Vercel.
+- Manual run (`workflow_dispatch`): can deploy web, publish OTA, or both in one execution.
+
+### OTA publish from GitHub
+
+When triggering the workflow manually, enable `run_ota_release` and choose:
+
+- `ota_channel`: `beta` or `production`
+- `ota_bump`: `patch`, `minor`, or `major`
+
+### Required GitHub repository secrets
+
+For web deploy:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+For web build / OTA:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+For OTA publish:
+
+- `OTA_ADMIN_TOKEN`
+- `OTA_BUNDLE_BUCKET` (recommended value: `ota-bundles`)
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js

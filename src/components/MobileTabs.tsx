@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { MapPin, Receipt, ShoppingBag, Plane, Store } from 'lucide-react';
 
 type Tab = {
@@ -6,66 +7,127 @@ type Tab = {
   label: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
-  isCentral?: boolean;
 };
 
 function MobileTabs() {
   const location = useLocation();
 
   const tabs: Tab[] = [
-    { key: 'split', label: 'Gastos', path: '/app/split', icon: Receipt },
-    { key: 'bag', label: 'Maleta', path: '/app/bag', icon: ShoppingBag },
-    { key: 'itinerary', label: '', path: '/app', icon: MapPin, isCentral: true },
-    { key: 'store', label: 'Tienda', path: '/app/store', icon: Store },
-    { key: 'itineraries', label: 'Mis viajes', path: '/app/itineraries', icon: Plane },
+    { 
+      key: 'split', 
+      label: 'Gastos', 
+      path: '/app/split', 
+      icon: Receipt,
+    },
+    { 
+      key: 'bag', 
+      label: 'Maleta', 
+      path: '/app/bag', 
+      icon: ShoppingBag,
+    },
+    { 
+      key: 'itinerary', 
+      label: 'Inicio', 
+      path: '/app', 
+      icon: MapPin,
+    },
+    { 
+      key: 'store', 
+      label: 'Tienda', 
+      path: '/app/store', 
+      icon: Store,
+    },
+    { 
+      key: 'itineraries', 
+      label: 'Viajes', 
+      path: '/app/itineraries', 
+      icon: Plane,
+    },
   ];
   
   const isItineraryActive = () => {
-    // Considerar activo si estamos en /app con query params de itineraryId
     return location.pathname === '/app' || location.pathname.startsWith('/app?');
   };
+
+  const isTabActive = (tab: Tab) => (tab.key === 'itinerary' ? isItineraryActive() : location.pathname === tab.path);
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[70] bg-background/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.12)]">
-      <div className="relative flex items-center justify-around px-6 py-3 pb-safe">
-        {tabs.map(tab => {
-          const isActive = tab.key === 'itinerary' 
-            ? isItineraryActive()
-            : location.pathname === tab.path;
-          const Icon = tab.icon;
-          
-          if (tab.isCentral) {
+    <nav className="fixed inset-x-0 bottom-0 z-[70] bg-card pb-[calc(var(--safe-area-inset-bottom)+0.12rem)] pl-safe pr-safe shadow-sm backdrop-blur-md border-t border-border/20">
+      <div className="mx-auto flex h-[64px] w-full max-w-[460px] items-center justify-around px-4">
+        {tabs.map((tab) => {
+            const isActive = isTabActive(tab);
+            const Icon = tab.icon;
+
             return (
               <Link
                 key={tab.key}
                 to={tab.path}
-                className="flex flex-col items-center justify-center gap-1 -mt-12 relative z-10"
+                className="relative flex flex-col items-center justify-center"
               >
-                <div className={`rounded-full p-5 shadow-lg border-4 border-background ${isActive ? 'bg-primary' : 'bg-muted'}`}>
-                  <Icon className={`h-7 w-7 ${isActive ? 'text-white' : 'text-mutedForeground'}`} />
+                {/* Background badge with color */}
+                <motion.div
+                  className="absolute bottom-1 left-1/2 h-[44px] w-[44px] -translate-x-1/2 rounded-full"
+                  style={{
+                    backgroundColor: 'transparent',
+                  }}
+                  animate={{
+                    scale: isActive ? 1 : 0,
+                    opacity: 0,
+                  }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 25,
+                  }}
+                />
+
+                {/* Icon container */}
+                <div className="relative z-[10] flex h-[50px] w-[50px] items-center justify-center">
+                  {/* Outline version */}
+                  <motion.div
+                    animate={{
+                      opacity: isActive ? 0 : 1,
+                    }}
+                    transition={{
+                      duration: 0.25,
+                      ease: 'easeOut',
+                    }}
+                    className="absolute flex items-center justify-center"
+                  >
+                    <Icon
+                      className="h-[28px] w-[28px] text-muted-foreground"
+                      style={{
+                        fill: 'none',
+                        stroke: 'currentColor',
+                        strokeWidth: 1.5,
+                      }}
+                    />
+                  </motion.div>
+
+                  {/* Filled version */}
+                  <motion.div
+                    animate={{
+                      opacity: isActive ? 1 : 0,
+                    }}
+                    transition={{
+                      duration: 0.25,
+                      ease: 'easeOut',
+                    }}
+                    className="absolute flex items-center justify-center"
+                  >
+                    <Icon
+                      className="h-[28px] w-[28px] text-primary"
+                      style={{
+                        fill: 'none',
+                        stroke: 'currentColor',
+                        strokeWidth: 1.5,
+                      }}
+                    />
+                  </motion.div>
                 </div>
-                <span className={`text-xs font-medium mt-1 ${isActive ? 'text-foreground' : 'text-mutedForeground'}`}>
-                  {tab.label}
-                </span>
               </Link>
             );
-          }
-          
-          return (
-            <Link
-              key={tab.key}
-              to={tab.path}
-              className="flex flex-col items-center justify-center gap-1"
-            >
-              <div className={`rounded-xl p-2 ${isActive ? 'bg-primary' : 'bg-transparent'}`}>
-                <Icon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-mutedForeground'}`} />
-              </div>
-              <span className={`text-xs font-medium ${isActive ? 'text-foreground' : 'text-mutedForeground'}`}>
-                {tab.label}
-              </span>
-            </Link>
-          );
-        })}
+          })}
       </div>
     </nav>
   );

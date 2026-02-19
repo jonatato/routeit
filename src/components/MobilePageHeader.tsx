@@ -17,7 +17,7 @@ export function MobilePageHeader({
   actions,
 }: MobilePageHeaderProps) {
   return (
-    <div className="sticky top-0 z-30 border-b border-border/80 bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/85 md:hidden">
+    <div className="sticky top-0 z-30 border-b border-border/80 bg-card/95 px-4 py-3 pt-safe-top backdrop-blur supports-[backdrop-filter]:bg-card/85 md:hidden">
       <div className="flex items-center gap-3">
         <Link to={backTo}>
           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full border border-border/70 bg-background/80">

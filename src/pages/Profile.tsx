@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut, User as UserIcon } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { MobilePageHeader } from '../components/MobilePageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -12,6 +13,7 @@ import { createPortalSession, getUserPlan } from '../services/billing';
 import { useToast } from '../hooks/useToast';
 import FullscreenLoader from '../components/FullscreenLoader';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { getBiometricEnabled, setBiometricEnabled } from '../services/biometricPreference';
 
 function Profile() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -28,14 +30,17 @@ function Profile() {
   });
   const [plan, setPlan] = useState<'free' | 'pro'>('free');
   const [isLoadingPlan, setIsLoadingPlan] = useState(true);
+  const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const { toast } = useToast();
   const themeTouchedRef = useRef(false);
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
         setUser(data.user);
+        setBiometricEnabledState(getBiometricEnabled(data.user.id));
         // Cargar preferencias desde base de datos
         const dbPrefs = await fetchUserPreferences(data.user.id);
         if (dbPrefs) {
@@ -105,6 +110,13 @@ function Profile() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handleBiometricToggle = (enabled: boolean) => {
+    if (!user) return;
+    setBiometricEnabled(user.id, enabled);
+    setBiometricEnabledState(enabled);
+    toast.success(enabled ? 'Biometría activada' : 'Biometría desactivada');
   };
 
   const handleManageBilling = async () => {
@@ -256,6 +268,24 @@ function Profile() {
               <option value="dark">Oscuro</option>
             </select>
           </div>
+
+          {isNative && (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Desbloqueo biométrico</p>
+                <p className="text-xs text-mutedForeground">Usa huella o rostro al abrir la app</p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={biometricEnabled}
+                  onChange={e => handleBiometricToggle(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-border after:bg-card after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+              </label>
+            </div>
+          )}
         </CardContent>
       </Card>
 

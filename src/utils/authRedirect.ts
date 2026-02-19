@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 
-const NATIVE_SCHEME = 'com.routeit.app';
+const NATIVE_SCHEME = 'com.routeit.routeit';
 
 export function buildAuthRedirect(path: `/${string}`): string {
   if (Capacitor.isNativePlatform()) {

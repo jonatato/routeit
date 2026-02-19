@@ -253,7 +253,7 @@ export function VideoUploadDialog({
     return (
       <div className="fixed inset-0 z-50 bg-background overflow-y-auto animate-in fade-in-0 slide-in-from-bottom-5 duration-300">
         {/* Header */}
-        <div className="sticky top-0 bg-background border-b border-border p-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background p-4 pt-safe-top">
           <h2 className="text-xl font-bold text-foreground">Agregar Video</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -261,7 +261,7 @@ export function VideoUploadDialog({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-6 pb-24">
+        <div className="space-y-6 p-4 pb-24">
           {/* URL Input */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-foreground">
@@ -417,7 +417,7 @@ export function VideoUploadDialog({
         </div>
 
         {/* Footer - Sticky bottom */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 flex gap-2">
+        <div className="fixed bottom-0 left-0 right-0 flex gap-2 border-t border-border bg-background p-4 pb-safe pl-safe pr-safe">
           <Button 
             variant="outline" 
             onClick={onClose}

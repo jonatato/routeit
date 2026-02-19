@@ -1,5 +1,5 @@
 import { cn } from '../lib/utils';
-import pandaLogoSvg from '../assets/panda-logo.svg';
+import pandaLogo from '../assets/panda-logo.jpg';
 
 type PandaLogoProps = {
   className?: string;
@@ -19,7 +19,7 @@ export function PandaLogo({ className, showText = false, size = 'md' }: PandaLog
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <img
-        src={pandaLogoSvg}
+        src={pandaLogo}
         alt="Routeit Logo"
         className={cn(sizeClasses[size])}
       />

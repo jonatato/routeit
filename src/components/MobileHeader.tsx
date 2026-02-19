@@ -13,7 +13,7 @@ interface MobileHeaderProps {
   title?: string;
 }
 
-function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
+function MobileHeader({ title }: MobileHeaderProps) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -21,6 +21,33 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
   const initials = useUserInitials();
   const isAdminActive = location.pathname.startsWith('/app/admin');
   const isProfileActive = location.pathname === '/app/profile';
+
+  // Detectar la sección actual
+  const sectionNames: Record<string, string> = {
+    '/app': 'Inicio',
+    '/app/store': 'Tienda',
+    '/app/split': 'Gastos',
+    '/app/bag': 'Maleta',
+    '/app/memories': 'Vídeos',
+    '/app/itineraries': 'Mis viajes',
+    '/app/admin': 'Administrar',
+    '/app/profile': 'Mi perfil',
+  };
+
+  const getSectionTitle = () => {
+    if (title) return title;
+    const path = location.pathname;
+    // Buscar coincidencia exacta primero
+    if (sectionNames[path]) return sectionNames[path];
+    // Si estamos en una subruta, usar la ruta principal
+    for (const [key, value] of Object.entries(sectionNames)) {
+      if (path.startsWith(key)) return value;
+    }
+    return 'RouteIt';
+  };
+
+  const currentTitle = getSectionTitle();
+  const otaTestLabel = 'Angel te quiero <3';
   
   useEffect(() => {
     const checkRole = async () => {
@@ -58,32 +85,29 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
   const shouldRenderMenu = isMenuOpen && typeof document !== 'undefined';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/20 bg-background/95 px-4 py-3 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-border/20 bg-background/95 px-4 py-3 pt-safe-top backdrop-blur-md shadow-sm">
       <div className="flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/app" className="flex items-center gap-2">
-          <PandaLogo size="sm" />
-          <span className="text-xl font-bold text-foreground">
-            {title === 'Routeit' ? (
-              <>
-                Route<span className="text-primary">it</span>
-              </>
-            ) : (
-              title
-            )}
-          </span>
-        </Link>
-
-        {/* Actions */}
+        {/* Actions left */}
         <div className="flex items-center gap-2">
           {canEdit && (
             <Link to="/app/admin">
               <button className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isAdminActive ? 'bg-primary/10' : 'hover:bg-muted'}`}>
                 <Settings className={`h-5 w-5 ${isAdminActive ? 'text-primary' : 'text-mutedForeground'}`} />
               </button>
-          </Link>
+            </Link>
           )}
-          <NotificationBell />
+        </div>
+
+        {/* Título centrado */}
+        <div className="flex-1 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">{otaTestLabel}</p>
+          <h1 className="text-xl font-bold text-foreground">
+            {currentTitle}
+          </h1>
+        </div>
+
+        {/* Actions right */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsMenuOpen(true)}
@@ -107,7 +131,7 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
               onClick={() => setIsMenuOpen(false)}
               aria-label="Cerrar menu"
             />
-            <aside className="fixed left-0 top-0 flex h-full w-72 flex-col bg-card shadow-xl">
+            <aside className="fixed left-0 top-0 flex h-full w-72 flex-col bg-card pl-safe pt-safe-top shadow-xl">
               <div className="flex items-center justify-between border-b border-border px-4 py-4">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -118,14 +142,17 @@ function MobileHeader({ title = 'Routeit' }: MobileHeaderProps) {
                     <p className="text-xs text-mutedForeground">Navegacion rapida</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="h-9 w-9 rounded-md hover:bg-muted flex items-center justify-center"
-                  aria-label="Cerrar menu"
-                >
-                  <span className="text-lg">×</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <NotificationBell />
+                  <button
+                    type="button"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="h-9 w-9 rounded-md hover:bg-muted flex items-center justify-center"
+                    aria-label="Cerrar menu"
+                  >
+                    <span className="text-lg">×</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto px-3 py-3">

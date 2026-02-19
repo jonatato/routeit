@@ -9,7 +9,7 @@ import { addChecklistItem, deleteChecklistItem, fetchChecklist, updateChecklistI
 import { ProgressCard } from '../components/bag/ProgressCard';
 import { CategorySection } from '../components/bag/CategorySection';
 import { AddItemsModal } from '../components/bag/AddItemsModal';
-import FullscreenLoader from '../components/FullscreenLoader';
+import { TabPageSkeleton } from '../components/TabPageSkeleton';
 
 function MyBag() {
   const [isLoading, setIsLoading] = useState(true);
@@ -86,7 +86,7 @@ function MyBag() {
   };
 
   if (isLoading) {
-    return <FullscreenLoader message="Cargando maleta..." />;
+    return <TabPageSkeleton />;
   }
 
   return (
@@ -150,7 +150,7 @@ function MyBag() {
       {totalItems > 0 && (
         <button
           onClick={() => setShowAddModal(true)}
-          className="group fixed bottom-20 right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card/95 text-primary shadow-[0_12px_28px_hsl(var(--foreground)/0.12)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0 active:scale-[0.98] md:bottom-8 md:right-8"
+          className="group fixed bottom-safe-20 right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card/95 text-primary shadow-[0_12px_28px_hsl(var(--foreground)/0.12)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-0 active:scale-[0.98] md:bottom-8 md:right-8"
           aria-label="Añadir items"
         >
           <Plus className="h-6 w-6 transition-transform duration-200 group-hover:rotate-90" />

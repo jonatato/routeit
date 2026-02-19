@@ -19,7 +19,7 @@ import {
 } from '../services/aiItinerary';
 import { getUserPlan } from '../services/billing';
 import { useToast } from '../hooks/useToast';
-import FullscreenLoader from '../components/FullscreenLoader';
+import { TabPageSkeleton } from '../components/TabPageSkeleton';
 
 type ShareRole = 'editor' | 'viewer';
 
@@ -268,7 +268,7 @@ function MyItineraries() {
   };
 
   if (isLoading) {
-    return <FullscreenLoader message="Cargando itinerarios..." />;
+    return <TabPageSkeleton />;
   }
 
   if (error) {

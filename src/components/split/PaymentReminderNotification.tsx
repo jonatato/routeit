@@ -36,7 +36,7 @@ export function PaymentReminderNotification({ groupId, userId }: PaymentReminder
         activeReminders.forEach(reminder => {
           sendLocalNotification('Recordatorio de pago', {
             body: `Recordatorio: ${reminder.note || 'Pago pendiente'}`,
-            icon: '/panda-logo.svg',
+            icon: '/panda-logo.png',
           });
         });
       } catch (error) {

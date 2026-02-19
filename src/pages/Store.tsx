@@ -5,7 +5,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import FullscreenLoader from '../components/FullscreenLoader';
+import { TabPageSkeleton } from '../components/TabPageSkeleton';
 import { useToast } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
 
@@ -166,7 +166,7 @@ function Store() {
   };
 
   if (isLoading) {
-    return <FullscreenLoader message="Cargando viajes..." />;
+    return <TabPageSkeleton />;
   }
 
   return (

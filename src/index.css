@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 :root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+
   --color-electric-violet-50: #faf5ff;
   --color-electric-violet-100: #f4e8ff;
   --color-electric-violet-200: #ebd5ff;
@@ -201,6 +206,45 @@ body {
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
   color: hsl(var(--foreground));
   max-width: 320px;
+}
+
+@layer utilities {
+  .pt-safe-top {
+    padding-top: var(--safe-area-inset-top);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  .pl-safe {
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  .pr-safe {
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  .bottom-safe-4 {
+    bottom: calc(var(--safe-area-inset-bottom) + 1rem);
+  }
+
+  .bottom-safe-16 {
+    bottom: calc(var(--safe-area-inset-bottom) + 4rem);
+  }
+
+  .bottom-safe-20 {
+    bottom: calc(var(--safe-area-inset-bottom) + 5rem);
+  }
+
+  .bottom-safe-24 {
+    bottom: calc(var(--safe-area-inset-bottom) + 6rem);
+  }
+
+  .mobile-shell-safe {
+    min-height: 100dvh;
+    padding-bottom: calc(5.5rem + var(--safe-area-inset-bottom));
+  }
 }
 
 .dark .driver-popover.routeit-onboarding {

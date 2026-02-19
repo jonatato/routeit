@@ -1,6 +1,7 @@
-﻿import { StrictMode } from 'react';
+﻿import { StrictMode, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { createRoot } from 'react-dom/client';
+import { Capacitor } from '@capacitor/core';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'driver.js/dist/driver.css';
@@ -8,6 +9,7 @@ import 'sileo/styles.css';
 import './index.css';
 import './i18n/config';
 import App from './App.tsx';
+import { runSelfHostedOtaCheck } from './services/ota.ts';
 import { ThemeProvider } from './components/ThemeProvider.tsx';
 import { NotificationProvider } from './context/NotificationContext.tsx';
 import { I18nProvider } from './components/I18nProvider.tsx';
@@ -30,12 +32,36 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+function CapgoAppReadyNotifier() {
+  useEffect(() => {
+    if (Capacitor.getPlatform() === 'web') return;
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+          await CapacitorUpdater.notifyAppReady();
+        } catch {
+          // Never block app startup because of updater errors
+        }
+
+        void runSelfHostedOtaCheck();
+      })();
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return null;
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <NotificationProvider>
         <I18nProvider>
           <BrowserRouter>
+            <CapgoAppReadyNotifier />
             <App />
             <OfflineIndicator />
             <Toaster position="top-right" />

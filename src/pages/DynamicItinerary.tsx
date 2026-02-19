@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { PandaLogo } from '../components/PandaLogo';
 import ItineraryView from '../components/ItineraryView';
-import FullscreenLoader from '../components/FullscreenLoader';
+import { TabPageSkeleton } from '../components/TabPageSkeleton';
 import { supabase } from '../lib/supabase';
 import { fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
 import type { TravelItinerary } from '../data/itinerary';
@@ -55,7 +55,7 @@ function DynamicItinerary() {
   }, [location.search]);
 
   if (isLoading) {
-    return <FullscreenLoader message="Cargando itinerario..." />;
+    return <TabPageSkeleton />;
   }
 
   if (error) {

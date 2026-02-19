@@ -20,7 +20,7 @@ export function OfflineIndicator() {
   if (status === 'online') return null;
 
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-50 flex justify-center px-4 md:bottom-4">
+    <div className="fixed bottom-safe-16 left-0 right-0 z-50 flex justify-center px-4 md:bottom-4">
       <div
         className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm ${
           status === 'offline'

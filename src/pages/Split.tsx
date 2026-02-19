@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabase';
 import { listUserItineraries } from '../services/sharing';
 import { useNotifications } from '../context/NotificationContext';
 import { useToast } from '../hooks/useToast';
-import FullscreenLoader from '../components/FullscreenLoader';
+import { TabPageSkeleton } from '../components/TabPageSkeleton';
 import {
   addExpense,
   addSplitMember,
@@ -323,7 +323,7 @@ function Split() {
     : {};
 
   if (isLoading) {
-    return <FullscreenLoader message="Cargando division de gastos..." />;
+    return <TabPageSkeleton />;
   }
 
   return (

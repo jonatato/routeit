@@ -1,4 +1,4 @@
-// Service Worker for push notifications and offline caching
+﻿// Service Worker for push notifications and offline caching
 const CACHE_NAME = 'routeit-v3';
 const urlsToCache = ['/', '/index.html'];
 
@@ -43,9 +43,9 @@ self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'RouteIt';
   const options = {
-    body: data.body || 'Tienes una nueva notificación',
-    icon: '/panda-logo.svg',
-    badge: '/panda-logo.svg',
+    body: data.body || 'Tienes una nueva notificaciÃ³n',
+    icon: '/panda-logo.png',
+    badge: '/panda-logo.png',
     tag: data.tag || 'default',
     requireInteraction: false,
   };
@@ -59,3 +59,5 @@ self.addEventListener('notificationclick', (event) => {
     clients.openWindow('/app'),
   );
 });
+
+

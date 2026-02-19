@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import MobileTabs from './components/MobileTabs';
@@ -8,12 +8,15 @@ import WidgetsSidebar from './components/WidgetsSidebar';
 import { PageTransition } from './components/PageTransition';
 import { useIsMobileShell } from './hooks/useIsMobileShell';
 import FullscreenLoader from './components/FullscreenLoader';
+import { TabPageSkeleton } from './components/TabPageSkeleton';
 import Auth from './pages/Auth';
+import { supabase } from './lib/supabase';
 import { DeepLinkHandler } from './components/DeepLinkHandler';
 import { NotificationIntentHandler } from './components/NotificationIntentHandler';
 import { SessionLifecycleHandler } from './components/SessionLifecycleHandler';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import MarketingFooter from './components/MarketingFooter';
+import { BiometricGate } from './components/BiometricGate';
 
 // Lazy load heavy components
 const AdminItinerary = lazy(() => import('./pages/AdminItinerary'));
@@ -38,7 +41,41 @@ const LegalCookies = lazy(() => import('./pages/legal/LegalCookies'));
 const LegalImprint = lazy(() => import('./pages/legal/LegalImprint'));
 const LegalContact = lazy(() => import('./pages/legal/LegalContact'));
 
-const LoadingFallback = () => <FullscreenLoader />;
+const LoadingFallback = () => <TabPageSkeleton />;
+
+function RootEntryRoute() {
+  const isMobileShell = useIsMobileShell();
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      setHasSession(Boolean(data.session));
+      setIsLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setHasSession(Boolean(session));
+    });
+
+    return () => {
+      isMounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (!isMobileShell) {
+    return <Landing />;
+  }
+
+  if (isLoading) {
+    return <LoadingFallback />;
+  }
+
+  return <Navigate to={hasSession ? '/app' : '/login'} replace />;
+}
 
 type AppRoute = {
   path: string;
@@ -48,7 +85,7 @@ type AppRoute = {
 };
 
 const appRoutes: AppRoute[] = [
-  { path: '/', element: <Landing /> },
+  { path: '/', element: <RootEntryRoute /> },
   { path: '/pricing', element: <Pricing /> },
   { path: '/store', element: <Store /> },
   { path: '/legal/terms', element: <LegalTerms /> },
@@ -102,10 +139,13 @@ function App() {
       <DeepLinkHandler />
       <NotificationIntentHandler />
       <SessionLifecycleHandler />
+      <BiometricGate />
       {isMobileShell ? (
-        <div className="min-h-screen pb-14">
+        <div className="mobile-shell-safe flex flex-col">
           {showMobileHeader && <MobileHeader />}
-          <AppRoutes />
+          <main className="flex-1 shadow-inner">
+            <AppRoutes />
+          </main>
           {isAppRoute && <MobileTabs />}
         </div>
       ) : (
