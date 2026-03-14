@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Heart, Flame, Laugh, ThumbsUp, MessageCircle } from 'lucide-react';
 import { addReaction, deleteReaction } from '../../services/socialVideos';
 import type { VideoReaction } from '../../services/socialVideos';
@@ -50,7 +50,16 @@ export function MobileReactionBar({
 }: MobileReactionBarProps) {
   const [loading, setLoading] = useState(false);
   const [pulsingButton, setPulsingButton] = useState<string | null>(null);
+  const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toast = useToast();
+
+  useEffect(() => {
+    return () => {
+      if (pulseTimeoutRef.current !== null) {
+        clearTimeout(pulseTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const userReaction = reactions.find(
     r => r.user_id === currentUserId && !r.comment
@@ -81,7 +90,7 @@ export function MobileReactionBar({
       onReactionToggle();
       
       // Animation cleanup
-      setTimeout(() => setPulsingButton(null), 300);
+      pulseTimeoutRef.current = setTimeout(() => setPulsingButton(null), 300);
     } catch (error) {
       console.error('Error toggling reaction:', error);
       toast.error('Error al reaccionar');

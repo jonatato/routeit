@@ -31,7 +31,8 @@ export function VideoCard({
     if (mode === 'embed' && video.embed_code && embedRef.current) {
       retryCountRef.current = 0;
       embedRef.current.innerHTML = '';
-      
+      const pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+
       try {
         embedRef.current.innerHTML = video.embed_code;
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -71,11 +72,11 @@ export function VideoCard({
               }
             } else {
               retryCountRef.current++;
-              setTimeout(processTikTok, 500);
+              pendingTimeouts.push(setTimeout(processTikTok, 500));
             }
           };
           
-          setTimeout(processTikTok, 100);
+          pendingTimeouts.push(setTimeout(processTikTok, 100));
         }
         
         if (video.platform === 'instagram' && video.embed_code.includes('instagram-media')) {
@@ -91,16 +92,20 @@ export function VideoCard({
               }
             } else {
               retryCountRef.current++;
-              setTimeout(processInstagram, 500);
+              pendingTimeouts.push(setTimeout(processInstagram, 500));
             }
           };
           
-          setTimeout(processInstagram, 100);
+          pendingTimeouts.push(setTimeout(processInstagram, 100));
         }
       } catch (error) {
         console.error('Error loading embed:', error);
         setEmbedError(true);
       }
+
+      return () => {
+        pendingTimeouts.forEach(clearTimeout);
+      };
     }
   }, [mode, video.embed_code, video.platform, video.video_url]);
 

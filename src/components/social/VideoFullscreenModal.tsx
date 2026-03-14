@@ -78,14 +78,15 @@ export function VideoFullscreenModal({
     if (video.embed_code && embedRef.current) {
       retryCountRef.current = 0;
       embedRef.current.innerHTML = '';
-      
+      const pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+
       try {
         embedRef.current.innerHTML = video.embed_code;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setEmbedError(false);
         
         // Ajustar iframes para móvil
-        setTimeout(() => {
+        pendingTimeouts.push(setTimeout(() => {
           if (embedRef.current) {
             const iframes = embedRef.current.querySelectorAll('iframe');
             iframes.forEach(iframe => {
@@ -102,7 +103,7 @@ export function VideoFullscreenModal({
               iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
             });
           }
-        }, 100);
+        }, 100));
 
         // Process platform-specific embeds
         if (video.platform === 'tiktok' && video.embed_code.includes('tiktok-embed')) {
@@ -121,11 +122,11 @@ export function VideoFullscreenModal({
               }
             } else {
               retryCountRef.current++;
-              setTimeout(processTikTok, 500);
+              pendingTimeouts.push(setTimeout(processTikTok, 500));
             }
           };
           
-          setTimeout(processTikTok, 100);
+          pendingTimeouts.push(setTimeout(processTikTok, 100));
         }
         
         if (video.platform === 'instagram' && video.embed_code.includes('instagram-media')) {
@@ -141,16 +142,20 @@ export function VideoFullscreenModal({
               }
             } else {
               retryCountRef.current++;
-              setTimeout(processInstagram, 500);
+              pendingTimeouts.push(setTimeout(processInstagram, 500));
             }
           };
           
-          setTimeout(processInstagram, 100);
+          pendingTimeouts.push(setTimeout(processInstagram, 100));
         }
       } catch (error) {
         console.error('Error loading embed:', error);
         setEmbedError(true);
       }
+
+      return () => {
+        pendingTimeouts.forEach(clearTimeout);
+      };
     }
   }, [video.embed_code, video.platform]);
 
