@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ExternalLink, FileText, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -176,7 +176,7 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
     [documents, editingDocumentId],
   );
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!itineraryId) {
       setDocuments([]);
       return;
@@ -192,11 +192,11 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [itineraryId, showError]);
 
   useEffect(() => {
     void loadDocuments();
-  }, [itineraryId]);
+  }, [loadDocuments]);
 
   const openCreateDialog = () => {
     setEditingDocumentId(null);
@@ -427,60 +427,186 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
       )}
 
       {itineraryId && !isLoading && documents.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {documents.map(document => {
-            const expiryInfo = getExpiryWarning(document.expiry_date);
-            return (
-              <Card key={document.id}>
-                <CardHeader className="space-y-2">
-                  <CardTitle className="flex items-start justify-between gap-3 text-base">
-                    <span className="inline-flex items-center gap-2">
-                      <span className="text-lg">{getDocumentIcon(document.type)}</span>
-                      <span>{document.title}</span>
-                    </span>
-                    <span className="text-xs font-medium text-mutedForeground">
-                      {DOCUMENT_TYPES.find(item => item.value === document.type)?.label ?? 'Documento'}
-                    </span>
-                  </CardTitle>
-                  {document.subtitle && <CardDescription>{document.subtitle}</CardDescription>}
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  {document.reference && (
-                    <p className="text-mutedForeground">
-                      Ref: <span className="font-medium text-foreground">{document.reference}</span>
-                    </p>
-                  )}
+        <Card className="overflow-hidden border-border/70">
+          <div className="md:hidden divide-y divide-border/70">
+            {documents.map(document => {
+              const expiryInfo = getExpiryWarning(document.expiry_date);
+              const typeLabel = DOCUMENT_TYPES.find(item => item.value === document.type)?.label ?? 'Documento';
 
-                  {expiryInfo && (
-                    <p className={`inline-flex items-center gap-2 text-xs font-medium ${expiryInfo.color}`}>
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      {expiryInfo.text}
-                    </p>
-                  )}
+              return (
+                <div key={document.id} className="space-y-3 px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex items-start gap-3">
+                      <span className="mt-0.5 text-lg">{getDocumentIcon(document.type)}</span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{document.title}</p>
+                        {document.subtitle && (
+                          <p className="mt-1 truncate text-xs text-mutedForeground">{document.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenDocument(document.url)}>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Abrir
-                    </Button>
-                    {canManage && (
-                      <>
-                        <Button variant="outline" size="sm" onClick={() => openEditDialog(document)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Editar
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(document)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </Button>
-                      </>
-                    )}
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenDocument(document.url)}
+                        aria-label={`Abrir ${document.title}`}
+                        title="Abrir"
+                        className="h-8 w-8 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:text-sky-300 dark:hover:bg-sky-500/15 dark:hover:text-sky-200"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                      {canManage && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(document)}
+                            aria-label={`Editar ${document.title}`}
+                            title="Editar"
+                            className="h-8 w-8 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-300 dark:hover:bg-amber-500/15 dark:hover:text-amber-200"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(document)}
+                            aria-label={`Eliminar ${document.title}`}
+                            title="Eliminar"
+                            className="h-8 w-8 text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-500/15 dark:hover:text-red-200"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="font-semibold uppercase tracking-[0.12em] text-mutedForeground">Tipo</p>
+                      <p className="mt-1 text-foreground">{typeLabel}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold uppercase tracking-[0.12em] text-mutedForeground">Referencia</p>
+                      <p className="mt-1 truncate text-foreground">{document.reference ? document.reference : 'Sin ref.'}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold uppercase tracking-[0.12em] text-mutedForeground">Caducidad</p>
+                      <div className="mt-1 min-w-0">
+                        {expiryInfo ? (
+                          <span className={`inline-flex max-w-full items-center gap-1.5 font-medium ${expiryInfo.color}`}>
+                            <CalendarClock className="h-3.5 w-3.5" />
+                            <span className="truncate">{expiryInfo.text}</span>
+                          </span>
+                        ) : (
+                          <span className="text-foreground">Sin fecha</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full table-fixed border-collapse">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+                <col className="w-[16%]" />
+                <col className="w-[14%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-border/70 bg-muted/30 text-[11px] font-semibold uppercase tracking-[0.14em] text-mutedForeground">
+                  <th className="px-4 py-3 text-left">Documento</th>
+                  <th className="px-4 py-3 text-left">Tipo</th>
+                  <th className="px-4 py-3 text-left">Referencia</th>
+                  <th className="px-4 py-3 text-left">Caducidad</th>
+                  <th className="px-4 py-3 text-right">Acc.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map(document => {
+                  const expiryInfo = getExpiryWarning(document.expiry_date);
+                  const typeLabel = DOCUMENT_TYPES.find(item => item.value === document.type)?.label ?? 'Documento';
+
+                  return (
+                    <tr key={document.id} className="border-b border-border/70 last:border-b-0 align-middle">
+                      <td className="px-4 py-4">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span className="mt-0.5 text-lg">{getDocumentIcon(document.type)}</span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">{document.title}</p>
+                            {document.subtitle && (
+                              <p className="mt-1 truncate text-xs text-mutedForeground">{document.subtitle}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-mutedForeground">{typeLabel}</td>
+                      <td className="px-4 py-4 text-sm text-mutedForeground">
+                        <span className="block truncate">{document.reference ? document.reference : 'Sin ref.'}</span>
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        {expiryInfo ? (
+                          <span className={`inline-flex max-w-full items-center gap-1.5 font-medium ${expiryInfo.color}`}>
+                            <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{expiryInfo.text}</span>
+                          </span>
+                        ) : (
+                          <span className="text-mutedForeground">Sin fecha</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenDocument(document.url)}
+                            aria-label={`Abrir ${document.title}`}
+                            title="Abrir"
+                            className="h-8 w-8 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:text-sky-300 dark:hover:bg-sky-500/15 dark:hover:text-sky-200"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                          {canManage && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(document)}
+                                aria-label={`Editar ${document.title}`}
+                                title="Editar"
+                                className="h-8 w-8 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-300 dark:hover:bg-amber-500/15 dark:hover:text-amber-200"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(document)}
+                                aria-label={`Eliminar ${document.title}`}
+                                title="Eliminar"
+                                className="h-8 w-8 text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-500/15 dark:hover:text-red-200"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>

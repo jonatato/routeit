@@ -153,8 +153,10 @@ function App() {
         <div className="min-h-screen">
           <div className="mx-auto flex w-full">
             {showSideMenu && <WebSideMenu />}
-            <div className={showSideMenu ? 'flex-1 md:ml-64' : 'flex-1'}>
-              <AppRoutes />
+            <div className={showSideMenu ? 'flex min-h-screen flex-1 flex-col md:ml-64' : 'flex min-h-screen flex-1 flex-col'}>
+              <main className="flex-1">
+                <AppRoutes />
+              </main>
               <MarketingFooter />
             </div>
             {showWidgetsSidebar && <WidgetsSidebar />}
