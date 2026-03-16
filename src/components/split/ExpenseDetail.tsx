@@ -12,6 +12,7 @@ import {
   type SplitTag,
 } from '../../services/split';
 import { useToast } from '../../hooks/useToast';
+import { ExpenseDocumentsSection } from './ExpenseDocumentsSection';
 
 type ExpenseDetailProps = {
   expense: SplitExpense;
@@ -90,6 +91,7 @@ export function ExpenseDetail({
   const payer = members.find(m => m.id === expense.payer_id);
   const category = categories.find(c => c.id === expense.category_id);
   const expenseTags = tags.filter(t => expenseTagIds.includes(t.id));
+  const canManageDocuments = Boolean(onEdit || onDelete);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -158,6 +160,8 @@ export function ExpenseDetail({
               <img src={expense.receipt_url} alt="Recibo" className="max-w-full rounded border" />
             </div>
           )}
+
+          <ExpenseDocumentsSection expenseId={expense.id} editable={canManageDocuments} />
 
           <div>
             <label className="mb-2 block text-sm font-medium">Comentarios</label>

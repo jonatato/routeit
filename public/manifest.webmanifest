@@ -1,6 +1,12 @@
 {
   "icons": [
     {
+      "src": "/routeit-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
       "src": "../icons/icon-48.webp",
       "type": "image/png",
       "sizes": "48x48",

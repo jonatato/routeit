@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FileText, Pencil } from 'lucide-react';
 import { CloudinaryUpload } from '../components/CloudinaryUpload';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -7,10 +8,18 @@ import { MobilePageHeader } from '../components/MobilePageHeader';
 import { driver } from 'driver.js';
 import RichTextEditor from '../components/RichTextEditor';
 import { ActivityEditModal } from '../components/ActivityEditModal';
+import { ActivityAdminMetaModal } from '../components/ActivityAdminMetaModal';
+import { DaySelectorCarousel } from '../components/DaySelectorCarousel';
 import type { ItineraryDay, TravelItinerary, Flight, FlightSegment } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
 import { resolveMapsUrl } from '../services/maps';
 import { fetchItineraryById, fetchUserItinerary, saveUserItinerary, checkUserRole } from '../services/itinerary';
+import {
+  createItineraryDocument,
+  listItineraryDocuments,
+  type CreateItineraryDocumentInput,
+  type ItineraryDocument,
+} from '../services/documents';
 import { ensureSplitGroup, fetchSplit, type SplitMember } from '../services/split';
 import { useToast } from '../hooks/useToast';
 import FullscreenLoader from '../components/FullscreenLoader';
@@ -31,6 +40,8 @@ const listSections = [
   { key: 'budgetTips', label: 'Presupuesto inteligente' },
   { key: 'emergency', label: 'Emergencias' },
 ] as const;
+
+const SHOW_COVER_IMAGE_FIELD = false;
 
 const createTempId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -114,6 +125,40 @@ const splitLines = (value: string) =>
     .map(line => line.trim())
     .filter(Boolean);
 
+const deriveRouteFromLocations = (locations: TravelItinerary['locations']) => {
+  const seen = new Set<string>();
+
+  return locations.flatMap(location => {
+    const city = location.city.trim();
+    const hasCoords =
+      Number.isFinite(location.lat) &&
+      Number.isFinite(location.lng) &&
+      !(location.lat === 0 && location.lng === 0);
+
+    if (!city || !hasCoords) return [];
+
+    const normalizedCity = city.toLowerCase();
+    if (seen.has(normalizedCity)) return [];
+
+    seen.add(normalizedCity);
+    return [city];
+  });
+};
+
+const syncRouteWithLocations = (itinerary: TravelItinerary): TravelItinerary => {
+  const derivedRoute = deriveRouteFromLocations(itinerary.locations);
+  const hasSameRoute =
+    derivedRoute.length === itinerary.route.length &&
+    derivedRoute.every((city, index) => city === itinerary.route[index]);
+
+  if (hasSameRoute) return itinerary;
+
+  return {
+    ...itinerary,
+    route: derivedRoute,
+  };
+};
+
 const toNumber = (value: string) => (Number.isNaN(Number(value)) ? 0 : Number(value));
 
 const parseGoogleMapsCoords = (input: string) => {
@@ -150,8 +195,6 @@ const isGoogleMapsUrl = (input: string) => {
     value.includes('maps.google')
   );
 };
-
-const isLikelyUrl = (input: string) => /^https?:\/\//i.test(input.trim());
 
 const buildListHtml = (items: string[]) => {
   if (items.length === 0) return '';
@@ -242,7 +285,7 @@ const onboardingSteps: OnboardingStep[] = [
     section: 'map',
     popover: {
       title: 'Ruta y ciudades',
-      description: 'Escribe una ciudad por linea. Ejemplo: "Madrid", "Barcelona", "Valencia".',
+      description: 'Ordena aqui las ciudades con coordenadas. La ruta del mapa se genera automaticamente con esa lista.',
       side: 'top',
     },
   },
@@ -259,19 +302,16 @@ const onboardingSteps: OnboardingStep[] = [
   },
 ];
 
-const normalizeTimeRange = (value: string) => {
-  const cleaned = value.trim().replace(/(\d{1,2})[.,](\d{2})/g, '$1:$2');
-  const matches = [...cleaned.matchAll(/(\d{1,2})(?::(\d{2}))?/g)];
-  if (matches.length === 0) return value.trim();
-  const toTime = (hour: string, minute?: string) => {
-    const h = Math.min(Math.max(parseInt(hour, 10), 0), 23);
-    const m = minute ? Math.min(Math.max(parseInt(minute, 10), 0), 59) : 0;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+const formatDateRangeFromIso = (startDate?: string, endDate?: string) => {
+  const format = (value: string) => {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
   };
-  const first = toTime(matches[0][1], matches[0][2]);
-  if (matches.length === 1) return first;
-  const second = toTime(matches[1][1], matches[1][2]);
-  return `${first}–${second}`;
+  if (startDate && endDate) return `${format(startDate)} - ${format(endDate)}`;
+  if (startDate) return format(startDate);
+  if (endDate) return format(endDate);
+  return '';
 };
 
 const applyCoordInput = (
@@ -301,14 +341,16 @@ function AdminItinerary() {
   >('general');
   const [activeDayIndex, setActiveDayIndex] = useState(0);
   const [editingActivity, setEditingActivity] = useState<{ dayIndex: number; activityIndex: number } | null>(null);
+  const [editingActivityMeta, setEditingActivityMeta] = useState<{ dayIndex: number; activityIndex: number } | null>(null);
+  const [itineraryDocuments, setItineraryDocuments] = useState<ItineraryDocument[]>([]);
   const [mapCoordInputs, setMapCoordInputs] = useState<Record<number, string>>({});
-  const [dayCoordInputs, setDayCoordInputs] = useState<Record<string, string>>({});
   const [mapResolveStatus, setMapResolveStatus] = useState<Record<string, boolean>>({});
   const [hasStartedOnboarding, setHasStartedOnboarding] = useState(false);
   const driverRef = useRef<ReturnType<typeof driver> | null>(null);
   const activeSectionRef = useRef(activeSection);
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     activeSectionRef.current = activeSection;
@@ -408,7 +450,7 @@ function AdminItinerary() {
           return;
         }
         
-        setDraft(dataItinerary);
+        setDraft(syncRouteWithLocations(dataItinerary));
       } catch (err) {
         setStatus(err instanceof Error ? err.message : 'No se pudo cargar el itinerario.');
       } finally {
@@ -416,7 +458,7 @@ function AdminItinerary() {
       }
     };
     load();
-  }, [location.search, navigate]);
+  }, [location.search, navigate, toast]);
 
   useEffect(() => {
     if (!draft?.id) return;
@@ -430,6 +472,24 @@ function AdminItinerary() {
       }
     };
     loadSplitMembers();
+  }, [draft?.id]);
+
+  useEffect(() => {
+    if (!draft?.id) {
+      setItineraryDocuments([]);
+      return;
+    }
+
+    const loadDocuments = async () => {
+      try {
+        const documents = await listItineraryDocuments(draft.id!);
+        setItineraryDocuments(documents);
+      } catch (error) {
+        console.error('Error cargando documentos del itinerario:', error);
+      }
+    };
+
+    void loadDocuments();
   }, [draft?.id]);
 
   useEffect(() => {
@@ -465,7 +525,7 @@ function AdminItinerary() {
   }, [draft]);
 
   const updateDraft = (patch: Partial<TravelItinerary>) => {
-    setDraft(prev => (prev ? { ...prev, ...patch } : prev));
+    setDraft(prev => (prev ? syncRouteWithLocations({ ...prev, ...patch }) : prev));
   };
 
   const updateDay = (index: number, patch: Partial<ItineraryDay>) => {
@@ -476,6 +536,29 @@ function AdminItinerary() {
       return { ...prev, days };
     });
   };
+
+  const updateScheduleItem = useCallback((dayIndex: number, scheduleIndex: number, patch: Partial<ItineraryDay['schedule'][number]>) => {
+    setDraft(prev => {
+      if (!prev) return prev;
+      const days = [...prev.days];
+      const schedule = [...days[dayIndex].schedule];
+      schedule[scheduleIndex] = {
+        ...schedule[scheduleIndex],
+        ...patch,
+      };
+      days[dayIndex] = {
+        ...days[dayIndex],
+        schedule,
+      };
+      return { ...prev, days };
+    });
+  }, []);
+
+  const handleCreateActivityDocument = useCallback(async (input: CreateItineraryDocumentInput) => {
+    const createdDocument = await createItineraryDocument(input);
+    setItineraryDocuments(prev => [createdDocument, ...prev]);
+    return createdDocument;
+  }, []);
 
   const handleLocationMapInput = (index: number, raw: string) => {
     if (!draft) return;
@@ -512,48 +595,6 @@ function AdminItinerary() {
           setMapResolveStatus(prev => ({ ...prev, [resolveKey]: false }));
         });
     }
-  };
-
-  const handleScheduleMapInput = (scheduleIndex: number, raw: string) => {
-    if (!activeDay) return;
-    const resolveKey = `${activeDayIndex}-${scheduleIndex}`;
-    setDayCoordInputs(prev => ({
-      ...prev,
-      [resolveKey]: raw,
-    }));
-    const coords = parseGoogleMapsCoords(raw);
-    const next = [...activeDay.schedule];
-    next[scheduleIndex] = {
-      ...next[scheduleIndex],
-      lat: coords?.lat ?? next[scheduleIndex].lat,
-      lng: coords?.lng ?? next[scheduleIndex].lng,
-      mapLink: isLikelyUrl(raw) ? raw : '',
-    };
-    if (isGoogleMapsUrl(raw)) {
-      setMapResolveStatus(prev => ({ ...prev, [resolveKey]: true }));
-      void resolveMapsUrl(raw)
-        .then(resolved => {
-          if (!resolved) return;
-          const refreshed = [...next];
-          refreshed[scheduleIndex] = {
-            ...refreshed[scheduleIndex],
-            mapLink: resolved.url ?? raw,
-            lat: resolved.lat ?? refreshed[scheduleIndex].lat,
-            lng: resolved.lng ?? refreshed[scheduleIndex].lng,
-          };
-          updateDay(activeDayIndex, { schedule: refreshed });
-          if (resolved.lat !== undefined && resolved.lng !== undefined) {
-            setDayCoordInputs(prev => ({
-              ...prev,
-              [resolveKey]: `${resolved.lat}, ${resolved.lng}`,
-            }));
-          }
-        })
-        .finally(() => {
-          setMapResolveStatus(prev => ({ ...prev, [resolveKey]: false }));
-        });
-    }
-    updateDay(activeDayIndex, { schedule: next });
   };
 
   const flightsList = draft?.flightsList ?? [];
@@ -622,47 +663,6 @@ function AdminItinerary() {
     updateFlightsList(next);
   };
 
-  const handleScheduleLinkInput = (scheduleIndex: number, value: string) => {
-    if (!activeDay) return;
-    const next = [...activeDay.schedule];
-    if (isGoogleMapsUrl(value)) {
-      const coords = parseGoogleMapsCoords(value);
-      const resolveKey = `${activeDayIndex}-${scheduleIndex}`;
-      next[scheduleIndex] = {
-        ...next[scheduleIndex],
-        link: '',
-        mapLink: value,
-        lat: coords?.lat ?? next[scheduleIndex].lat,
-        lng: coords?.lng ?? next[scheduleIndex].lng,
-      };
-      setMapResolveStatus(prev => ({ ...prev, [resolveKey]: true }));
-      void resolveMapsUrl(value)
-        .then(resolved => {
-          if (!resolved) return;
-          const refreshed = [...next];
-          refreshed[scheduleIndex] = {
-            ...refreshed[scheduleIndex],
-            mapLink: resolved.url ?? value,
-            lat: resolved.lat ?? refreshed[scheduleIndex].lat,
-            lng: resolved.lng ?? refreshed[scheduleIndex].lng,
-          };
-          updateDay(activeDayIndex, { schedule: refreshed });
-          if (resolved.lat !== undefined && resolved.lng !== undefined) {
-            setDayCoordInputs(prev => ({
-              ...prev,
-              [resolveKey]: `${resolved.lat}, ${resolved.lng}`,
-            }));
-          }
-        })
-        .finally(() => {
-          setMapResolveStatus(prev => ({ ...prev, [resolveKey]: false }));
-        });
-    } else {
-      next[scheduleIndex] = { ...next[scheduleIndex], link: value };
-    }
-    updateDay(activeDayIndex, { schedule: next });
-  };
-
   type ListSectionKey = (typeof listSections)[number]['key'];
 
   const updateListSection = (key: ListSectionKey, items: string[]) => {
@@ -670,6 +670,10 @@ function AdminItinerary() {
   };
 
   const activeDay = draft ? draft.days[activeDayIndex] : null;
+  const documentsById = useMemo(
+    () => new Map(itineraryDocuments.map(document => [document.id, document] as const)),
+    [itineraryDocuments],
+  );
 
   const moveItem = <T,>(items: T[], from: number, to: number) => {
     const next = [...items];
@@ -680,17 +684,12 @@ function AdminItinerary() {
 
   const isResolvingMaps = Object.values(mapResolveStatus).some(Boolean);
 
-  const { toast } = useToast();
-
-  const handleSave = async () => {
-    if (!draft) return;
-    
-    // Verificar permisos antes de guardar
+  const persistDraft = useCallback(async (nextDraft: TravelItinerary, successMessage = 'Cambios guardados correctamente') => {
     if (userRole === 'viewer') {
       toast.error('No tienes permisos para guardar cambios');
-      return;
+      return false;
     }
-    
+
     setIsSaving(true);
     setStatus(null);
     const { data } = await supabase.auth.getUser();
@@ -699,20 +698,29 @@ function AdminItinerary() {
       setStatus('No hay sesión activa.');
       toast.error('No hay sesión activa.');
       setIsSaving(false);
-      return;
+      return false;
     }
+
     try {
-      const saved = await saveUserItinerary(user.id, draft, draft.id);
-      setDraft(saved);
+      const normalizedDraft = syncRouteWithLocations(nextDraft);
+      const saved = await saveUserItinerary(user.id, normalizedDraft, normalizedDraft.id);
+      setDraft(syncRouteWithLocations(saved));
       setStatus('Cambios guardados.');
-      toast.success('Cambios guardados correctamente');
+      toast.success(successMessage);
+      return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'No se pudo guardar.';
       setStatus(errorMessage);
       toast.error(errorMessage);
+      return false;
     } finally {
       setIsSaving(false);
     }
+  }, [toast, userRole]);
+
+  const handleSave = async () => {
+    if (!draft) return;
+    await persistDraft(draft);
   };
 
   if (isLoading) {
@@ -732,6 +740,8 @@ function AdminItinerary() {
 
   return (
     <div className="min-h-screen bg-background">
+      {isSaving && <FullscreenLoader message="Guardando cambios del itinerario..." />}
+
       {/* Header Mobile */}
       <MobilePageHeader
         title="Administrar itinerario"
@@ -890,7 +900,7 @@ function AdminItinerary() {
           <CardTitle>Información general</CardTitle>
           <CardDescription>Título, rango de fechas y descripción.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 md:grid-cols-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Título</label>
             <input
@@ -901,22 +911,47 @@ function AdminItinerary() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Rango de fechas</label>
+            <label className="text-sm font-medium">Fecha inicio</label>
             <input
               data-onboarding="general-daterange"
-              value={draft.dateRange}
-              onChange={event => updateDraft({ dateRange: event.target.value })}
+              type="date"
+              value={draft.startDate ?? ''}
+              onChange={event => {
+                const startDate = event.target.value;
+                updateDraft({
+                  startDate,
+                  dateRange: formatDateRangeFromIso(startDate, draft.endDate),
+                });
+              }}
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Imagen de portada</label>
-            <CloudinaryUpload 
-              onUpload={(url) => updateDraft({ coverImage: url })}
-              currentImage={draft.coverImage}
+            <label className="text-sm font-medium">Fecha fin</label>
+            <input
+              type="date"
+              min={draft.startDate}
+              value={draft.endDate ?? ''}
+              onChange={event => {
+                const endDate = event.target.value;
+                updateDraft({
+                  endDate,
+                  dateRange: formatDateRangeFromIso(draft.startDate, endDate),
+                });
+              }}
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm"
             />
           </div>
-        <div className="space-y-2 md:col-span-3">
+          {SHOW_COVER_IMAGE_FIELD && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Imagen de portada</label>
+              <CloudinaryUpload 
+                onUpload={(url) => updateDraft({ coverImage: url })}
+                currentImage={draft.coverImage}
+              />
+            </div>
+          )}
+        <div className="space-y-2 md:col-span-4">
             <label className="text-sm font-medium">Introducción</label>
             <RichTextEditor value={draft.intro} onChange={value => updateDraft({ intro: value })} />
           </div>
@@ -1356,22 +1391,16 @@ function AdminItinerary() {
             <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Mapa</CardTitle>
-          <CardDescription>Ciudades y ruta.</CardDescription>
+            <CardDescription>Ciudades con coordenadas. La ruta se genera sola en este mismo orden.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Ruta (una ciudad por línea)</label>
-            <textarea
-              data-onboarding="map-route"
-              value={draft.route.join('\n')}
-              onChange={event => updateDraft({ route: splitLines(event.target.value) })}
-              className="min-h-[120px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="space-y-3">
+            <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-mutedForeground" data-onboarding="map-route">
+              La ruta del itinerario se autogenera con las ciudades que tengan coordenadas, siguiendo el orden de esta lista.
+            </div>
+            <div className="space-y-3">
             <h3 className="text-sm font-semibold">Ciudades con coordenadas</h3>
             {draft.locations.map((location, index) => (
-              <div key={`${location.city}-${index}`} className="grid gap-2 md:grid-cols-5">
+                <div key={index} className="grid gap-2 md:grid-cols-5">
                 <input
                   value={location.city}
                   onChange={event => {
@@ -1622,34 +1651,35 @@ function AdminItinerary() {
 
 	          {activeSection === 'days' && (
 	            <Card
-	              className="shadow-md [&>div]:gap-2 [&>div]:p-2 md:[&>div]:gap-4 md:[&>div]:p-6"
+	              className="shadow-md [&>div]:gap-3 [&>div]:p-3 md:[&>div]:gap-5 md:[&>div]:p-6"
 	              data-onboarding="days-section"
 	            >
-	        <CardHeader className="gap-1 p-2 pb-2 md:pb-4">
+	        <CardHeader className="gap-1 p-3 pb-1 md:pb-3">
           <CardTitle>Días del itinerario</CardTitle>
-          <CardDescription>Editar detalles, horarios, notas y etiquetas.</CardDescription>
+          <CardDescription>Organiza cada día con una vista más limpia: detalles arriba, actividades al centro y notas a un lado.</CardDescription>
         </CardHeader>
-        <CardContent className="min-w-0 space-y-3 overflow-hidden p-2 pt-0 md:space-y-6 md:p-4 md:pt-0">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                  {draft.days.map((day, index) => (
-                    <button
-                      key={day.id ?? index}
-                      type="button"
-                      onClick={() => setActiveDayIndex(index)}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                        index === activeDayIndex
-                          ? 'border-primary bg-primary text-primaryForeground'
-                          : 'border-border bg-background text-mutedForeground'
-                      }`}
-                    >
-                      {day.kind === 'flight' ? '✈️' : day.dayLabel}
-                    </button>
-                  ))}
-                </div>
+        <CardContent className="min-w-0 space-y-4 overflow-hidden p-3 pt-0 md:space-y-6 md:p-4 md:pt-0">
+                <DaySelectorCarousel
+                  days={draft.days}
+                  currentIndex={activeDayIndex}
+                  onDayChange={setActiveDayIndex}
+                  tagsCatalog={draft.tagsCatalog}
+                />
+
                 {activeDay && (
-                  <div className="min-w-0 overflow-hidden rounded-xl border border-border p-2 md:p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold">Día {activeDayIndex + 1}</h3>
+                  <div className="space-y-4 rounded-[1.4rem] border border-border/70 bg-card/80 p-3 shadow-[0_8px_22px_rgba(15,23,42,0.04)] md:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          Día {String(activeDayIndex + 1).padStart(2, '0')}
+                        </p>
+                        <h3 className="mt-1 text-lg font-semibold text-foreground">
+                          {activeDay.city || activeDay.dayLabel || 'Nuevo día'}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {activeDay.schedule.length} {activeDay.schedule.length === 1 ? 'actividad' : 'actividades'} · {activeDay.notes.length} {activeDay.notes.length === 1 ? 'nota' : 'notas'}
+                        </p>
+                      </div>
                       <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:items-center">
                         <Button
                           variant="outline"
@@ -1689,11 +1719,12 @@ function AdminItinerary() {
                             setActiveDayIndex(prev => Math.max(0, Math.min(prev, next.length - 1)));
                           }}
                         >
-                          Quitar
+                          Quitar día
                         </Button>
                       </div>
                     </div>
-                    <div className="mt-2 grid gap-2 md:mt-3 md:gap-3 md:grid-cols-3">
+
+                    <div className="grid gap-3 md:grid-cols-3">
                       <input
                         value={activeDay.dayLabel}
                         onChange={event => updateDay(activeDayIndex, { dayLabel: event.target.value.slice(0, 24) })}
@@ -1710,10 +1741,10 @@ function AdminItinerary() {
                       <select
                         value={activeDay.kind}
                         onChange={event => updateDay(activeDayIndex, { kind: event.target.value as ItineraryDay['kind'] })}
-                        className="min-w-0 w-full max-w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         style={{
                           borderLeftWidth: '4px',
-                          borderLeftColor: (draft.tagsCatalog ?? []).find(t => t.slug === activeDay.kind)?.color ?? '#6366f1'
+                          borderLeftColor: (draft.tagsCatalog ?? []).find(t => t.slug === activeDay.kind)?.color ?? '#6366f1',
                         }}
                       >
                         {(draft.tagsCatalog ?? []).map(tag => (
@@ -1727,430 +1758,267 @@ function AdminItinerary() {
                         onChange={event => updateDay(activeDayIndex, { city: event.target.value.slice(0, 72) })}
                         maxLength={72}
                         placeholder="Ciudad"
-                        className="min-w-0 md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm md:col-span-2"
                       />
                       <input
                         value={activeDay.plan}
                         onChange={event => updateDay(activeDayIndex, { plan: event.target.value })}
-                        placeholder="Plan"
+                        placeholder="Plan resumido"
                         className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       />
                       <input
                         value={(activeDay.tags ?? []).join(', ')}
-                        onChange={event =>
-                          updateDay(activeDayIndex, { tags: splitLines(event.target.value.replace(/,/g, '\n')) })
-                        }
-                        placeholder="Etiquetas (separadas por coma)"
-                        className="min-w-0 md:col-span-3 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        onChange={event => updateDay(activeDayIndex, { tags: splitLines(event.target.value.replace(/,/g, '\n')) })}
+                        placeholder="Etiquetas del día"
+                        className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm md:col-span-3"
                       />
                     </div>
-                    <div className="mt-3 grid gap-2 md:mt-4 md:gap-3 md:grid-cols-2">
-                      <div className="min-w-0 space-y-3 md:space-y-4">
-                        <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                          Horario
-                        </h4>
-                        <div className="space-y-2 md:space-y-3">
-                        {activeDay.schedule.map((item, scheduleIndex) => (
-                          <div 
-                            key={`${activeDay.id}-schedule-${scheduleIndex}`} 
-                            className="grid min-w-0 gap-2 overflow-hidden rounded-xl border border-border bg-muted/60 p-2 shadow-sm dark:bg-muted/30 md:grid-cols-3 md:p-4"
+
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+                      <section className="space-y-3 min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
+                              Actividades del día
+                            </h4>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Edita lo esencial con un modal y deja gasto/documento en un segundo paso más limpio.
+                            </p>
+                          </div>
+                          <Button
+                            data-onboarding="days-add-schedule"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const nextSchedule = [
+                                ...activeDay.schedule,
+                                { time: '', activity: '', link: '', mapLink: '', lat: undefined, lng: undefined, tags: [] },
+                              ];
+                              updateDay(activeDayIndex, { schedule: nextSchedule });
+                              setEditingActivity({ dayIndex: activeDayIndex, activityIndex: nextSchedule.length - 1 });
+                            }}
                           >
-                            <div className="mb-1 flex items-center gap-2 border-b border-border/50 pb-1 md:col-span-3 md:mb-2 md:pb-2">
-                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                                {scheduleIndex + 1}
-                              </span>
-                              <span className="text-xs font-medium text-mutedForeground">Actividad {scheduleIndex + 1}</span>
-                            </div>
-                            <input
-                              value={item.time}
-                              onChange={event => {
-                                const next = [...activeDay.schedule];
-                                next[scheduleIndex] = { ...item, time: event.target.value };
-                                updateDay(activeDayIndex, { schedule: next });
-                              }}
-                              onBlur={event => {
-                                const normalized = normalizeTimeRange(event.target.value);
-                                const next = [...activeDay.schedule];
-                                next[scheduleIndex] = { ...item, time: normalized };
-                                updateDay(activeDayIndex, { schedule: next });
-                              }}
-                              placeholder="Hora (ej: 09:00-10:30)"
-                              className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            />
-                            <input
-                              value={item.activity}
-                              onChange={event => {
-                                const next = [...activeDay.schedule];
-                                next[scheduleIndex] = { ...item, activity: event.target.value };
-                                updateDay(activeDayIndex, { schedule: next });
-                              }}
-                              className="min-w-0 w-full md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            />
-                            <div className="relative min-w-0 md:col-span-3">
+                            Añadir actividad
+                          </Button>
+                        </div>
+
+                        {activeDay.schedule.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                            Este día todavía no tiene actividades. Añade la primera y edítala en modal para mantener la vista limpia.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {activeDay.schedule.map((item, scheduleIndex) => {
+                              const linkedDocument = item.documentId ? documentsById.get(item.documentId) : null;
+
+                              return (
+                                <div
+                                  key={`${activeDay.id}-schedule-${scheduleIndex}`}
+                                  className="rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm"
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="flex min-w-0 items-start gap-3">
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                        {scheduleIndex + 1}
+                                      </span>
+                                      <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                            {item.time || 'Sin hora'}
+                                          </span>
+                                          <h5 className="min-w-0 truncate text-sm font-semibold text-foreground md:text-base">
+                                            {item.activity || `Actividad ${scheduleIndex + 1}`}
+                                          </h5>
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                          {item.link && <span className="rounded-full border border-border bg-muted/25 px-2.5 py-1">Entradas</span>}
+                                          {(item.mapLink || (item.lat !== undefined && item.lng !== undefined)) && (
+                                            <span className="rounded-full border border-border bg-muted/25 px-2.5 py-1">Maps enlazado</span>
+                                          )}
+                                          {(item.tags ?? []).length > 0 && (
+                                            <span className="rounded-full border border-border bg-muted/25 px-2.5 py-1">
+                                              {(item.tags ?? []).length} etiquetas
+                                            </span>
+                                          )}
+                                          {item.cost && (
+                                            <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-primary">
+                                              {item.cost.toFixed(2)} {item.costCurrency ?? 'EUR'}
+                                            </span>
+                                          )}
+                                          {linkedDocument && (
+                                            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-800">
+                                              {linkedDocument.title}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                  </div>
+
+                                  <div className="mt-3 grid gap-2 md:grid-cols-[auto_auto_minmax(0,1fr)_auto] md:items-center">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const next = moveItem(activeDay.schedule, scheduleIndex, Math.max(0, scheduleIndex - 1));
+                                        updateDay(activeDayIndex, { schedule: next });
+                                      }}
+                                      disabled={scheduleIndex === 0}
+                                    >
+                                      ↑
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const next = moveItem(
+                                          activeDay.schedule,
+                                          scheduleIndex,
+                                          Math.min(activeDay.schedule.length - 1, scheduleIndex + 1),
+                                        );
+                                        updateDay(activeDayIndex, { schedule: next });
+                                      }}
+                                      disabled={scheduleIndex === activeDay.schedule.length - 1}
+                                    >
+                                      ↓
+                                    </Button>
+                                    <select
+                                      value=""
+                                      onChange={event => {
+                                        const targetDayIndex = parseInt(event.target.value, 10);
+                                        if (targetDayIndex !== activeDayIndex && targetDayIndex >= 0 && targetDayIndex < draft.days.length) {
+                                          const activity = activeDay.schedule[scheduleIndex];
+                                          const updatedCurrentDay = {
+                                            ...activeDay,
+                                            schedule: activeDay.schedule.filter((_, i) => i !== scheduleIndex),
+                                          };
+                                          const targetDay = draft.days[targetDayIndex];
+                                          const updatedTargetDay = {
+                                            ...targetDay,
+                                            schedule: [...targetDay.schedule, activity],
+                                          };
+                                          const updatedDays = [...draft.days];
+                                          updatedDays[activeDayIndex] = updatedCurrentDay;
+                                          updatedDays[targetDayIndex] = updatedTargetDay;
+                                          updateDraft({ days: updatedDays });
+                                        }
+                                        event.target.value = '';
+                                      }}
+                                      className="min-w-0 rounded-lg border border-border bg-background px-2 py-2 text-xs"
+                                    >
+                                      <option value="">Mover a otro día...</option>
+                                      {draft.days.map((day, idx) => (
+                                        <option key={day.id ?? idx} value={idx} disabled={idx === activeDayIndex}>
+                                          {day.kind === 'flight' ? '✈️ Vuelo' : day.dayLabel} - {day.city}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      className="w-full md:w-auto"
+                                      onClick={async () => {
+                                        const itemToRemove = activeDay.schedule[scheduleIndex];
+
+                                        if (itemToRemove.costSplitExpenseId) {
+                                          try {
+                                            const { supabase } = await import('../lib/supabase');
+                                            await supabase
+                                              .from('split_expenses')
+                                              .delete()
+                                              .eq('id', itemToRemove.costSplitExpenseId);
+                                            toast.success('Gasto asociado eliminado');
+                                          } catch (err) {
+                                            console.error('Error borrando gasto asociado:', err);
+                                            toast.error('Error al eliminar el gasto asociado');
+                                          }
+                                        }
+
+                                        const next = activeDay.schedule.filter((_, i) => i !== scheduleIndex);
+                                        updateDay(activeDayIndex, { schedule: next });
+                                      }}
+                                    >
+                                      Quitar
+                                    </Button>
+                                  </div>
+
+                                  <div className="mt-2 grid grid-cols-2 gap-2 md:flex md:justify-end">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setEditingActivity({ dayIndex: activeDayIndex, activityIndex: scheduleIndex })}
+                                      className="w-full md:w-auto"
+                                    >
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Editar actividad
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setEditingActivityMeta({ dayIndex: activeDayIndex, activityIndex: scheduleIndex })}
+                                      className="w-full md:w-auto"
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      Gasto y documento
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
+
+                      <section className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">Notas del día</h4>
+                            <p className="mt-1 text-sm text-muted-foreground">Observaciones rápidas para el bloque del día.</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateDay(activeDayIndex, { notes: [...activeDay.notes, ''] })}
+                          >
+                            Añadir nota
+                          </Button>
+                        </div>
+
+                        {activeDay.notes.length === 0 ? (
+                          <p className="rounded-xl border border-dashed border-border bg-background px-3 py-4 text-sm text-muted-foreground">
+                            Todavía no has añadido notas para este día.
+                          </p>
+                        ) : (
+                          activeDay.notes.map((note, noteIndex) => (
+                            <div key={`${activeDay.id}-note-${noteIndex}`} className="flex items-center gap-2">
                               <input
-                                value={item.link ?? ''}
-                                onChange={event => handleScheduleLinkInput(scheduleIndex, event.target.value)}
-                                placeholder="Enlace entradas (opcional)"
-                                className="min-w-0 block w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm overflow-x-auto"
-                              />
-                              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-                                <button
-                                  type="button"
-                                  title="Pegar"
-                                  onClick={async () => {
-                                    const text = await navigator.clipboard.readText();
-                                    if (text) handleScheduleLinkInput(scheduleIndex, text);
-                                  }}
-                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
-                                >
-                                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
-                                    <rect x="4" y="2" width="10" height="14" rx="2" ry="2" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  title="Borrar"
-                                  onClick={() => handleScheduleLinkInput(scheduleIndex, '')}
-                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
-                                >
-                                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                            <input
-                              value={(item.tags ?? []).join(', ')}
-                              onChange={event => {
-                                const next = [...activeDay.schedule];
-                                next[scheduleIndex] = {
-                                  ...item,
-                                  tags: event.target.value
-                                    .split(',')
-                                    .map(tag => tag.trim())
-                                    .filter(Boolean),
-                                };
-                                updateDay(activeDayIndex, { schedule: next });
-                              }}
-                              placeholder="Etiquetas (coma)"
-                              className="min-w-0 w-full md:col-span-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            />
-                            <div className="relative min-w-0 md:col-span-2">
-                              <input
-                                value={
-                                  dayCoordInputs[`${activeDayIndex}-${scheduleIndex}`] ??
-                                  item.mapLink ??
-                                  (item.lat !== undefined && item.lng !== undefined
-                                    ? `${item.lat}, ${item.lng}`
-                                    : '')
-                                }
-                                onChange={event => handleScheduleMapInput(scheduleIndex, event.target.value)}
-                                placeholder="Pegar link o 'lat,lng' de Google Maps"
-                                className="min-w-0 block w-full rounded-lg border border-border bg-background px-3 py-2 pr-16 text-sm overflow-x-auto"
-                              />
-                              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-                                <button
-                                  type="button"
-                                  title="Pegar"
-                                  onClick={async () => {
-                                    const text = await navigator.clipboard.readText();
-                                    if (text) handleScheduleMapInput(scheduleIndex, text);
-                                  }}
-                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
-                                >
-                                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
-                                    <rect x="4" y="2" width="10" height="14" rx="2" ry="2" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  title="Borrar"
-                                  onClick={() => {
-                                    const resolveKey = `${activeDayIndex}-${scheduleIndex}`;
-                                    setDayCoordInputs(prev => ({ ...prev, [resolveKey]: '' }));
-                                    const next = [...activeDay.schedule];
-                                    next[scheduleIndex] = { ...next[scheduleIndex], lat: undefined, lng: undefined, mapLink: '' };
-                                    updateDay(activeDayIndex, { schedule: next });
-                                  }}
-                                  className="rounded border border-border bg-background p-1 text-muted-foreground hover:text-primary hover:border-primary/50"
-                                >
-                                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                              {mapResolveStatus[`${activeDayIndex}-${scheduleIndex}`] && (
-                                <p className="md:col-span-3 text-xs text-mutedForeground">
-                                  Resolviendo enlace de Maps...
-                                </p>
-                              )}
-                            <input
-                              value={item.lat ?? ''}
-                              onChange={event => {
-                                const value = event.target.value;
-                                const next = [...activeDay.schedule];
-                                const coords = applyCoordInput(value, item, 'lat');
-                                next[scheduleIndex] = {
-                                  ...item,
-                                  lat: coords.lat,
-                                  lng: coords.lng,
-                                };
-                                updateDay(activeDayIndex, { schedule: next });
-                              }}
-                              placeholder="Lat"
-                              className="hidden min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            />
-                            <input
-                              value={item.lng ?? ''}
-                              onChange={event => {
-                                const value = event.target.value;
-                                const next = [...activeDay.schedule];
-                                const coords = applyCoordInput(value, item, 'lng');
-                                next[scheduleIndex] = {
-                                  ...item,
-                                  lat: coords.lat,
-                                  lng: coords.lng,
-                                };
-                                updateDay(activeDayIndex, { schedule: next });
-                              }}
-                              placeholder="Lng"
-                              className="hidden min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            />
-                            
-                            {/* Campos de costo */}
-                            <div className="min-w-0 space-y-2 overflow-hidden rounded-lg border border-primary/20 bg-primary/5 p-2 md:col-span-3 md:p-3">
-                              <h5 className="text-xs font-semibold text-mutedForeground flex items-center gap-2">
-                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <line x1="12" y1="1" x2="12" y2="23" />
-                                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                                </svg>
-                                Gasto (opcional - se añade automáticamente a Split)
-                              </h5>
-                              <div className="grid gap-2 md:grid-cols-3 min-w-0">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={item.cost ?? ''}
-                                  onChange={event => {
-                                    const next = [...activeDay.schedule];
-                                    const value = event.target.value;
-                                    next[scheduleIndex] = {
-                                      ...item,
-                                      cost: value ? parseFloat(value) : undefined,
-                                    };
-                                    updateDay(activeDayIndex, { schedule: next });
-                                  }}
-                                  placeholder="Precio total (ej: 60)"
-                                  className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                                />
-                                <select
-                                  value={item.costPayerId ?? ''}
-                                  onChange={event => {
-                                    const next = [...activeDay.schedule];
-                                    next[scheduleIndex] = {
-                                      ...item,
-                                      costPayerId: event.target.value || undefined,
-                                    };
-                                    updateDay(activeDayIndex, { schedule: next });
-                                  }}
-                                  className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                                  disabled={!item.cost}
-                                >
-                                  <option value="">Quién pagó?</option>
-                                  {splitMembers.map(member => (
-                                    <option key={member.id} value={member.id}>
-                                      {member.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={item.costCurrency ?? 'EUR'}
-                                  onChange={event => {
-                                    const next = [...activeDay.schedule];
-                                    next[scheduleIndex] = {
-                                      ...item,
-                                      costCurrency: event.target.value,
-                                    };
-                                    updateDay(activeDayIndex, { schedule: next });
-                                  }}
-                                  className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                                  disabled={!item.cost}
-                                >
-                                  <option value="EUR">EUR (€)</option>
-                                  <option value="USD">USD ($)</option>
-                                  <option value="GBP">GBP (£)</option>
-                                  <option value="JPY">JPY (¥)</option>
-                                  <option value="CNY">CNY (¥)</option>
-                                </select>
-                              </div>
-                              {item.cost && item.costPayerId && splitMembers.length > 0 && (
-                                <p className="text-xs text-mutedForeground">
-                                  💡 Se dividirá entre {splitMembers.length} personas ({(item.cost / splitMembers.length).toFixed(2)} {item.costCurrency ?? 'EUR'} por persona)
-                                </p>
-                              )}
-                              {splitMembers.length === 0 && item.cost && (
-                                <p className="text-xs text-orange-600">
-                                  ⚠️ Añade miembros en la sección de Gastos primero
-                                </p>
-                              )}
-                            </div>
-                            
-                            <div className="grid w-full gap-2 md:col-span-3 md:grid-cols-[auto_auto_minmax(0,1fr)_auto] md:items-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const next = moveItem(
-                                    activeDay.schedule,
-                                    scheduleIndex,
-                                    Math.max(0, scheduleIndex - 1),
-                                  );
-                                  updateDay(activeDayIndex, { schedule: next });
-                                }}
-                                disabled={scheduleIndex === 0}
-                              >
-                                ↑
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const next = moveItem(
-                                    activeDay.schedule,
-                                    scheduleIndex,
-                                    Math.min(activeDay.schedule.length - 1, scheduleIndex + 1),
-                                  );
-                                  updateDay(activeDayIndex, { schedule: next });
-                                }}
-                                disabled={scheduleIndex === activeDay.schedule.length - 1}
-                              >
-                                ↓
-                              </Button>
-                              <select
-                                value=""
+                                value={note}
                                 onChange={event => {
-                                  const targetDayIndex = parseInt(event.target.value, 10);
-                                  if (targetDayIndex !== activeDayIndex && targetDayIndex >= 0 && targetDayIndex < draft.days.length) {
-                                    const activity = activeDay.schedule[scheduleIndex];
-                                    // Remover de día actual
-                                    const updatedCurrentDay = {
-                                      ...activeDay,
-                                      schedule: activeDay.schedule.filter((_, i) => i !== scheduleIndex),
-                                    };
-                                    // Añadir a día destino
-                                    const targetDay = draft.days[targetDayIndex];
-                                    const updatedTargetDay = {
-                                      ...targetDay,
-                                      schedule: [...targetDay.schedule, activity],
-                                    };
-                                    // Actualizar ambos días
-                                    const updatedDays = [...draft.days];
-                                    updatedDays[activeDayIndex] = updatedCurrentDay;
-                                    updatedDays[targetDayIndex] = updatedTargetDay;
-                                    updateDraft({ days: updatedDays });
-                                  }
-                                  event.target.value = '';
+                                  const next = [...activeDay.notes];
+                                  next[noteIndex] = event.target.value;
+                                  updateDay(activeDayIndex, { notes: next });
                                 }}
-                                className="min-w-0 w-full max-w-full rounded-lg border border-border bg-background px-2 py-1 text-xs md:w-auto"
-                                title="Mover a otro día"
-                              >
-                                <option value="">Mover a día...</option>
-                                {draft.days.map((day, idx) => (
-                                  <option key={day.id ?? idx} value={idx} disabled={idx === activeDayIndex}>
-                                    {day.kind === 'flight' ? '✈️ Vuelo' : day.dayLabel} - {day.city}
-                                  </option>
-                                ))}
-                              </select>
+                                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                              />
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                className="w-full md:w-auto"
-                                onClick={async () => {
-                                  const itemToRemove = activeDay.schedule[scheduleIndex];
-                                  
-                                  // Si tiene un gasto asociado, borrarlo de Split
-                                  if (itemToRemove.costSplitExpenseId) {
-                                    try {
-                                      const { supabase } = await import('../lib/supabase');
-                                      await supabase
-                                        .from('split_expenses')
-                                        .delete()
-                                        .eq('id', itemToRemove.costSplitExpenseId);
-                                      toast.success('Gasto asociado eliminado');
-                                    } catch (err) {
-                                      console.error('Error borrando gasto asociado:', err);
-                                      toast.error('Error al eliminar el gasto asociado');
-                                    }
-                                  }
-                                  
-                                  const next = activeDay.schedule.filter((_, i) => i !== scheduleIndex);
-                                  updateDay(activeDayIndex, { schedule: next });
+                                onClick={() => {
+                                  const next = activeDay.notes.filter((_, i) => i !== noteIndex);
+                                  updateDay(activeDayIndex, { notes: next });
                                 }}
                               >
                                 Quitar
                               </Button>
                             </div>
-                          </div>
-                        ))}
-                        </div>
-                        <Button
-                          data-onboarding="days-add-schedule"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            updateDay(activeDayIndex, {
-                              schedule: [
-                                ...activeDay.schedule,
-                                { time: '', activity: '', link: '', mapLink: '', lat: undefined, lng: undefined, tags: [] },
-                              ],
-                            })
-                          }
-                        >
-                          Añadir horario
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">Notas</h4>
-                        {activeDay.notes.map((note, noteIndex) => (
-                          <div key={`${activeDay.id}-note-${noteIndex}`} className="flex items-center gap-2">
-                            <input
-                              value={note}
-                              onChange={event => {
-                                const next = [...activeDay.notes];
-                                next[noteIndex] = event.target.value;
-                                updateDay(activeDayIndex, { notes: next });
-                              }}
-                              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                const next = activeDay.notes.filter((_, i) => i !== noteIndex);
-                                updateDay(activeDayIndex, { notes: next });
-                              }}
-                            >
-                              Quitar
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateDay(activeDayIndex, { notes: [...activeDay.notes, ''] })}
-                        >
-                          Añadir nota
-                        </Button>
-                      </div>
+                          ))
+                        )}
+                      </section>
                     </div>
                   </div>
                 )}
+
           <Button
             variant="outline"
             onClick={() => {
@@ -2174,23 +2042,54 @@ function AdminItinerary() {
           </Button>
         </CardContent>
       </Card>
-          )}
+	          )}
         </div>
 
-        <ActivityEditModal
-          isOpen={!!editingActivity}
-          onClose={() => setEditingActivity(null)}
-          item={editingActivity ? draft.days[editingActivity.dayIndex].schedule[editingActivity.activityIndex] : null}
-          onSave={(updatedItem) => {
-            if (!editingActivity) return;
-            const day = draft.days[editingActivity.dayIndex];
-            const newSchedule = [...day.schedule];
-            newSchedule[editingActivity.activityIndex] = updatedItem;
-            updateDay(editingActivity.dayIndex, { schedule: newSchedule });
-            setEditingActivity(null);
-          }}
-          splitMembers={splitMembers}
-        />
+        {editingActivity && (
+          <ActivityEditModal
+            key={`activity-${editingActivity.dayIndex}-${editingActivity.activityIndex}`}
+            isOpen
+            onClose={() => setEditingActivity(null)}
+            item={draft.days[editingActivity.dayIndex].schedule[editingActivity.activityIndex]}
+            onSave={(updatedItem) => {
+              updateScheduleItem(editingActivity.dayIndex, editingActivity.activityIndex, updatedItem);
+              setEditingActivity(null);
+            }}
+          />
+        )}
+
+        {editingActivityMeta && (
+          <ActivityAdminMetaModal
+            key={`activity-meta-${editingActivityMeta.dayIndex}-${editingActivityMeta.activityIndex}`}
+            isOpen
+            onClose={() => setEditingActivityMeta(null)}
+            item={draft.days[editingActivityMeta.dayIndex].schedule[editingActivityMeta.activityIndex]}
+            onSave={async (updatedItem) => {
+              if (!draft) return;
+
+              const days = [...draft.days];
+              const schedule = [...days[editingActivityMeta.dayIndex].schedule];
+              schedule[editingActivityMeta.activityIndex] = updatedItem;
+              days[editingActivityMeta.dayIndex] = {
+                ...days[editingActivityMeta.dayIndex],
+                schedule,
+              };
+              const nextDraft = { ...draft, days };
+
+              setDraft(nextDraft);
+              const saved = await persistDraft(nextDraft, 'Actividad guardada automáticamente');
+              if (saved) {
+                setEditingActivityMeta(null);
+              }
+              return saved;
+            }}
+            splitMembers={splitMembers}
+            documents={itineraryDocuments}
+            itineraryId={draft?.id}
+            onCreateDocument={handleCreateActivityDocument}
+            onManageDocuments={draft?.id ? () => navigate(`/app/documents?itineraryId=${draft.id}`) : undefined}
+          />
+        )}
       </div>
     </div>
   );

@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Receipt, ShoppingBag, Plane, Store } from 'lucide-react';
+import { MapPin, Receipt, ShoppingBag, Plane, FileText } from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
 
 type Tab = {
   key: string;
   label: string;
   path: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
 };
 
 function MobileTabs() {
@@ -31,11 +32,11 @@ function MobileTabs() {
       path: '/app', 
       icon: MapPin,
     },
-    { 
-      key: 'store', 
-      label: 'Tienda', 
-      path: '/app/store', 
-      icon: Store,
+    {
+      key: 'documents',
+      label: 'Documentos',
+      path: '/app/documents',
+      icon: FileText,
     },
     { 
       key: 'itineraries', 
@@ -52,7 +53,7 @@ function MobileTabs() {
   const isTabActive = (tab: Tab) => (tab.key === 'itinerary' ? isItineraryActive() : location.pathname === tab.path);
   
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[70] bg-card pb-[calc(var(--safe-area-inset-bottom)+0.12rem)] pl-safe pr-safe shadow-sm backdrop-blur-md border-t border-border/20">
+    <nav className="fixed inset-x-0 bottom-0 z-[70] bg-card pb-[calc(var(--safe-area-inset-bottom)+0.12rem)] pl-safe pr-safe shadow-[0_-8px_24px_rgba(15,23,42,0.18)] backdrop-blur-md border-t border-border/20">
       <div className="mx-auto flex h-[64px] w-full max-w-[460px] items-center justify-around px-4">
         {tabs.map((tab) => {
             const isActive = isTabActive(tab);

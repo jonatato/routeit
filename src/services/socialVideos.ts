@@ -144,6 +144,7 @@ export async function fetchVideos(itineraryId: string): Promise<SocialVideo[]> {
       video_reactions(*)
     `)
     .eq('itinerary_id', itineraryId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
     
   if (error) throw error;
@@ -168,6 +169,7 @@ export async function fetchVideo(videoId: string): Promise<SocialVideo | null> {
       video_reactions(*)
     `)
     .eq('id', videoId)
+    .is('deleted_at', null)
     .single();
     
   if (error) {
@@ -242,7 +244,8 @@ export async function updateVideo(
       ...updates,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', videoId);
+    .eq('id', videoId)
+    .is('deleted_at', null);
     
   if (error) throw error;
 }
@@ -252,7 +255,8 @@ export async function deleteVideo(videoId: string): Promise<void> {
   const { error } = await supabase
     .from('social_videos')
     .delete()
-    .eq('id', videoId);
+    .eq('id', videoId)
+    .is('deleted_at', null);
     
   if (error) throw error;
 }
@@ -277,6 +281,7 @@ export async function removeVideoTags(videoId: string, tagIds: string[]): Promis
     .from('video_tags')
     .delete()
     .eq('video_id', videoId)
+    .is('deleted_at', null)
     .in('tag_id', tagIds);
     
   if (error) throw error;
@@ -312,7 +317,8 @@ export async function updateReaction(
   const { error } = await supabase
     .from('video_reactions')
     .update(updates)
-    .eq('id', reactionId);
+    .eq('id', reactionId)
+    .is('deleted_at', null);
     
   if (error) throw error;
 }
@@ -322,7 +328,8 @@ export async function deleteReaction(reactionId: string): Promise<void> {
   const { error } = await supabase
     .from('video_reactions')
     .delete()
-    .eq('id', reactionId);
+    .eq('id', reactionId)
+    .is('deleted_at', null);
     
   if (error) throw error;
 }
@@ -337,6 +344,7 @@ export async function filterVideosByTags(itineraryId: string, tagIds: string[]):
       video_reactions(*)
     `)
     .eq('itinerary_id', itineraryId)
+    .is('deleted_at', null)
     .in('video_tags.tag_id', tagIds)
     .order('created_at', { ascending: false });
     
@@ -356,7 +364,8 @@ export async function getVideoReactionStats(videoId: string): Promise<Record<str
   const { data, error } = await supabase
     .from('video_reactions')
     .select('reaction_type')
-    .eq('video_id', videoId);
+    .eq('video_id', videoId)
+    .is('deleted_at', null);
     
   if (error) throw error;
   

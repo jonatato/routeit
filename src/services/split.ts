@@ -104,8 +104,67 @@ export type SplitShare = {
   amount: number;
 };
 
+const PAYMENT_DUPLICATE_WINDOW_MS = 15_000;
+
+const normalizePaymentNote = (note?: string | null) => {
+  const normalized = (note ?? '').trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+const paymentTimestampMs = (createdAt: string) => {
+  const parsed = Date.parse(createdAt);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const paymentIdentityKey = (payment: SplitPayment) =>
+  [
+    payment.group_id,
+    payment.payer_id,
+    payment.payee_id,
+    Number(payment.amount).toFixed(2),
+    normalizePaymentNote(payment.note) ?? '',
+  ].join('|');
+
+const dedupeLikelyDuplicatePayments = (payments: SplitPayment[]) => {
+  if (payments.length <= 1) return payments;
+
+  const sortedAsc = [...payments].sort(
+    (left, right) => paymentTimestampMs(left.created_at) - paymentTimestampMs(right.created_at),
+  );
+
+  const unique: SplitPayment[] = [];
+  const acceptedByKey = new Map<string, SplitPayment[]>();
+
+  sortedAsc.forEach(payment => {
+    const identityKey = paymentIdentityKey(payment);
+    const currentTimestamp = paymentTimestampMs(payment.created_at);
+    const accepted = acceptedByKey.get(identityKey) ?? [];
+
+    const isDuplicate = accepted.some(
+      previous =>
+        Math.abs(currentTimestamp - paymentTimestampMs(previous.created_at)) <=
+        PAYMENT_DUPLICATE_WINDOW_MS,
+    );
+
+    if (isDuplicate) return;
+
+    accepted.push(payment);
+    acceptedByKey.set(identityKey, accepted);
+    unique.push(payment);
+  });
+
+  return unique.sort(
+    (left, right) => paymentTimestampMs(right.created_at) - paymentTimestampMs(left.created_at),
+  );
+};
+
 export async function ensureSplitGroup(itineraryId: string, currency = 'EUR') {
-  const existing = await supabase.from('split_groups').select('*').eq('itinerary_id', itineraryId).maybeSingle();
+  const existing = await supabase
+    .from('split_groups')
+    .select('*')
+    .eq('itinerary_id', itineraryId)
+    .is('deleted_at', null)
+    .maybeSingle();
   if (existing.error) throw existing.error;
   if (existing.data) return existing.data as SplitGroup;
   const created = await supabase
@@ -122,19 +181,21 @@ export async function fetchSplit(groupId: string) {
     .from('split_members')
     .select('*')
     .eq('group_id', groupId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true });
   if (members.error) throw members.error;
   const expenses = await supabase
     .from('split_expenses')
     .select('*')
     .eq('group_id', groupId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
   if (expenses.error) throw expenses.error;
   const expenseIds = (expenses.data ?? []).map(row => row.id);
   const shares =
     expenseIds.length > 0
-      ? await supabase.from('split_shares').select('*').in('expense_id', expenseIds)
-      : await supabase.from('split_shares').select('*').limit(0);
+      ? await supabase.from('split_shares').select('*').in('expense_id', expenseIds).is('deleted_at', null)
+      : await supabase.from('split_shares').select('*').is('deleted_at', null).limit(0);
   if (shares.error) throw shares.error;
   const payments = await fetchPayments(groupId);
   const categories = await fetchCategories(groupId);
@@ -223,11 +284,16 @@ export async function updateExpense(
     .from('split_expenses')
     .update(updates)
     .eq('id', expenseId)
+    .is('deleted_at', null)
     .select('*')
     .single();
   if (error) throw error;
   if (shares) {
-    await supabase.from('split_shares').delete().eq('expense_id', expenseId);
+    await supabase
+      .from('split_shares')
+      .delete()
+      .eq('expense_id', expenseId)
+      .is('deleted_at', null);
     if (shares.length > 0) {
       const { error: shareError } = await supabase
         .from('split_shares')
@@ -244,6 +310,7 @@ export async function deleteExpense(expenseId: string) {
     .from('split_expenses')
     .select('schedule_item_id')
     .eq('id', expenseId)
+    .is('deleted_at', null)
     .single();
   
   if (fetchError) throw fetchError;
@@ -258,13 +325,18 @@ export async function deleteExpense(expenseId: string) {
         cost_payer_id: null,
         cost_split_expense_id: null,
       })
-      .eq('id', expense.schedule_item_id);
+      .eq('id', expense.schedule_item_id)
+      .is('deleted_at', null);
     
     if (updateError) console.error('Error limpiando campos de costo en schedule_item:', updateError);
   }
   
   // Ahora borrar el gasto
-  const { error } = await supabase.from('split_expenses').delete().eq('id', expenseId);
+  const { error } = await supabase
+    .from('split_expenses')
+    .delete()
+    .eq('id', expenseId)
+    .is('deleted_at', null);
   if (error) throw error;
 }
 
@@ -273,6 +345,7 @@ export async function updateMember(memberId: string, name: string) {
     .from('split_members')
     .update({ name })
     .eq('id', memberId)
+    .is('deleted_at', null)
     .select('*')
     .single();
   if (error) throw error;
@@ -280,7 +353,11 @@ export async function updateMember(memberId: string, name: string) {
 }
 
 export async function deleteMember(memberId: string) {
-  const { error } = await supabase.from('split_members').delete().eq('id', memberId);
+  const { error } = await supabase
+    .from('split_members')
+    .delete()
+    .eq('id', memberId)
+    .is('deleted_at', null);
   if (error) throw error;
 }
 
@@ -303,9 +380,9 @@ export function computeBalances(
     totals.set(share.member_id, (totals.get(share.member_id) ?? 0) + Number(share.amount));
   });
   if (payments) {
-    payments.forEach(payment => {
-      paid.set(payment.payer_id, (paid.get(payment.payer_id) ?? 0) - Number(payment.amount));
-      paid.set(payment.payee_id, (paid.get(payment.payee_id) ?? 0) + Number(payment.amount));
+    dedupeLikelyDuplicatePayments(payments).forEach(payment => {
+      paid.set(payment.payer_id, (paid.get(payment.payer_id) ?? 0) + Number(payment.amount));
+      paid.set(payment.payee_id, (paid.get(payment.payee_id) ?? 0) - Number(payment.amount));
     });
   }
   return members.map(member => ({
@@ -360,9 +437,68 @@ export async function addPayment(
   amount: number,
   note?: string,
 ) {
+  const resolveMemberId = async (memberOrUserId: string) => {
+    const { data: matches, error: memberError } = await supabase
+      .from('split_members')
+      .select('id, user_id')
+      .eq('group_id', groupId)
+      .is('deleted_at', null)
+      .or(`id.eq.${memberOrUserId},user_id.eq.${memberOrUserId}`);
+
+    if (memberError) throw memberError;
+
+    const candidates = (matches ?? []) as Array<{ id: string; user_id: string | null }>;
+    const directMatch = candidates.find(candidate => candidate.id === memberOrUserId);
+    if (directMatch) return directMatch.id;
+
+    const userMatch = candidates.find(candidate => candidate.user_id === memberOrUserId);
+    if (userMatch) return userMatch.id;
+
+    throw new Error('No se encontró el miembro del pago en este grupo.');
+  };
+
+  const resolvedPayerId = await resolveMemberId(payerId);
+  const resolvedPayeeId = await resolveMemberId(payeeId);
+  const normalizedAmount = Number(Number(amount).toFixed(2));
+
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    throw new Error('El importe del pago no es válido.');
+  }
+
+  const normalizedNote = normalizePaymentNote(note);
+
+  if (!normalizedNote) {
+    const windowStartIso = new Date(Date.now() - PAYMENT_DUPLICATE_WINDOW_MS).toISOString();
+    const { data: recentRows, error: recentError } = await supabase
+      .from('split_payments')
+      .select('*')
+      .eq('group_id', groupId)
+      .eq('payer_id', resolvedPayerId)
+      .eq('payee_id', resolvedPayeeId)
+      .eq('amount', normalizedAmount)
+      .is('deleted_at', null)
+      .gte('created_at', windowStartIso)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (recentError) throw recentError;
+
+    const existingDuplicate = (recentRows as SplitPayment[] | null)?.find(
+      row => normalizePaymentNote(row.note) === normalizedNote,
+    );
+
+    if (existingDuplicate) return existingDuplicate;
+  }
+
   const { data, error } = await supabase
     .from('split_payments')
-    .insert({ group_id: groupId, payer_id: payerId, payee_id: payeeId, amount, note })
+    .insert({
+      group_id: groupId,
+      payer_id: resolvedPayerId,
+      payee_id: resolvedPayeeId,
+      amount: normalizedAmount,
+      note: normalizedNote,
+    })
     .select('*')
     .single();
   if (error) throw error;
@@ -374,9 +510,10 @@ export async function fetchPayments(groupId: string) {
     .from('split_payments')
     .select('*')
     .eq('group_id', groupId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as SplitPayment[];
+  return dedupeLikelyDuplicatePayments((data ?? []) as SplitPayment[]);
 }
 
 export async function addCategory(groupId: string, name: string, icon?: string, color?: string) {
@@ -394,6 +531,7 @@ export async function fetchCategories(groupId: string) {
     .from('split_expense_categories')
     .select('*')
     .eq('group_id', groupId)
+    .is('deleted_at', null)
     .order('name', { ascending: true });
   if (error) throw error;
   return (data ?? []) as SplitCategory[];
@@ -414,6 +552,7 @@ export async function fetchComments(expenseId: string) {
     .from('split_expense_comments')
     .select('*')
     .eq('expense_id', expenseId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true });
   if (error) throw error;
   return (data ?? []) as SplitComment[];
@@ -434,6 +573,7 @@ export async function fetchTags(groupId: string) {
     .from('split_tags')
     .select('*')
     .eq('group_id', groupId)
+    .is('deleted_at', null)
     .order('name', { ascending: true });
   if (error) throw error;
   return (data ?? []) as SplitTag[];
@@ -451,7 +591,8 @@ export async function fetchExpenseTags(expenseId: string) {
   const { data, error } = await supabase
     .from('split_expense_tags')
     .select('tag_id')
-    .eq('expense_id', expenseId);
+    .eq('expense_id', expenseId)
+    .is('deleted_at', null);
   if (error) throw error;
   return (data ?? []).map(row => row.tag_id);
 }
@@ -462,6 +603,7 @@ export async function removeExpenseTags(expenseId: string, tagIds: string[]) {
     .from('split_expense_tags')
     .delete()
     .eq('expense_id', expenseId)
+    .is('deleted_at', null)
     .in('tag_id', tagIds);
   if (error) throw error;
 }
@@ -489,6 +631,7 @@ export async function fetchNotifications(groupId: string, memberId: string) {
     .select('*')
     .eq('group_id', groupId)
     .eq('member_id', memberId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as SplitNotification[];
@@ -498,7 +641,8 @@ export async function markNotificationRead(notificationId: string) {
   const { error } = await supabase
     .from('split_notifications')
     .update({ read: true })
-    .eq('id', notificationId);
+    .eq('id', notificationId)
+    .is('deleted_at', null);
   if (error) throw error;
 }
 
@@ -524,6 +668,7 @@ export async function fetchPaymentReminders(groupId: string) {
     .from('split_payment_reminders')
     .select('*')
     .eq('group_id', groupId)
+    .is('deleted_at', null)
     .order('reminder_date', { ascending: true });
   if (error) throw error;
   return (data ?? []) as SplitPaymentReminder[];
@@ -551,6 +696,7 @@ export async function fetchRefunds(groupId: string) {
     .from('split_refunds')
     .select('*')
     .eq('group_id', groupId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as SplitRefund[];

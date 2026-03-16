@@ -51,7 +51,8 @@ function MyItineraries() {
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newDateRange, setNewDateRange] = useState('');
+  const [newStartDate, setNewStartDate] = useState('');
+  const [newEndDate, setNewEndDate] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [plan, setPlan] = useState<'free' | 'pro'>('free');
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -205,7 +206,7 @@ function MyItineraries() {
   };
 
   const handleCreateItinerary = async () => {
-    if (!newTitle.trim() || !newDateRange.trim()) {
+    if (!newTitle.trim() || !newStartDate || !newEndDate) {
       toast.error('Por favor, completa todos los campos');
       return;
     }
@@ -218,12 +219,13 @@ function MyItineraries() {
         return;
       }
 
-      const newItineraryId = await createEmptyItinerary(user.id, newTitle, newDateRange);
+      const newItineraryId = await createEmptyItinerary(user.id, newTitle, newStartDate, newEndDate);
       const shouldStartOnboarding = startOnboardingAfterCreate || ownedItineraries.length === 0;
       toast.success(`Itinerario "${newTitle}" creado correctamente`);
       setShowCreateModal(false);
       setNewTitle('');
-      setNewDateRange('');
+      setNewStartDate('');
+      setNewEndDate('');
       setStartOnboardingAfterCreate(false);
       await load();
       const onboardingQuery = shouldStartOnboarding ? '&onboarding=1' : '';
@@ -574,13 +576,24 @@ function MyItineraries() {
                 />
               </div>
               <div>
-                <label htmlFor="new-itinerary-date-range" className="text-sm font-medium mb-1.5 block">Fechas del viaje</label>
+                <label htmlFor="new-itinerary-start-date" className="text-sm font-medium mb-1.5 block">Fecha inicio</label>
                 <input
-                  id="new-itinerary-date-range"
-                  type="text"
-                  placeholder="Ej: 15-30 Marzo 2026"
-                  value={newDateRange}
-                  onChange={e => setNewDateRange(e.target.value)}
+                  id="new-itinerary-start-date"
+                  type="date"
+                  value={newStartDate}
+                  onChange={e => setNewStartDate(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={isCreating}
+                />
+              </div>
+              <div>
+                <label htmlFor="new-itinerary-end-date" className="text-sm font-medium mb-1.5 block">Fecha fin</label>
+                <input
+                  id="new-itinerary-end-date"
+                  type="date"
+                  min={newStartDate || undefined}
+                  value={newEndDate}
+                  onChange={e => setNewEndDate(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   disabled={isCreating}
                 />
@@ -588,7 +601,7 @@ function MyItineraries() {
               <div className="flex gap-2 pt-2">
                 <Button 
                   onClick={handleCreateItinerary} 
-                  disabled={isCreating || !newTitle.trim() || !newDateRange.trim() || isFreeLimitReached}
+                  disabled={isCreating || !newTitle.trim() || !newStartDate || !newEndDate || isFreeLimitReached}
                   className="flex-1"
                 >
                   {isCreating ? 'Creando...' : 'Crear Itinerario'}
@@ -598,7 +611,8 @@ function MyItineraries() {
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewTitle('');
-                    setNewDateRange('');
+                    setNewStartDate('');
+                    setNewEndDate('');
                     setStartOnboardingAfterCreate(false);
                   }}
                   disabled={isCreating}

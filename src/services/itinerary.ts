@@ -1,5 +1,6 @@
 ﻿import type { TravelItinerary } from '../data/itinerary';
 import { supabase } from '../lib/supabase';
+import { parseItineraryDate } from '../utils/itineraryDates';
 import {
   buildSeedPayloads,
   mapDbToItinerary,
@@ -20,6 +21,67 @@ import {
   type DbTag,
 } from './itineraryMapper';
 
+const toIsoDate = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parsed = parseItineraryDate(trimmed);
+  if (!parsed) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).toISOString().slice(0, 10);
+};
+
+const formatRangeLabel = (startDate: string | null, endDate: string | null, fallback = '') => {
+  if (!startDate && !endDate) return fallback;
+  const format = (value: string) => {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  if (startDate && endDate) return `${format(startDate)} - ${format(endDate)}`;
+  if (startDate) return format(startDate);
+  return format(endDate!);
+};
+
+const isMissingScheduleDocumentRelationColumn = (error: { message?: string } | null | undefined) =>
+  Boolean(error?.message?.includes('related_document_id'));
+
+const resolveDateFields = (input: { startDate?: string; endDate?: string; dateRange?: string }) => {
+  let startDate = toIsoDate(input.startDate);
+  let endDate = toIsoDate(input.endDate);
+
+  if ((!startDate || !endDate) && input.dateRange) {
+    const parts = input.dateRange.split(/\s*(?:-|–|—|→|a)\s*/).filter(Boolean);
+    const first = parts[0] ? toIsoDate(parts[0]) : null;
+    const last = parts.length > 1 ? toIsoDate(parts[parts.length - 1]) : first;
+    startDate = startDate ?? first;
+    endDate = endDate ?? last;
+  }
+
+  return {
+    startDate,
+    endDate,
+    dateRange: formatRangeLabel(startDate, endDate, input.dateRange ?? ''),
+  };
+};
+
+async function hasActiveLinkedExpense(expenseId?: string | null): Promise<boolean> {
+  if (!expenseId) return false;
+
+  const { data, error } = await supabase
+    .from('split_expenses')
+    .select('id, deleted_at')
+    .eq('id', expenseId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error verificando enlace de gasto en actividad:', error);
+    return false;
+  }
+
+  return Boolean(data && !data.deleted_at);
+}
+
 async function fetchSingleItinerary(userId: string) {
   // Obtener todos los itinerarios propios
   const { data: owned, error: ownedError } = await supabase
@@ -33,7 +95,8 @@ async function fetchSingleItinerary(userId: string) {
   const { data: shared, error: sharedError } = await supabase
     .from('itinerary_collaborators')
     .select('itinerary_id, itineraries(*)')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .is('deleted_at', null);
   if (sharedError) throw sharedError;
 
   // Mapear todos los itinerarios con sus fechas de actualización
@@ -71,17 +134,17 @@ async function fetchSingleItinerary(userId: string) {
 }
 
 async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinerary> {
-  const days = await supabase.from('days').select('*').eq('itinerary_id', itinerary.id);
+  const days = await supabase.from('days').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null);
   if (days.error) throw days.error;
   const dayIds = (days.data as DbDay[]).map(day => day.id);
 
-  const lists = await supabase.from('itinerary_lists').select('*').eq('itinerary_id', itinerary.id);
+  const lists = await supabase.from('itinerary_lists').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null);
   if (lists.error) throw lists.error;
   const listIds = (lists.data as DbItineraryList[]).map(list => list.id);
 
   const scheduleItems =
     dayIds.length > 0
-      ? await supabase.from('schedule_items').select('*').in('day_id', dayIds)
+      ? await supabase.from('schedule_items').select('*').in('day_id', dayIds).is('deleted_at', null)
       : await supabase.from('schedule_items').select('*').limit(0);
   if (scheduleItems.error) throw scheduleItems.error;
   const scheduleItemIds = (scheduleItems.data as DbScheduleItem[]).map(item => item.id);
@@ -99,23 +162,23 @@ async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinera
     budgetTiers,
   ] = await Promise.all([
     dayIds.length > 0
-      ? supabase.from('day_notes').select('*').in('day_id', dayIds)
+      ? supabase.from('day_notes').select('*').in('day_id', dayIds).is('deleted_at', null)
       : supabase.from('day_notes').select('*').limit(0),
-    supabase.from('tags').select('*').eq('itinerary_id', itinerary.id),
+    supabase.from('tags').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null),
     dayIds.length > 0
-      ? supabase.from('day_tags').select('*').in('day_id', dayIds)
+      ? supabase.from('day_tags').select('*').in('day_id', dayIds).is('deleted_at', null)
       : supabase.from('day_tags').select('*').limit(0),
     scheduleItemIds.length > 0
-      ? supabase.from('schedule_item_tags').select('*').in('schedule_item_id', scheduleItemIds)
+      ? supabase.from('schedule_item_tags').select('*').in('schedule_item_id', scheduleItemIds).is('deleted_at', null)
       : supabase.from('schedule_item_tags').select('*').limit(0),
-    supabase.from('locations').select('*').eq('itinerary_id', itinerary.id),
-    supabase.from('routes').select('*').eq('itinerary_id', itinerary.id),
-    supabase.from('flights').select('*').eq('itinerary_id', itinerary.id),
+    supabase.from('locations').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null),
+    supabase.from('routes').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null),
+    supabase.from('flights').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null),
     listIds.length > 0
-      ? supabase.from('itinerary_list_items').select('*').in('list_id', listIds)
+      ? supabase.from('itinerary_list_items').select('*').in('list_id', listIds).is('deleted_at', null)
       : supabase.from('itinerary_list_items').select('*').limit(0),
-    supabase.from('phrases').select('*').eq('itinerary_id', itinerary.id),
-    supabase.from('budget_tiers').select('*').eq('itinerary_id', itinerary.id),
+    supabase.from('phrases').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null),
+    supabase.from('budget_tiers').select('*').eq('itinerary_id', itinerary.id).is('deleted_at', null),
   ]);
 
   if (
@@ -150,7 +213,7 @@ async function fetchItineraryData(itinerary: DbItinerary): Promise<TravelItinera
 
   const flightIds = (flights.data as DbFlight[]).map(flight => flight.id);
   const flightSegments = flightIds.length > 0
-    ? await supabase.from('flight_segments').select('*').in('flight_id', flightIds)
+    ? await supabase.from('flight_segments').select('*').in('flight_id', flightIds).is('deleted_at', null)
     : await supabase.from('flight_segments').select('*').limit(0);
   if (flightSegments.error) throw flightSegments.error;
 
@@ -198,6 +261,7 @@ async function getUserRole(userId: string, itineraryId: string): Promise<string 
     .select('id')
     .eq('id', itineraryId)
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .maybeSingle();
   if (owner) return 'owner';
   const { data: collaborator, error } = await supabase
@@ -205,6 +269,7 @@ async function getUserRole(userId: string, itineraryId: string): Promise<string 
     .select('role')
     .eq('itinerary_id', itineraryId)
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .maybeSingle();
   if (error) throw error;
   return collaborator?.role ?? null;
@@ -214,13 +279,16 @@ export async function checkUserRole(userId: string, itineraryId: string): Promis
   return getUserRole(userId, itineraryId);
 }
 
-export async function createEmptyItinerary(userId: string, title: string, dateRange: string): Promise<string> {
+export async function createEmptyItinerary(userId: string, title: string, startDateInput: string, endDateInput: string): Promise<string> {
+  const resolved = resolveDateFields({ startDate: startDateInput, endDate: endDateInput });
   const { data: created, error } = await supabase
     .from('itineraries')
     .insert({
       user_id: userId,
       title,
-      date_range: dateRange,
+      date_range: resolved.dateRange,
+      start_date: resolved.startDate,
+      end_date: resolved.endDate,
       intro: 'Crea tu itinerario personalizado desde cero.',
     })
     .select('id')
@@ -234,12 +302,20 @@ export async function createEmptyItinerary(userId: string, title: string, dateRa
 }
 
 async function createItineraryAndSeed(userId: string, base: TravelItinerary): Promise<TravelItinerary> {
+  const resolvedDates = resolveDateFields({
+    startDate: base.startDate,
+    endDate: base.endDate,
+    dateRange: base.dateRange,
+  });
+
   const { data: created, error } = await supabase
     .from('itineraries')
     .insert({
       user_id: userId,
       title: base.title,
-      date_range: base.dateRange,
+      date_range: resolvedDates.dateRange,
+      start_date: resolvedDates.startDate,
+      end_date: resolvedDates.endDate,
       intro: base.intro,
       cover_image: base.coverImage,
     })
@@ -279,6 +355,7 @@ async function createItineraryAndSeed(userId: string, base: TravelItinerary): Pr
       cost_currency: item.cost_currency,
       cost_payer_id: item.cost_payer_id,
       cost_split_expense_id: item.cost_split_expense_id,
+      related_document_id: item.related_document_id,
     }))
     .filter(item => item.day_id);
   const notePayload = seed.dayNotes
@@ -291,16 +368,32 @@ async function createItineraryAndSeed(userId: string, base: TravelItinerary): Pr
 
   let insertedScheduleItems: DbScheduleItem[] = [];
   if (schedulePayload.length > 0) {
-    const { data, error: scheduleError } = await supabase
+    const scheduleInsert = await supabase
       .from('schedule_items')
       .insert(schedulePayload)
       .select('*');
-    if (scheduleError) throw scheduleError;
-    insertedScheduleItems = (data ?? []) as DbScheduleItem[];
+
+    if (scheduleInsert.error && isMissingScheduleDocumentRelationColumn(scheduleInsert.error)) {
+      const fallbackPayload = schedulePayload.map(item => {
+        const fallbackItem = { ...item };
+        delete fallbackItem.related_document_id;
+        return fallbackItem;
+      });
+      const fallbackInsert = await supabase
+        .from('schedule_items')
+        .insert(fallbackPayload)
+        .select('*');
+      if (fallbackInsert.error) throw fallbackInsert.error;
+      insertedScheduleItems = (fallbackInsert.data ?? []) as DbScheduleItem[];
+    } else {
+      if (scheduleInsert.error) throw scheduleInsert.error;
+      insertedScheduleItems = (scheduleInsert.data ?? []) as DbScheduleItem[];
+    }
     
     // Procesar gastos automáticos para actividades con costo
     for (const item of insertedScheduleItems) {
-      if (item.cost && item.cost_payer_id && !item.cost_split_expense_id) {
+      const hasActiveExpense = await hasActiveLinkedExpense(item.cost_split_expense_id);
+      if (item.cost && item.cost_payer_id && !hasActiveExpense) {
         try {
           const { createExpenseFromActivity } = await import('./activityExpense');
           const expenseId = await createExpenseFromActivity(
@@ -312,14 +405,23 @@ async function createItineraryAndSeed(userId: string, base: TravelItinerary): Pr
             item.cost_payer_id,
             'equal',
           );
-          
+
           // Actualizar el schedule_item con el expense_id
           await supabase
             .from('schedule_items')
             .update({ cost_split_expense_id: expenseId })
-            .eq('id', item.id);
+            .eq('id', item.id)
+            .is('deleted_at', null);
         } catch (err) {
           console.error(`Error creando gasto para actividad "${item.activity}":`, err);
+
+          // Evita dejar enlace roto si no se pudo recrear el gasto.
+          await supabase
+            .from('schedule_items')
+            .update({ cost_split_expense_id: null })
+            .eq('id', item.id)
+            .is('deleted_at', null);
+
           // No lanzamos el error para no bloquear el guardado del itinerario
         }
       }
@@ -505,54 +607,64 @@ export async function saveUserItinerary(
   }
 
   const itineraryIdResolved = existing.data.id as string;
-  
-  console.log('[update] Itinerary ID to update:', itineraryIdResolved);
-  console.log('[update] Itinerary owner (user_id from DB):', existing.data.user_id);
-  
-  // Get current authenticated user
-  const { data: authData } = await supabase.auth.getUser();
-  console.log('[auth] Current authenticated user:', authData.user?.id);
-  console.log('[auth] User IDs match?', existing.data.user_id === authData.user?.id);
-  console.log('[update] BEFORE UPDATE - coverImage value:', updated.coverImage);
-  console.log('[update] Existing data from DB:', existing.data);
-  
+
   const updatePayload = {
     title: updated.title,
-    date_range: updated.dateRange,
+    ...(() => {
+      const resolvedDates = resolveDateFields({
+        startDate: updated.startDate,
+        endDate: updated.endDate,
+        dateRange: updated.dateRange,
+      });
+      return {
+        date_range: resolvedDates.dateRange,
+        start_date: resolvedDates.startDate,
+        end_date: resolvedDates.endDate,
+      };
+    })(),
     intro: updated.intro,
     cover_image: updated.coverImage ?? null,
     updated_at: new Date().toISOString(),
   };
-  
-  console.log('[update] UPDATE payload:', JSON.stringify(updatePayload, null, 2));
-  
+
   const updateResult = await supabase
     .from('itineraries')
     .update(updatePayload)
     .eq('id', itineraryIdResolved);
-    
-  console.log('[update] UPDATE result (without select):', updateResult);
-  
-  if (updateResult.error) throw updateResult.error;
-  
-  // Verify with a separate SELECT
-  const verifyResult = await supabase
-    .from('itineraries')
-    .select('id, title, cover_image, updated_at')
-    .eq('id', itineraryIdResolved)
-    .single();
-    
-  console.log('[verify] VERIFY SELECT after UPDATE:', verifyResult);
-  
-  if (verifyResult.data) {
-    console.log('[verify] cover_image in DB:', verifyResult.data.cover_image);
-  }
 
-  const daysResult = await supabase.from('days').select('id').eq('itinerary_id', itineraryIdResolved);
+  if (updateResult.error) throw updateResult.error;
+
+  const seed = buildSeedPayloads(updated, itineraryIdResolved);
+
+  const daysResult = await supabase
+    .from('days')
+    .select('id')
+    .eq('itinerary_id', itineraryIdResolved)
+    .is('deleted_at', null);
   if (daysResult.error) throw daysResult.error;
   const dayIds = (daysResult.data ?? []).map(row => row.id as string);
 
-  const listsResult = await supabase.from('itinerary_lists').select('id').eq('itinerary_id', itineraryIdResolved);
+  if (dayIds.length > 0) {
+    const existingScheduleCountResult = await supabase
+      .from('schedule_items')
+      .select('id', { head: true, count: 'exact' })
+      .in('day_id', dayIds)
+      .is('deleted_at', null);
+    if (existingScheduleCountResult.error) throw existingScheduleCountResult.error;
+
+    const existingScheduleCount = existingScheduleCountResult.count ?? 0;
+    if (existingScheduleCount > 0 && seed.scheduleItems.length === 0) {
+      throw new Error(
+        'Guardado bloqueado para evitar perder actividades: el itinerario actual tiene horarios guardados, pero el payload entrante no incluye ninguno. Recarga la pagina e intentalo de nuevo.',
+      );
+    }
+  }
+
+  const listsResult = await supabase
+    .from('itinerary_lists')
+    .select('id')
+    .eq('itinerary_id', itineraryIdResolved)
+    .is('deleted_at', null);
   if (listsResult.error) throw listsResult.error;
   const listIds = (listsResult.data ?? []).map(row => row.id as string);
 
@@ -562,6 +674,7 @@ export async function saveUserItinerary(
       .from('schedule_items')
       .select('cost_split_expense_id')
       .in('day_id', dayIds)
+      .is('deleted_at', null)
       .not('cost_split_expense_id', 'is', null);
     
     if (!fetchScheduleError && scheduleItems && scheduleItems.length > 0) {
@@ -580,33 +693,47 @@ export async function saveUserItinerary(
       }
     }
     
-    const { error: dayTagsError } = await supabase.from('day_tags').delete().in('day_id', dayIds);
+    const { error: dayTagsError } = await supabase
+      .from('day_tags')
+      .delete()
+      .in('day_id', dayIds)
+      .is('deleted_at', null);
     if (dayTagsError) throw dayTagsError;
-    const { error: scheduleError } = await supabase.from('schedule_items').delete().in('day_id', dayIds);
+    const { error: scheduleError } = await supabase
+      .from('schedule_items')
+      .delete()
+      .in('day_id', dayIds)
+      .is('deleted_at', null);
     if (scheduleError) throw scheduleError;
-    const { error: notesError } = await supabase.from('day_notes').delete().in('day_id', dayIds);
+    const { error: notesError } = await supabase
+      .from('day_notes')
+      .delete()
+      .in('day_id', dayIds)
+      .is('deleted_at', null);
     if (notesError) throw notesError;
   }
 
   if (listIds.length > 0) {
-    const { error: listItemsError } = await supabase.from('itinerary_list_items').delete().in('list_id', listIds);
+    const { error: listItemsError } = await supabase
+      .from('itinerary_list_items')
+      .delete()
+      .in('list_id', listIds)
+      .is('deleted_at', null);
     if (listItemsError) throw listItemsError;
   }
 
   const deleteResults = await Promise.all([
-    supabase.from('days').delete().eq('itinerary_id', itineraryIdResolved),
-    supabase.from('tags').delete().eq('itinerary_id', itineraryIdResolved),
-    supabase.from('locations').delete().eq('itinerary_id', itineraryIdResolved),
-    supabase.from('routes').delete().eq('itinerary_id', itineraryIdResolved),
-    supabase.from('flights').delete().eq('itinerary_id', itineraryIdResolved),
-    supabase.from('itinerary_lists').delete().eq('itinerary_id', itineraryIdResolved),
-    supabase.from('phrases').delete().eq('itinerary_id', itineraryIdResolved),
-    supabase.from('budget_tiers').delete().eq('itinerary_id', itineraryIdResolved),
+    supabase.from('days').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
+    supabase.from('tags').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
+    supabase.from('locations').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
+    supabase.from('routes').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
+    supabase.from('flights').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
+    supabase.from('itinerary_lists').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
+    supabase.from('phrases').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
+    supabase.from('budget_tiers').delete().eq('itinerary_id', itineraryIdResolved).is('deleted_at', null),
   ]);
   const deleteError = deleteResults.find(result => result.error)?.error;
   if (deleteError) throw deleteError;
-
-  const seed = buildSeedPayloads(updated, itineraryIdResolved);
 
   const { data: insertedDays, error: daysError } = await supabase
     .from('days')
@@ -632,25 +759,42 @@ export async function saveUserItinerary(
     cost_currency: item.cost_currency,
     cost_payer_id: item.cost_payer_id,
     cost_split_expense_id: item.cost_split_expense_id,
-  }));
+    related_document_id: item.related_document_id,
+  })).filter(item => item.day_id);
   const notePayload = seed.dayNotes.map(item => ({
     day_id: dayIdByOrder.get(item.dayOrder) ?? '',
     note: item.note,
     order_index: item.order_index,
-  }));
+  })).filter(item => item.day_id);
 
   let insertedScheduleItems: DbScheduleItem[] = [];
   if (schedulePayload.length > 0) {
-    const { data, error: scheduleError } = await supabase
+    const scheduleInsert = await supabase
       .from('schedule_items')
       .insert(schedulePayload)
       .select('*');
-    if (scheduleError) throw scheduleError;
-    insertedScheduleItems = (data ?? []) as DbScheduleItem[];
+
+    if (scheduleInsert.error && isMissingScheduleDocumentRelationColumn(scheduleInsert.error)) {
+      const fallbackPayload = schedulePayload.map(item => {
+        const fallbackItem = { ...item };
+        delete fallbackItem.related_document_id;
+        return fallbackItem;
+      });
+      const fallbackInsert = await supabase
+        .from('schedule_items')
+        .insert(fallbackPayload)
+        .select('*');
+      if (fallbackInsert.error) throw fallbackInsert.error;
+      insertedScheduleItems = (fallbackInsert.data ?? []) as DbScheduleItem[];
+    } else {
+      if (scheduleInsert.error) throw scheduleInsert.error;
+      insertedScheduleItems = (scheduleInsert.data ?? []) as DbScheduleItem[];
+    }
     
     // Procesar gastos automáticos para actividades con costo
     for (const item of insertedScheduleItems) {
-      if (item.cost && item.cost_payer_id && !item.cost_split_expense_id) {
+      const hasActiveExpense = await hasActiveLinkedExpense(item.cost_split_expense_id);
+      if (item.cost && item.cost_payer_id && !hasActiveExpense) {
         try {
           const { createExpenseFromActivity } = await import('./activityExpense');
           const expenseId = await createExpenseFromActivity(
@@ -662,14 +806,23 @@ export async function saveUserItinerary(
             item.cost_payer_id,
             'equal',
           );
-          
+
           // Actualizar el schedule_item con el expense_id
           await supabase
             .from('schedule_items')
             .update({ cost_split_expense_id: expenseId })
-            .eq('id', item.id);
+            .eq('id', item.id)
+            .is('deleted_at', null);
         } catch (err) {
           console.error(`Error creando gasto para actividad "${item.activity}":`, err);
+
+          // Evita dejar enlace roto si no se pudo recrear el gasto.
+          await supabase
+            .from('schedule_items')
+            .update({ cost_split_expense_id: null })
+            .eq('id', item.id)
+            .is('deleted_at', null);
+
           // No lanzamos el error para no bloquear el guardado del itinerario
         }
       }
@@ -683,19 +836,19 @@ export async function saveUserItinerary(
   if (seed.locations.length > 0) {
     const { error: locationsError } = await supabase
       .from('locations')
-      .insert(seed.locations.map(location => ({ ...location, itinerary_id: itineraryId })));
+      .insert(seed.locations.map(location => ({ ...location, itinerary_id: itineraryIdResolved })));
     if (locationsError) throw locationsError;
   }
   if (seed.routes.length > 0) {
     const { error: routesError } = await supabase
       .from('routes')
-      .insert(seed.routes.map(route => ({ ...route, itinerary_id: itineraryId })));
+      .insert(seed.routes.map(route => ({ ...route, itinerary_id: itineraryIdResolved })));
     if (routesError) throw routesError;
   }
   if (seed.flights.length > 0) {
     const { data: insertedFlights, error: flightsError } = await supabase
       .from('flights')
-      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryId })))
+      .insert(seed.flights.map(flight => ({ ...flight, itinerary_id: itineraryIdResolved })))
       .select('*');
     if (flightsError) throw flightsError;
 
@@ -735,7 +888,7 @@ export async function saveUserItinerary(
 
   const { data: insertedLists, error: listsError } = await supabase
     .from('itinerary_lists')
-    .insert(seed.lists.map(list => ({ ...list, itinerary_id: itineraryId })))
+    .insert(seed.lists.map(list => ({ ...list, itinerary_id: itineraryIdResolved })))
     .select('*');
   if (listsError) throw listsError;
 
@@ -748,7 +901,7 @@ export async function saveUserItinerary(
     list_id: listIdByKey.get(item.listKey) ?? '',
     text: item.text,
     order_index: item.order_index,
-  }));
+  })).filter(item => item.list_id);
   if (listItemPayload.length > 0) {
     const { error: listItemsError } = await supabase.from('itinerary_list_items').insert(listItemPayload);
     if (listItemsError) throw listItemsError;
@@ -757,20 +910,20 @@ export async function saveUserItinerary(
   if (seed.phrases.length > 0) {
     const { error: phraseError } = await supabase
       .from('phrases')
-      .insert(seed.phrases.map(phrase => ({ ...phrase, itinerary_id: itineraryId })));
+      .insert(seed.phrases.map(phrase => ({ ...phrase, itinerary_id: itineraryIdResolved })));
     if (phraseError) throw phraseError;
   }
 
   if (seed.budgetTiers.length > 0) {
     const { error: budgetError } = await supabase
       .from('budget_tiers')
-      .insert(seed.budgetTiers.map(tier => ({ ...tier, itinerary_id: itineraryId })));
+      .insert(seed.budgetTiers.map(tier => ({ ...tier, itinerary_id: itineraryIdResolved })));
     if (budgetError) throw budgetError;
   }
 
   const { data: insertedTags, error: tagsError } = await supabase
     .from('tags')
-    .insert(seed.tags.map(tag => ({ ...tag, itinerary_id: itineraryId })))
+    .insert(seed.tags.map(tag => ({ ...tag, itinerary_id: itineraryIdResolved })))
     .select('*');
   if (tagsError) throw tagsError;
 
@@ -782,7 +935,7 @@ export async function saveUserItinerary(
   const dayTagPayload = seed.dayTags.map(item => ({
     day_id: dayIdByOrder.get(item.dayOrder) ?? '',
     tag_id: tagIdBySlug.get(item.tagSlug) ?? '',
-  }));
+  })).filter(row => row.day_id && row.tag_id);
   if (dayTagPayload.length > 0) {
     const { error: dayTagsError } = await supabase.from('day_tags').insert(dayTagPayload);
     if (dayTagsError) throw dayTagsError;

@@ -12,6 +12,7 @@ export interface ScheduleItem {
   costCurrency?: string;
   costPayerId?: string;
   costSplitExpenseId?: string;
+  documentId?: string;
 }
 
 export interface ItineraryDay {
@@ -90,6 +91,8 @@ export interface LegacyFlight {
 export interface TravelItinerary {
   id?: string;
   title: string;
+  startDate?: string;
+  endDate?: string;
   dateRange: string;
   intro: string;
   coverImage?: string;

@@ -19,6 +19,7 @@ export async function fetchUserPreferences(userId: string): Promise<UserPreferen
     .from('user_preferences')
     .select('*')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .maybeSingle();
 
   if (error) {
@@ -58,6 +59,7 @@ export async function saveUserPreferences(preferences: Partial<UserPreferences> 
     .from('user_preferences')
     .select('id')
     .eq('user_id', preferences.user_id)
+    .is('deleted_at', null)
     .maybeSingle();
 
   if (existing) {
@@ -69,6 +71,7 @@ export async function saveUserPreferences(preferences: Partial<UserPreferences> 
         updated_at: new Date().toISOString(),
       })
       .eq('id', existing.id)
+      .is('deleted_at', null)
       .select('*')
       .single();
 

@@ -6,6 +6,7 @@ import { fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
 import type { TravelItinerary } from '../data/itinerary';
 import { getDayForDate, getItineraryStartDate, getNextDayFromDate, isSameDay } from '../utils/itineraryDates';
 import FullscreenLoader from '../components/FullscreenLoader';
+import TripCountdown from '../components/TripCountdown';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
@@ -13,7 +14,15 @@ function TodayItinerary() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [itinerary, setItinerary] = useState<TravelItinerary | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const location = useLocation();
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -44,7 +53,7 @@ function TodayItinerary() {
     void load();
   }, [location.search]);
 
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => new Date(now), [now]);
   const todayDay = useMemo(() => (itinerary ? getDayForDate(itinerary, today) : null), [itinerary, today]);
   const startDate = useMemo(() => (itinerary ? getItineraryStartDate(itinerary) : null), [itinerary]);
   const nextDay = useMemo(() => (itinerary ? getNextDayFromDate(itinerary, today) : null), [itinerary, today]);
@@ -76,7 +85,12 @@ function TodayItinerary() {
   }
 
   const startLabel = startDate ? startDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }) : null;
-  const isTripStarted = Boolean(startDate && (isSameDay(startDate, today) || startDate.getTime() < today.getTime()));
+  const todayStart = useMemo(() => {
+    const date = new Date(now);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [now]);
+  const isTripStarted = Boolean(startDate && (isSameDay(startDate, todayStart) || startDate.getTime() < todayStart.getTime()));
 
   return (
     <div className="min-h-screen bg-background">
@@ -164,6 +178,7 @@ function TodayItinerary() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-mutedForeground">
+              {!isTripStarted && startDate && <TripCountdown targetDate={startDate} className="text-left" />}
               {nextDay && (
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />

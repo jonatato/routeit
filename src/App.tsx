@@ -29,6 +29,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const SocialVideos = lazy(() => import('./pages/SocialVideos'));
+const Documents = lazy(() => import('./pages/Documents'));
 const Landing = lazy(() => import('./pages/Landing'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
@@ -106,6 +107,7 @@ const appRoutes: AppRoute[] = [
   { path: '/app/profile', element: <Profile />, requiresAuth: true, useTransition: true },
   { path: '/app/analytics', element: <Analytics />, requiresAuth: true, useTransition: true },
   { path: '/app/memories', element: <SocialVideos />, requiresAuth: true, useTransition: true },
+  { path: '/app/documents', element: <Documents />, requiresAuth: true, useTransition: true },
   { path: '/app/search', element: <SearchPage />, requiresAuth: true, useTransition: true },
 ];
 
@@ -142,7 +144,7 @@ function App() {
       {isMobileShell ? (
         <div className="mobile-shell-safe flex flex-col">
           {showMobileHeader && <MobileHeader />}
-          <main className="flex-1 shadow-inner">
+          <main className={`flex-1 shadow-inner ${showMobileHeader ? 'pt-[calc(var(--safe-area-inset-top)+4rem)]' : ''}`}>
             <AppRoutes />
           </main>
           {isAppRoute && <MobileTabs />}

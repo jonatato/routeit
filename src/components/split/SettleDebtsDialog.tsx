@@ -47,6 +47,7 @@ export function SettleDebtsDialog({ currentUserId, balances, onSettle }: SettleD
 
   // Handle settle full debt
   const handleSettleFull = async (creditor: Balance) => {
+    if (settlingWith !== null) return;
     setSettlingWith(creditor.member.id);
     try {
       // I pay them the full amount they're owed
@@ -66,6 +67,7 @@ export function SettleDebtsDialog({ currentUserId, balances, onSettle }: SettleD
 
   // Handle partial payment
   const handlePartialPayment = async (creditor: Balance) => {
+    if (settlingWith !== null) return;
     if (!partialAmount || partialAmount.memberId !== creditor.member.id) return;
 
     const amount = parseFloat(partialAmount.amount);
@@ -93,6 +95,7 @@ export function SettleDebtsDialog({ currentUserId, balances, onSettle }: SettleD
 
   // Handle mark as received
   const handleMarkReceived = async (debtor: Balance) => {
+    if (settlingWith !== null) return;
     setSettlingWith(debtor.member.id);
     try {
       // They pay me the full amount they owe

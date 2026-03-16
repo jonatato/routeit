@@ -1,5 +1,5 @@
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Home, Receipt, ShoppingBag, Plane, Video, Store, User, LogOut, Settings } from 'lucide-react';
+import { Home, Receipt, ShoppingBag, Plane, Video, Store, User, LogOut, Settings, FileText } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -24,6 +24,7 @@ function MobileHeader({ title }: MobileHeaderProps) {
   // Detectar la sección actual
   const sectionNames: Record<string, string> = {
     '/app': 'Inicio',
+    '/app/documents': 'Documentos',
     '/app/store': 'Tienda',
     '/app/split': 'Gastos',
     '/app/bag': 'Maleta',
@@ -73,6 +74,7 @@ function MobileHeader({ title }: MobileHeaderProps) {
 
   const menuItems = [
     { path: '/app', label: 'Inicio', icon: Home },
+    { path: '/app/documents', label: 'Documentos', icon: FileText },
     { path: '/app/store', label: 'Tienda', icon: Store },
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
@@ -83,13 +85,13 @@ function MobileHeader({ title }: MobileHeaderProps) {
   const shouldRenderMenu = isMenuOpen && typeof document !== 'undefined';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/20 bg-background/95 px-4 py-3 pt-safe-top backdrop-blur-md shadow-sm">
-      <div className="flex items-center justify-between">
+    <header className="fixed inset-x-0 top-0 z-[80] border-b border-border/20 bg-background/95 px-4 pb-3 pt-[calc(var(--safe-area-inset-top)+0.75rem)] backdrop-blur-md shadow-sm">
+      <div className="grid min-h-10 grid-cols-[40px_1fr_40px] items-center gap-2">
         {/* Actions left */}
-        <div className="flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center self-center">
           {canEdit && (
             <Link to="/app/admin">
-              <button className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isAdminActive ? 'bg-primary/10' : 'hover:bg-muted'}`}>
+              <button className={`relative inline-flex h-10 w-10 items-center justify-center rounded-md align-middle transition-colors ${isAdminActive ? 'bg-primary/10' : 'hover:bg-muted'}`}>
                 <Settings className={`h-5 w-5 ${isAdminActive ? 'text-primary' : 'text-mutedForeground'}`} />
               </button>
             </Link>
@@ -97,18 +99,18 @@ function MobileHeader({ title }: MobileHeaderProps) {
         </div>
 
         {/* Título centrado */}
-        <div className="flex-1 text-center">
-          <h1 className="text-xl font-bold text-foreground">
+        <div className="flex min-h-10 items-center justify-center self-center text-center">
+          <h1 className="text-xl font-bold leading-tight text-foreground">
             {currentTitle}
           </h1>
         </div>
 
         {/* Actions right */}
-        <div className="flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center self-center">
           <button
             type="button"
             onClick={() => setIsMenuOpen(true)}
-            className={`relative h-9 w-9 rounded-md flex items-center justify-center transition-colors ${isProfileActive ? 'bg-primary/10' : 'hover:bg-muted'}`}
+            className={`relative inline-flex h-10 w-10 items-center justify-center rounded-md align-middle transition-colors ${isProfileActive ? 'bg-primary/10' : 'hover:bg-muted'}`}
             aria-label="Abrir menu"
             aria-expanded={isMenuOpen}
           >

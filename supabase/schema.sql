@@ -160,6 +160,21 @@ create table if not exists split_expense_comments (
   created_at timestamp with time zone default now()
 );
 
+create table if not exists split_expense_documents (
+  id uuid primary key default gen_random_uuid(),
+  expense_id uuid not null references split_expenses(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('receipt', 'invoice', 'ticket', 'other')),
+  title text not null,
+  subtitle text,
+  reference text,
+  url text not null,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  deleted_at timestamp with time zone,
+  constraint split_expense_documents_non_empty_url check (length(trim(url)) > 0)
+);
+
 create table if not exists split_tags (
   id uuid primary key default gen_random_uuid(),
   group_id uuid not null references split_groups(id) on delete cascade,
@@ -221,6 +236,32 @@ create table if not exists itinerary_section_preferences (
   unique (user_id, section_key)
 );
 
+create table if not exists itinerary_documents (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('passport', 'flight', 'hotel', 'insurance', 'other')),
+  title text not null,
+  subtitle text,
+  reference text,
+  url text not null,
+  expiry_date date,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  deleted_at timestamp with time zone,
+  constraint itinerary_documents_non_empty_url check (length(trim(url)) > 0)
+);
+
+create index if not exists idx_itinerary_documents_itinerary on itinerary_documents (itinerary_id);
+create index if not exists idx_itinerary_documents_expiry on itinerary_documents (expiry_date);
+
+alter table schedule_items
+  add column if not exists related_document_id uuid references itinerary_documents(id) on delete set null;
+
+create index if not exists idx_schedule_items_related_document_id on schedule_items (related_document_id);
+create index if not exists idx_split_expense_documents_expense on split_expense_documents (expense_id);
+create index if not exists idx_split_expense_documents_created_at on split_expense_documents (created_at desc);
+
 alter table itinerary_collaborators enable row level security;
 alter table itinerary_share_links enable row level security;
 alter table bag_categories enable row level security;
@@ -232,12 +273,14 @@ alter table split_shares enable row level security;
 alter table split_payments enable row level security;
 alter table split_expense_categories enable row level security;
 alter table split_expense_comments enable row level security;
+alter table split_expense_documents enable row level security;
 alter table split_tags enable row level security;
 alter table split_expense_tags enable row level security;
 alter table split_notifications enable row level security;
 alter table split_payment_reminders enable row level security;
 alter table split_refunds enable row level security;
 alter table itinerary_section_preferences enable row level security;
+alter table itinerary_documents enable row level security;
 
 create policy "itinerary_collaborators_read" on itinerary_collaborators
   for select
@@ -401,6 +444,28 @@ create policy "split_expense_comments_access" on split_expense_comments
     )
   );
 
+create policy "split_expense_documents_access" on split_expense_documents
+  for all
+  using (
+    exists (select 1 from split_expenses
+      join split_groups on split_groups.id = split_expenses.group_id
+      where split_expenses.id = split_expense_documents.expense_id
+        and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+          or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+        )
+    )
+  )
+  with check (
+    user_id = auth.uid()
+    and exists (select 1 from split_expenses
+      join split_groups on split_groups.id = split_expenses.group_id
+      where split_expenses.id = split_expense_documents.expense_id
+        and (exists (select 1 from itineraries where itineraries.id = split_groups.itinerary_id and itineraries.user_id = auth.uid())
+          or exists (select 1 from itinerary_collaborators where itinerary_collaborators.itinerary_id = split_groups.itinerary_id and itinerary_collaborators.user_id = auth.uid())
+        )
+    )
+  );
+
 create policy "split_tags_access" on split_tags
   for all
   using (
@@ -497,6 +562,86 @@ create policy "itinerary_section_preferences_owner" on itinerary_section_prefere
   for all
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+create policy "itinerary_documents_read" on itinerary_documents
+  for select
+  using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = itinerary_documents.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from itinerary_collaborators
+      where itinerary_collaborators.itinerary_id = itinerary_documents.itinerary_id
+        and itinerary_collaborators.user_id = auth.uid()
+        and itinerary_collaborators.deleted_at is null
+    )
+  );
+
+create policy "itinerary_documents_insert" on itinerary_documents
+  for insert
+  with check (
+    user_id = auth.uid()
+    and (
+      exists (
+        select 1 from itineraries
+        where itineraries.id = itinerary_documents.itinerary_id
+          and itineraries.user_id = auth.uid()
+      )
+      or exists (
+        select 1 from itinerary_collaborators
+        where itinerary_collaborators.itinerary_id = itinerary_documents.itinerary_id
+          and itinerary_collaborators.user_id = auth.uid()
+          and itinerary_collaborators.deleted_at is null
+      )
+    )
+  );
+
+create policy "itinerary_documents_update" on itinerary_documents
+  for update
+  using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = itinerary_documents.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from itinerary_collaborators
+      where itinerary_collaborators.itinerary_id = itinerary_documents.itinerary_id
+        and itinerary_collaborators.user_id = auth.uid()
+        and itinerary_collaborators.deleted_at is null
+    )
+  )
+  with check (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = itinerary_documents.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from itinerary_collaborators
+      where itinerary_collaborators.itinerary_id = itinerary_documents.itinerary_id
+        and itinerary_collaborators.user_id = auth.uid()
+        and itinerary_collaborators.deleted_at is null
+    )
+  );
+
+create policy "itinerary_documents_delete" on itinerary_documents
+  for delete
+  using (
+    exists (
+      select 1 from itineraries
+      where itineraries.id = itinerary_documents.itinerary_id
+        and itineraries.user_id = auth.uid()
+    )
+    or exists (
+      select 1 from itinerary_collaborators
+      where itinerary_collaborators.itinerary_id = itinerary_documents.itinerary_id
+        and itinerary_collaborators.user_id = auth.uid()
+        and itinerary_collaborators.deleted_at is null
+    )
+  );
 
 -- User widget preferences (persist user custom order/visibility per itinerary)
 create table if not exists user_widget_preferences (

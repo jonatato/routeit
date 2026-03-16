@@ -16,8 +16,6 @@ import {
 import { Link } from 'react-router-dom';
 import type { Flight, FlightSegment } from '../data/itinerary';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Card, CardContent } from './ui/card';
 
 interface FlightCardProps {
   flight: Flight;
@@ -108,6 +106,7 @@ export function FlightCard({ flight, editable = false, onAddToCalendar }: Flight
   const lastSegment = flight.segments[flight.segments.length - 1];
   const hasMultipleSegments = flight.segments.length > 1;
   const status = flight.status ? statusConfig[flight.status] : statusConfig.confirmed;
+  const metaChipClass = 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold';
 
   const handleCopyReference = async () => {
     if (!flight.bookingReference) return;
@@ -143,194 +142,163 @@ export function FlightCard({ flight, editable = false, onAddToCalendar }: Flight
   if (!firstSegment || !lastSegment) return null;
 
   return (
-    <Card className="overflow-hidden border-2 border-border/60 shadow-lg">
-      {/* Header - Boarding pass style */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 px-4 py-3 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
-              <Plane className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium opacity-90">{directionLabels[flight.direction]}</p>
-              <p className="text-lg font-bold">
-                {flight.label || `${firstSegment.departureCity} → ${lastSegment.arrivalCity}`}
-              </p>
-            </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 px-1 py-1">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-mutedForeground">
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-mutedForeground">
+              <Plane className="h-3.5 w-3.5" />
+              {directionLabels[flight.direction]}
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-mutedForeground">{flight.date}</span>
           </div>
-          <div className="text-right">
-            <p className="text-sm opacity-90">Fecha</p>
-            <p className="text-lg font-bold">{flight.date}</p>
-          </div>
+          <h3 className="font-display text-[1.6rem] font-extrabold leading-none text-foreground">
+            {flight.label || `${firstSegment.departureCity} → ${lastSegment.arrivalCity}`}
+          </h3>
+        </div>
+        <div className={`shrink-0 ${metaChipClass} ${status.bg} ${status.color}`}>
+          {flight.status === 'confirmed' && <Check className="h-3 w-3" />}
+          {status.label}
         </div>
       </div>
 
-      <CardContent className="p-0">
-        {/* Main flight info */}
-        <div className="p-4 md:p-6">
-          {/* Simple view: first and last segment summary */}
-          {!hasMultipleSegments ? (
-            <FlightSegmentCard segment={firstSegment} isLast={true} />
-          ) : (
-            <>
-              {/* Multi-segment summary */}
-              <div className="flex items-center gap-4 py-4">
-                <div className="flex-1 text-center md:text-left">
-                  <p className="text-2xl md:text-3xl font-bold text-foreground">{firstSegment.departureTime}</p>
-                  <p className="text-lg font-semibold text-foreground">{firstSegment.departureAirport}</p>
-                  <p className="text-sm text-mutedForeground">{firstSegment.departureCity}</p>
-                </div>
+      {!hasMultipleSegments ? (
+        <FlightSegmentCard segment={firstSegment} isLast={true} />
+      ) : (
+        <>
+          <div className="flex items-center gap-4 py-4">
+            <div className="flex-1 text-center md:text-left">
+              <p className="text-2xl md:text-3xl font-bold text-foreground">{firstSegment.departureTime}</p>
+              <p className="text-lg font-semibold text-foreground">{firstSegment.departureAirport}</p>
+              <p className="text-sm text-mutedForeground">{firstSegment.departureCity}</p>
+            </div>
 
-                <div className="flex flex-col items-center gap-1 px-2 md:px-4">
-                  <div className="flex items-center gap-1">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <div className="h-px w-6 bg-border" />
-                    <div className="h-2 w-2 rounded-full bg-amber-500" />
-                    <div className="h-px w-6 bg-border" />
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                  </div>
-                  <span className="text-xs text-mutedForeground">{flight.totalDuration || 'Total'}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {flight.stops || flight.segments.length - 1} escala{(flight.stops || flight.segments.length - 1) > 1 ? 's' : ''}
-                  </Badge>
-                </div>
+            <div className="flex flex-col items-center gap-1 px-2 md:px-4">
+              <div className="flex items-center gap-1">
+                <div className="h-2 w-2 rounded-full bg-primary" />
+                <div className="h-px w-6 bg-border" />
+                <div className="h-2 w-2 rounded-full bg-amber-500" />
+                <div className="h-px w-6 bg-border" />
+                <div className="h-2 w-2 rounded-full bg-primary" />
+              </div>
+              <span className="text-xs text-mutedForeground">{flight.totalDuration || 'Total'}</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-mutedForeground">
+                {flight.stops || flight.segments.length - 1} escala{(flight.stops || flight.segments.length - 1) > 1 ? 's' : ''}
+              </span>
+            </div>
 
-                <div className="flex-1 text-center md:text-right">
-                  <p className="text-2xl md:text-3xl font-bold text-foreground">{lastSegment.arrivalTime}</p>
-                  <p className="text-lg font-semibold text-foreground">{lastSegment.arrivalAirport}</p>
-                  <p className="text-sm text-mutedForeground">{lastSegment.arrivalCity}</p>
-                </div>
-              </div>
-
-              {/* Expandable segments */}
-              <button
-                type="button"
-                onClick={() => setShowDetails(!showDetails)}
-                className="flex w-full items-center justify-center gap-2 border-t border-dashed border-border py-3 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
-              >
-                {showDetails ? (
-                  <>
-                    <ChevronUp className="h-4 w-4" />
-                    Ocultar detalles de escalas
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4" />
-                    Ver detalles de escalas
-                  </>
-                )}
-              </button>
-
-              {showDetails && (
-                <div className="border-t border-border bg-muted/30 px-4 py-2">
-                  {flight.segments.map((segment, index) => (
-                    <FlightSegmentCard
-                      key={segment.id}
-                      segment={segment}
-                      isLast={index === flight.segments.length - 1}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Ticket details section */}
-        <div className="border-t border-dashed border-border bg-muted/30 px-4 py-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {flight.bookingReference && (
-              <div className="flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-mutedForeground" />
-                <div>
-                  <p className="text-xs text-mutedForeground">Referencia</p>
-                  <p className="font-mono font-semibold text-foreground">{flight.bookingReference}</p>
-                </div>
-              </div>
-            )}
-            {flight.seat && (
-              <div className="flex items-center gap-2">
-                <Armchair className="h-4 w-4 text-mutedForeground" />
-                <div>
-                  <p className="text-xs text-mutedForeground">Asiento</p>
-                  <p className="font-semibold text-foreground">{flight.seat}</p>
-                </div>
-              </div>
-            )}
-            {flight.cabinClass && (
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-mutedForeground" />
-                <div>
-                  <p className="text-xs text-mutedForeground">Clase</p>
-                  <p className="font-semibold text-foreground">{cabinClassLabels[flight.cabinClass]}</p>
-                </div>
-              </div>
-            )}
-            {flight.status && (
-              <div className="flex items-center gap-2">
-                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${status.bg} ${status.color}`}>
-                  {flight.status === 'confirmed' && <Check className="h-3 w-3" />}
-                  {status.label}
-                </div>
-              </div>
-            )}
+            <div className="flex-1 text-center md:text-right">
+              <p className="text-2xl md:text-3xl font-bold text-foreground">{lastSegment.arrivalTime}</p>
+              <p className="text-lg font-semibold text-foreground">{lastSegment.arrivalAirport}</p>
+              <p className="text-sm text-mutedForeground">{lastSegment.arrivalCity}</p>
+            </div>
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-border bg-background p-4">
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex w-full items-center justify-center gap-2 border-y border-dashed border-border/80 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+          >
+            {showDetails ? (
+              <>
+                <ChevronUp className="h-4 w-4" />
+                Ocultar detalles de escalas
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4" />
+                Ver detalles de escalas
+              </>
+            )}
+          </button>
+
+          {showDetails && (
+            <div className="space-y-0 pt-1">
+              {flight.segments.map((segment, index) => (
+                <FlightSegmentCard
+                  key={segment.id}
+                  segment={segment}
+                  isLast={index === flight.segments.length - 1}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-dashed border-border/80 pt-4">
+        {flight.bookingReference && (
+          <span className={`${metaChipClass} border-amber-500/20 bg-amber-500/10 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300`}>
+            <Ticket className="h-3.5 w-3.5" />
+            {flight.bookingReference}
+          </span>
+        )}
+        {flight.seat && (
+          <span className={`${metaChipClass} border-sky-500/20 bg-sky-500/10 text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-300`}>
+            <Armchair className="h-3.5 w-3.5" />
+            {flight.seat}
+          </span>
+        )}
+        {flight.cabinClass && (
+          <span className={`${metaChipClass} border-violet-500/20 bg-violet-500/10 text-violet-700 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-300`}>
+            <MapPin className="h-3.5 w-3.5" />
+            {cabinClassLabels[flight.cabinClass]}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-dashed border-border/80 pt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 sm:flex-none"
+          onClick={() => onAddToCalendar?.(flight)}
+        >
+          <Calendar className="mr-2 h-4 w-4" />
+          Calendario
+        </Button>
+
+        {flight.bookingReference && (
           <Button
             variant="outline"
             size="sm"
             className="flex-1 sm:flex-none"
-            onClick={() => onAddToCalendar?.(flight)}
+            onClick={handleCopyReference}
           >
-            <Calendar className="h-4 w-4 mr-2" />
-            Calendario
+            {copied ? (
+              <>
+                <Check className="mr-2 h-4 w-4 text-emerald-600" />
+                Copiado
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar ref.
+              </>
+            )}
           </Button>
-          
-          {flight.bookingReference && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 sm:flex-none"
-              onClick={handleCopyReference}
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4 mr-2 text-emerald-600" />
-                  Copiado
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copiar ref.
-                </>
-              )}
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 sm:flex-none"
+          onClick={handleShare}
+        >
+          <Share2 className="mr-2 h-4 w-4" />
+          Compartir
+        </Button>
+
+        {editable && (
+          <Link to={`/app/admin?section=flights&id=${flight.id}`} className="flex-1 sm:flex-none">
+            <Button variant="outline" size="sm" className="w-full">
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
             </Button>
-          )}
-          
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 sm:flex-none"
-            onClick={handleShare}
-          >
-            <Share2 className="h-4 w-4 mr-2" />
-            Compartir
-          </Button>
-
-          {editable && (
-            <Link to={`/app/admin?section=flights&id=${flight.id}`} className="flex-1 sm:flex-none">
-              <Button variant="outline" size="sm" className="w-full">
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-              </Button>
-            </Link>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
 

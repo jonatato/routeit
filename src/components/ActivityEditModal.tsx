@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import type { ScheduleItem } from '../data/itinerary';
@@ -7,9 +7,8 @@ import { MapPin } from 'lucide-react';
 interface ActivityEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: ScheduleItem | null;
+  item: ScheduleItem;
   onSave: (item: ScheduleItem) => void;
-  splitMembers?: Array<{ id: string; name: string }>;
 }
 
 export function ActivityEditModal({
@@ -17,22 +16,8 @@ export function ActivityEditModal({
   onClose,
   item,
   onSave,
-  splitMembers = [],
 }: ActivityEditModalProps) {
-  const [formData, setFormData] = useState<ScheduleItem>({
-    time: '',
-    activity: '',
-    link: '',
-    mapLink: '',
-    tags: [],
-  });
-
-  useEffect(() => {
-    if (!item) return;
-    // The form needs to be rehydrated when switching the edited activity.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFormData(item);
-  }, [item]);
+  const [formData, setFormData] = useState<ScheduleItem>(item);
 
   const handleSave = () => {
     onSave(formData);
@@ -116,45 +101,6 @@ export function ActivityEditModal({
             />
           </div>
 
-          {splitMembers.length > 0 && (
-            <div className="space-y-2">
-              <label htmlFor="activity-edit-payer" className="text-sm font-medium">Quién paga (opcional)</label>
-              <select
-                id="activity-edit-payer"
-                value={formData.costPayerId || ''}
-                onChange={(e) => setFormData({ ...formData, costPayerId: e.target.value })}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Nadie</option>
-                {splitMembers.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="grid gap-2 md:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="activity-edit-cost" className="text-sm font-medium">Costo</label>
-              <input
-                id="activity-edit-cost"
-                type="number"
-                value={formData.cost || ''}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value ? parseFloat(e.target.value) : undefined })}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="activity-edit-currency" className="text-sm font-medium">Moneda</label>
-              <input
-                id="activity-edit-currency"
-                value={formData.costCurrency || ''}
-                onChange={(e) => setFormData({ ...formData, costCurrency: e.target.value })}
-                placeholder="USD, EUR, etc."
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
         </div>
 
         <div className="flex gap-2 justify-end pt-4">

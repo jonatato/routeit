@@ -203,6 +203,8 @@ export function mapAiDraftToTravelItinerary(draft: AiItineraryDraft): TravelItin
 
   return {
     title: trip.title,
+    startDate: trip.startDate,
+    endDate: addDays(trip.startDate, trip.days - 1),
     dateRange,
     intro: trip.intro,
     days,

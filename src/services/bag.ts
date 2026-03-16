@@ -14,6 +14,7 @@ export async function fetchChecklist() {
   const { data, error } = await supabase
     .from('bag_checklist_items')
     .select('*')
+    .is('deleted_at', null)
     .order('order_index', { ascending: true });
   
   if (error) throw error;
@@ -29,6 +30,7 @@ export async function addChecklistItem(name: string, tags: string[] = []) {
     .from('bag_checklist_items')
     .select('order_index')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .order('order_index', { ascending: false })
     .limit(1);
 
@@ -53,7 +55,8 @@ export async function updateChecklistItem(id: string, patch: Partial<Pick<BagChe
   const { error } = await supabase
     .from('bag_checklist_items')
     .update(patch)
-    .eq('id', id);
+    .eq('id', id)
+    .is('deleted_at', null);
   
   if (error) throw error;
 }
@@ -62,7 +65,8 @@ export async function deleteChecklistItem(id: string) {
   const { error } = await supabase
     .from('bag_checklist_items')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .is('deleted_at', null);
   
   if (error) throw error;
 }

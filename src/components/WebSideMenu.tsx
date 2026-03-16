@@ -1,6 +1,6 @@
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
-import { Home, Receipt, Plane, ShoppingBag, Settings, Video, Store, LogOut } from 'lucide-react';
+import { Home, Receipt, Plane, ShoppingBag, Settings, Video, Store, LogOut, FileText } from 'lucide-react';
 import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
@@ -40,6 +40,7 @@ function WebSideMenu() {
   
   const baseMenuItems = [
     { path: '/app', label: 'Inicio', icon: Home },
+    { path: '/app/documents', label: 'Documentos', icon: FileText },
     { path: '/app/store', label: 'Tienda', icon: Store },
     { path: '/app/split', label: 'Gastos', icon: Receipt },
     { path: '/app/bag', label: 'Maleta', icon: ShoppingBag },
@@ -62,10 +63,7 @@ function WebSideMenu() {
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-background/85 px-3 py-4 backdrop-blur-sm md:flex">
       {/* Logo */}
       <Link to="/app" className="mb-6 flex items-center gap-2 px-2">
-        <PandaLogo
-          size="2xl"
-          className="[&_img]:rounded-full [&_img]:border [&_img]:border-border [&_img]:bg-card [&_img]:p-1"
-        />
+        <PandaLogo size="2xl" />
         <span className="text-xl font-bold">
           Route<span className="text-primary">it</span>
         </span>

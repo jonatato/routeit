@@ -44,8 +44,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'RouteIt';
   const options = {
     body: data.body || 'Tienes una nueva notificaciÃ³n',
-    icon: '/panda-logo.png',
-    badge: '/panda-logo.png',
+    icon: '/routeit-icon.svg',
+    badge: '/routeit-icon.svg',
     tag: data.tag || 'default',
     requireInteraction: false,
   };

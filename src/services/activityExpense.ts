@@ -13,6 +13,32 @@ export async function createExpenseFromActivity(
   payerId: string,
   divisionType: 'equal' | 'percentage' | 'exact' | 'shares' = 'equal',
 ): Promise<string> {
+  // Reuse existing active linked expense if present to avoid duplicates.
+  const { data: existingLinked, error: existingLinkedError } = await supabase
+    .from('split_expenses')
+    .select('id')
+    .eq('schedule_item_id', scheduleItemId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (existingLinkedError) {
+    console.error('Error checking existing linked expense:', existingLinkedError);
+  }
+
+  if (existingLinked?.id) {
+    const { error: relinkError } = await supabase
+      .from('schedule_items')
+      .update({ cost_split_expense_id: existingLinked.id })
+      .eq('id', scheduleItemId)
+      .is('deleted_at', null);
+
+    if (relinkError) {
+      console.error('Error relinkando activity con gasto existente:', relinkError);
+    }
+
+    return existingLinked.id;
+  }
+
   // 1. Asegurar que existe el grupo de Split para este itinerario
   const group = await ensureSplitGroup(itineraryId);
   
@@ -46,7 +72,8 @@ export async function createExpenseFromActivity(
   const { error } = await supabase
     .from('schedule_items')
     .update({ cost_split_expense_id: expense.id })
-    .eq('id', scheduleItemId);
+    .eq('id', scheduleItemId)
+    .is('deleted_at', null);
     
   if (error) {
     console.error('Error vinculando schedule_item con expense:', error);
@@ -72,7 +99,8 @@ export async function syncActivityToExpense(
       amount: cost,
       payer_id: payerId,
     })
-    .eq('id', expenseId);
+    .eq('id', expenseId)
+    .is('deleted_at', null);
     
   if (expenseError) throw expenseError;
   
@@ -81,6 +109,7 @@ export async function syncActivityToExpense(
     .from('split_expenses')
     .select('group_id, division_type')
     .eq('id', expenseId)
+    .is('deleted_at', null)
     .single();
     
   if (fetchError) throw fetchError;
@@ -90,7 +119,8 @@ export async function syncActivityToExpense(
     const { data: members } = await supabase
       .from('split_members')
       .select('id')
-      .eq('group_id', expense.group_id);
+      .eq('group_id', expense.group_id)
+      .is('deleted_at', null);
       
     if (members && members.length > 0) {
       const shareAmount = cost / members.length;
@@ -99,7 +129,8 @@ export async function syncActivityToExpense(
       const { error: sharesError } = await supabase
         .from('split_shares')
         .update({ amount: shareAmount })
-        .eq('expense_id', expenseId);
+        .eq('expense_id', expenseId)
+        .is('deleted_at', null);
         
       if (sharesError) console.error('Error actualizando shares:', sharesError);
     }
@@ -113,7 +144,8 @@ export async function deleteExpenseFromActivity(expenseId: string): Promise<void
   const { error } = await supabase
     .from('split_expenses')
     .delete()
-    .eq('id', expenseId);
+    .eq('id', expenseId)
+    .is('deleted_at', null);
     
   if (error) throw error;
 }
@@ -126,6 +158,7 @@ export async function hasLinkedExpense(scheduleItemId: string): Promise<boolean>
     .from('schedule_items')
     .select('cost_split_expense_id')
     .eq('id', scheduleItemId)
+    .is('deleted_at', null)
     .single();
     
   if (error) return false;
@@ -140,6 +173,7 @@ export async function getMemberName(memberId: string): Promise<string> {
     .from('split_members')
     .select('name')
     .eq('id', memberId)
+    .is('deleted_at', null)
     .single();
     
   if (error || !data) return 'Desconocido';

@@ -17,15 +17,15 @@ export function MobilePageHeader({
   actions,
 }: MobilePageHeaderProps) {
   return (
-    <div className="sticky top-0 z-30 border-b border-border/80 bg-card/95 px-4 py-3 pt-safe-top backdrop-blur supports-[backdrop-filter]:bg-card/85 md:hidden">
-      <div className="flex items-center gap-3">
+    <div className="sticky top-0 z-30 border-b border-border/80 bg-card/95 px-4 pb-3 pt-[calc(var(--safe-area-inset-top)+0.75rem)] backdrop-blur supports-[backdrop-filter]:bg-card/85 md:hidden">
+      <div className="flex min-h-9 items-center gap-3">
         <Link to={backTo}>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full border border-border/70 bg-background/80">
+          <Button variant="ghost" size="icon" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-background/80">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold text-foreground">{title}</h1>
+        <div className="min-w-0 flex-1 self-center">
+          <h1 className="truncate text-base font-semibold leading-none text-foreground">{title}</h1>
           {subtitle && <p className="truncate text-xs text-mutedForeground">{subtitle}</p>}
         </div>
       </div>

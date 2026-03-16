@@ -2,13 +2,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet';
 import { Link } from 'react-router-dom';
-import { Plus, Settings, Search, Maximize2 } from 'lucide-react';
-import type { TravelItinerary, Flight, FlightSegment } from '../data/itinerary';
+import { FileText, MapPin, Maximize2, Plus, Search, Ticket, Wallet } from 'lucide-react';
+import type { TravelItinerary, Flight, FlightSegment, ItineraryDay, ScheduleItem } from '../data/itinerary';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { PandaLogo } from './PandaLogo';
-import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs as UITabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
@@ -20,18 +19,9 @@ import { PDFExportDialog } from './PDFExportDialog';
 import { MapModal } from './MapModal';
 import { useIsMobileShell } from '../hooks/useIsMobileShell';
 import { downloadFlightICS } from '../utils/calendarExport';
-
-const kindLabels: Record<string, string> = {
-  flight: '✈️ Vuelo',
-  travel: '🚗 Traslado',
-  city: '🏙️ Ciudad',
-};
-
-const kindVariants: Record<string, 'secondary' | 'accent' | 'primary'> = {
-  flight: 'secondary',
-  travel: 'accent',
-  city: 'primary',
-};
+import { getItineraryStartDate } from '../utils/itineraryDates';
+import { listItineraryDocuments, type ItineraryDocument } from '../services/documents';
+import TripCountdown from './TripCountdown';
 
 const budgetToneClasses = {
   secondary: 'bg-secondary',
@@ -39,19 +29,313 @@ const budgetToneClasses = {
   accent: 'bg-accent',
 } as const;
 
-// Helper para obtener color de etiqueta del catálogo
-function getTagColor(kind: string, tagsCatalog?: Array<{ name: string; slug: string; color?: string }>): string | null {
-  if (!tagsCatalog) return null;
-  const tag = tagsCatalog.find(t => t.slug === kind);
-  return tag?.color ?? null;
+const SHOW_COVER_IMAGE = false;
+const SHOW_PDF_EXPORT = false;
+
+const formatActivityCount = (count: number) => `${count} ${count === 1 ? 'actividad' : 'actividades'}`;
+
+const normalizeCityName = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const cityMatches = (left: string, right: string) => {
+  const normalizedLeft = normalizeCityName(left);
+  const normalizedRight = normalizeCityName(right);
+
+  if (!normalizedLeft || !normalizedRight) return false;
+  return normalizedLeft.includes(normalizedRight) || normalizedRight.includes(normalizedLeft);
+};
+
+const getRenderableRouteLocations = (locations: TravelItinerary['locations']) => {
+  const seen = new Set<string>();
+
+  return locations.filter(location => {
+    const city = location.city.trim();
+    const hasCoords =
+      Number.isFinite(location.lat) &&
+      Number.isFinite(location.lng) &&
+      !(location.lat === 0 && location.lng === 0);
+
+    if (!city || !hasCoords) return false;
+
+    const normalizedCity = city.toLowerCase();
+    if (seen.has(normalizedCity)) return false;
+
+    seen.add(normalizedCity);
+    return true;
+  });
+};
+
+const parseBase64DataUrl = (value: string) => {
+  const match = value.match(/^data:([^;]+);base64,(.*)$/i);
+  if (!match) return null;
+  return { mimeType: match[1], data: match[2] };
+};
+
+const base64ToBlob = (base64: string, mimeType: string) => {
+  const binary = window.atob(base64);
+  const length = binary.length;
+  const bytes = new Uint8Array(length);
+  for (let index = 0; index < length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mimeType });
+};
+
+const isBase64Document = (value: string) => /^data:[^;]+;base64,/i.test(value);
+
+const openDocumentUrl = (url: string) => {
+  try {
+    if (!isBase64Document(url)) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const parsed = parseBase64DataUrl(url);
+    if (!parsed) return;
+
+    const blob = base64ToBlob(parsed.data, parsed.mimeType || 'application/octet-stream');
+    const objectUrl = URL.createObjectURL(blob);
+    const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+
+    if (!opened) {
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  } catch (error) {
+    console.error('Error opening itinerary document:', error);
+  }
+};
+
+type DayDetailPanelProps = {
+  day: ItineraryDay;
+  compact?: boolean;
+  checkedItems: string[];
+  onToggleItem: (itemIndex: number) => void;
+  documentsById: Map<string, ItineraryDocument>;
+};
+
+function ActivityTimelineCard({
+  item,
+  checked,
+  onToggle,
+  isFirst,
+  isLast,
+  linkedDocument,
+  compact = false,
+}: {
+  item: ScheduleItem;
+  checked: boolean;
+  onToggle: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+  linkedDocument?: ItineraryDocument | null;
+  compact?: boolean;
+}) {
+  const hasTags = Boolean(item.tags && item.tags.length > 0);
+  const hasMeta = Boolean(item.link || item.mapLink || item.cost || linkedDocument);
+
+  return (
+    <div className={`grid items-start ${compact ? 'grid-cols-[24px_1fr] gap-3' : 'grid-cols-[28px_1fr] gap-4'}`}>
+      <div className="relative flex h-full justify-center">
+        {!isFirst && (
+          <>
+            <span className="absolute left-1/2 top-0 h-[calc(50%-9px)] w-px -translate-x-1/2 bg-border/80" />
+            <span
+              className={`absolute left-1/2 top-0 h-[calc(50%-9px)] w-px -translate-x-1/2 origin-bottom bg-primary transition-transform duration-500 ${
+                checked ? 'scale-y-100' : 'scale-y-0'
+              }`}
+            />
+          </>
+        )}
+
+        <span
+          className={`relative z-10 mt-1.5 flex h-4 w-4 items-center justify-center rounded-full border transition-all duration-500 ${
+            checked
+              ? 'border-primary bg-primary ring-4 ring-primary/10'
+              : 'border-primary/40 bg-background'
+          }`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full transition-all duration-500 ${
+              checked ? 'scale-100 bg-primaryForeground' : 'scale-75 bg-primary/65'
+            }`}
+          />
+        </span>
+
+        {!isLast && (
+          <>
+            <span className="absolute bottom-0 left-1/2 h-[calc(50%-1px)] w-px -translate-x-1/2 bg-border/80" />
+            <span
+              className={`absolute bottom-0 left-1/2 h-[calc(50%-1px)] w-px -translate-x-1/2 origin-top bg-primary transition-transform duration-500 ${
+                checked ? 'scale-y-100' : 'scale-y-0'
+              }`}
+            />
+          </>
+        )}
+      </div>
+
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onToggle();
+          }
+        }}
+        className={`min-w-0 rounded-lg transition-[opacity,transform] duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 ${
+          checked ? 'opacity-60' : 'opacity-100'
+        }`}
+        aria-pressed={checked}
+        aria-label={checked ? 'Marcar actividad como pendiente' : 'Marcar actividad como completada'}
+      >
+        <div className={compact ? 'space-y-2 pb-2' : 'space-y-2.5 pb-3'}>
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] transition-colors duration-500 ${
+                  checked
+                    ? 'border-primary/20 bg-primary/10 text-primary'
+                    : 'border-border/80 bg-muted/70 text-foreground/85'
+                }`}
+              >
+                {item.time || '--:--'}
+              </span>
+              <h4
+                className={`font-display leading-tight text-foreground ${
+                  compact ? 'text-base font-bold' : 'text-lg font-extrabold'
+                } ${checked ? 'line-through' : ''}`}
+              >
+                {item.activity || 'Sin actividad'}
+              </h4>
+            </div>
+
+            {hasTags && (
+              <div className="flex flex-wrap gap-1.5">
+                {item.tags?.slice(0, 3).map(tag => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-muted/55 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-mutedForeground"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {hasMeta && (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-mutedForeground">
+              {typeof item.cost === 'number' && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition-colors dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300">
+                  <Wallet className="h-3 w-3 text-emerald-600 dark:text-emerald-300" />
+                  €{item.cost.toFixed(2)}
+                </span>
+              )}
+              {item.link && (
+                <a
+                  href={item.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={event => event.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-500/15 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
+                >
+                  <Ticket className="h-3 w-3 text-amber-600 dark:text-amber-300" />
+                  Entradas
+                </a>
+              )}
+              {item.mapLink && (
+                <a
+                  href={item.mapLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={event => event.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-500/15 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-300"
+                >
+                  <MapPin className="h-3 w-3 text-sky-600 dark:text-sky-300" />
+                  Abrir Maps
+                </a>
+              )}
+              {linkedDocument && (
+                <button
+                  type="button"
+                  onClick={event => {
+                    event.stopPropagation();
+                    openDocumentUrl(linkedDocument.url);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/25 bg-amber-700/10 px-2.5 py-1 text-[11px] font-semibold text-amber-900 transition hover:bg-amber-700/15 dark:border-amber-500/30 dark:bg-amber-500/12 dark:text-amber-200"
+                  title={linkedDocument.title}
+                >
+                  <FileText className="h-3 w-3 text-amber-800 dark:text-amber-200" />
+                  Documento
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-// Helper para obtener label de etiqueta del catálogo
-function getTagLabel(kind: string, tagsCatalog?: Array<{ name: string; slug: string; color?: string }>): string | null {
-  if (!tagsCatalog) return null;
-  const tag = tagsCatalog.find(t => t.slug === kind);
-  return tag?.name ?? null;
+function DayDetailPanel({ day, compact = false, checkedItems, onToggleItem, documentsById }: DayDetailPanelProps) {
+  return (
+    <div className={compact ? 'space-y-3' : 'space-y-4'}>
+      <div
+        className={`flex w-full items-start justify-between gap-3 rounded-[1.25rem] bg-transparent ${
+          compact ? 'px-1 py-1' : 'px-1 py-2'
+        }`}
+      >
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-mutedForeground">{day.date}</p>
+          <h3 className={`font-display leading-none text-foreground ${compact ? 'truncate text-xl font-extrabold' : 'text-[1.75rem] font-extrabold'}`} title={day.city}>
+            {day.city}
+          </h3>
+          {day.plan && (
+            <p className={`text-mutedForeground ${compact ? 'line-clamp-2 text-sm' : 'max-w-3xl text-sm'}`}>
+              {day.plan}
+            </p>
+          )}
+        </div>
+        <span className="ml-auto shrink-0 rounded-full bg-muted/55 px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-[0.16em] text-mutedForeground">
+          {formatActivityCount(day.schedule.length)}
+        </span>
+      </div>
+      <div className={compact ? 'space-y-3' : 'space-y-4'}>
+        {day.schedule.map((item, itemIndex) => {
+          const checked = checkedItems.includes(`${day.id}-${itemIndex}`);
+          const linkedDocument = item.documentId ? documentsById.get(item.documentId) ?? null : null;
+
+          return (
+            <ActivityTimelineCard
+              key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
+              item={item}
+              checked={checked}
+              onToggle={() => onToggleItem(itemIndex)}
+              isFirst={itemIndex === 0}
+              isLast={itemIndex === day.schedule.length - 1}
+              linkedDocument={linkedDocument}
+              compact={compact}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
 }
+
+const getScheduleStorageKey = (itinerary: TravelItinerary) =>
+  `routeit-schedule-checklist:${itinerary.id ?? itinerary.title}`;
 
 // Helper para extraer código de aeropuerto de string como "Madrid (MAD)"
 function extractAirportCode(cityStr: string): string {
@@ -78,7 +362,13 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const tagsCatalog = itinerary.tagsCatalog;
   const totalDays = allDays.length;
   const travelCount = allDays.filter(day => day.kind === 'travel').length;
-  const [hoveredCity, setHoveredCity] = useState<string | null>(null);
+  const tripStartDate = useMemo(() => getItineraryStartDate(itinerary), [itinerary]);
+  const todayStart = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, []);
+  const isTripStarted = Boolean(tripStartDate && tripStartDate.getTime() <= todayStart.getTime());
   const [currentDayIndex, setCurrentDayIndex] = useState(0);
   const [activeTabValue, setActiveTabValue] = useState('0');
   const isMobile = useIsMobileShell();
@@ -87,9 +377,9 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [itineraryDocuments, setItineraryDocuments] = useState<ItineraryDocument[]>([]);
   const [highContrast, setHighContrast] = useState(false);
   const [largeText, setLargeText] = useState(false);
-  const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [currentListIndex, setCurrentListIndex] = useState(0);
   const [listDragOffset, setListDragOffset] = useState(0);
   const [isListDragging, setIsListDragging] = useState(false);
@@ -187,18 +477,10 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   }, [itinerary.flightsList, itinerary.flights]);
 
   const mapCenter = useMemo(() => [33.5, 111.5] as [number, number], []);
-  const visibleLocations = useMemo(() => {
-    if (showAllMarkers) return itinerary.locations;
-    if (!hoveredCity) return [];
-    return itinerary.locations.filter(location => location.city === hoveredCity);
-  }, [hoveredCity, showAllMarkers, itinerary.locations]);
+  const routeLocations = useMemo(() => getRenderableRouteLocations(itinerary.locations), [itinerary.locations]);
   const routePositions = useMemo(() => {
-    const map = new Map(itinerary.locations.map(loc => [loc.city, loc]));
-    return itinerary.route
-      .map(city => map.get(city))
-      .filter(Boolean)
-      .map(loc => [loc!.lat, loc!.lng] as [number, number]);
-  }, [itinerary.locations, itinerary.route]);
+    return routeLocations.map(location => [location.lat, location.lng] as [number, number]);
+  }, [routeLocations]);
   const cityOptions = useMemo(() => itinerary.locations.map(location => location.city), [itinerary.locations]);
   const tagFilters = useMemo(() => {
     const tagSet = new Set<string>();
@@ -333,28 +615,28 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
     });
   }, [activeFilters, allDays, filterOptions, searchQuery]);
   const visibleDays = filteredDays.length;
-  const todayIndex = useMemo(() => {
-    const today = new Date();
-    if (Number.isNaN(today.getTime())) return null;
-    const matchIndex = filteredDays.findIndex(day => {
-      const parsed = Date.parse(day.date);
-      if (Number.isNaN(parsed)) return false;
-      const dayDate = new Date(parsed);
-      return (
-        dayDate.getFullYear() === today.getFullYear() &&
-        dayDate.getMonth() === today.getMonth() &&
-        dayDate.getDate() === today.getDate()
-      );
-    });
-    return matchIndex >= 0 ? matchIndex : null;
-  }, [filteredDays]);
+  const scheduleStorageKey = useMemo(() => getScheduleStorageKey(itinerary), [itinerary]);
   const currentDay = filteredDays[currentDayIndex];
+  const routeStops = useMemo(
+    () =>
+      routeLocations.map(location => ({
+        city: location.city,
+        label: location.label,
+        position: [location.lat, location.lng] as [number, number],
+        dayIndex: filteredDays.findIndex(day => cityMatches(day.city, location.city)),
+      })),
+    [filteredDays, routeLocations],
+  );
+  const documentsById = useMemo(
+    () => new Map(itineraryDocuments.map(document => [document.id, document] as const)),
+    [itineraryDocuments],
+  );
   const currentDayLocation = useMemo(() => {
     if (!currentDay) return null;
     const segments = currentDay.city.split('→').map(part => part.trim()).reverse();
     for (const segment of segments) {
       const match = itinerary.locations.find(location =>
-        segment.includes(location.city) || location.city.includes(segment),
+        cityMatches(segment, location.city),
       );
       if (match) return match;
     }
@@ -379,6 +661,129 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
     }
     return mapCenter;
   }, [dayMapPoints, currentDayLocation, mapCenter]);
+  const activeRouteIndex = useMemo(() => {
+    if (!currentDay) return -1;
+
+    let progressedRouteIndex = -1;
+    routeStops.forEach((stop, stopIndex) => {
+      if (stop.dayIndex >= 0 && stop.dayIndex <= currentDayIndex) {
+        progressedRouteIndex = stopIndex;
+      }
+    });
+
+    if (progressedRouteIndex >= 0) return progressedRouteIndex;
+
+    if (currentDayLocation) {
+      const locationIndex = routeStops.findIndex(stop => cityMatches(stop.city, currentDayLocation.city));
+      if (locationIndex >= 0) return locationIndex;
+    }
+
+    return routeStops.findIndex(stop => cityMatches(currentDay.city, stop.city));
+  }, [currentDay, currentDayIndex, currentDayLocation, routeStops]);
+  const activeRoutePositions = useMemo(() => {
+    if (activeRouteIndex < 0) return [] as [number, number][];
+    return routeStops.slice(0, activeRouteIndex + 1).map(stop => stop.position);
+  }, [activeRouteIndex, routeStops]);
+  const renderInlineGeneralMap = (compact = false) => (
+    <div className="space-y-3" ref={mapSectionRef}>
+      <div
+        className={`group relative overflow-hidden border border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,245,255,0.88))] shadow-[0_10px_30px_rgba(91,33,182,0.06)] ${
+          compact ? 'rounded-[1.2rem]' : 'rounded-[1.35rem]'
+        }`}
+        onPointerDown={handleMapPointerDown(mapDragState)}
+        onPointerMove={handleMapPointerMove(mapDragState)}
+        onPointerCancel={() => {
+          mapDragState.current.dragged = false;
+        }}
+        onClick={() => {
+          if (!shouldOpenMapModal(mapDragState)) return;
+          setIsMapModalOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (!shouldOpenMapModal(mapDragState)) return;
+            setIsMapModalOpen(true);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label="Abrir mapa general del viaje"
+      >
+        <div className={compact ? 'h-44 w-full' : 'h-56 w-full md:h-64'}>
+          {isMapVisible && (
+            <MapContainer center={mapCenter} zoom={4} className="h-full w-full" ref={mapRef}>
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <Polyline positions={routePositions} pathOptions={{ color: '#94a3b8', weight: 3, opacity: 0.9 }} />
+              {activeRoutePositions.length > 1 && (
+                <Polyline positions={activeRoutePositions} pathOptions={{ color: '#2563eb', weight: 4 }} />
+              )}
+              {routeStops.map((stop, stopIndex) => {
+                const isActiveStop = stopIndex === activeRouteIndex;
+
+                return (
+                  <CircleMarker
+                    key={`${compact ? 'compact' : 'desktop'}-${stop.city}`}
+                    center={stop.position}
+                    radius={compact ? (isActiveStop ? 6 : 4.5) : isActiveStop ? 7 : 5}
+                    pathOptions={{
+                      color: isActiveStop ? '#2563eb' : '#ffffff',
+                      weight: isActiveStop ? 3 : 2,
+                      fillColor: isActiveStop ? '#2563eb' : '#0f172a',
+                      fillOpacity: 1,
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+                      {stop.label}
+                    </Tooltip>
+                  </CircleMarker>
+                );
+              })}
+            </MapContainer>
+          )}
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-background/92 via-background/45 to-transparent px-3 py-2">
+          <span className="rounded-full border border-white/60 bg-white/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-mutedForeground backdrop-blur-sm">
+            {activeRouteIndex >= 0 ? `Ruta · ${routeStops[activeRouteIndex]?.city}` : 'Ruta del viaje'}
+          </span>
+          <div className={`rounded-full border border-white/60 bg-white/70 p-2 backdrop-blur-sm transition-opacity ${compact ? 'opacity-0 group-active:opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            <Maximize2 className="h-4 w-4 text-primary" />
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {routeStops.map((stop, stopIndex) => {
+          const isActiveStop = stopIndex === activeRouteIndex;
+          const canNavigate = stop.dayIndex >= 0;
+
+          return (
+            <button
+              key={`${compact ? 'mobile' : 'desktop'}-route-stop-${stop.city}`}
+              type="button"
+              onClick={() => {
+                if (!canNavigate) return;
+                setCurrentDayIndex(stop.dayIndex);
+                setActiveTabValue(String(stop.dayIndex));
+              }}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                isActiveStop
+                  ? 'border-primary/35 bg-primary/10 text-primary'
+                  : 'border-border/60 bg-background/70 text-mutedForeground hover:border-primary/20 hover:bg-background hover:text-foreground'
+              } ${!canNavigate ? 'cursor-default opacity-45' : ''}`}
+              aria-pressed={isActiveStop}
+              disabled={!canNavigate}
+            >
+              {stop.city}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   const shouldShowDayMap = dayMapPoints.length > 0;
   const checklistItems = useMemo(() => extractListItems(itinerary.utilities), [itinerary.utilities]);
   const checklistProgress = useMemo(() => {
@@ -656,6 +1061,35 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
     void loadPreferences();
   }, []);
 
+  useEffect(() => {
+    if (!itinerary.id) {
+      setItineraryDocuments([]);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadDocuments = async () => {
+      try {
+        const documents = await listItineraryDocuments(itinerary.id);
+        if (isActive) {
+          setItineraryDocuments(documents);
+        }
+      } catch (error) {
+        console.error('Error loading itinerary documents for view:', error);
+        if (isActive) {
+          setItineraryDocuments([]);
+        }
+      }
+    };
+
+    void loadDocuments();
+
+    return () => {
+      isActive = false;
+    };
+  }, [itinerary.id]);
+
   // Mapeo de secciones con su visibilidad y orden
   const sectionConfig = useMemo(() => {
     const config = new Map<string, { visible: boolean; order: number }>();
@@ -673,18 +1107,11 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       });
     }
 
-    const priority = isMobile
-      ? ['flights', 'itinerary', 'flightInfo', 'overview', 'map', 'foods', 'budget']
-      : ['flights', 'itinerary', 'flightInfo', 'overview', 'map', 'foods', 'budget'];
-    priority.forEach((key, index) => {
-      const current = config.get(key);
-      config.set(key, { visible: current?.visible ?? true, order: index });
-    });
-
     return config;
   }, [isMobile, sectionPreferences]);
 
   const shouldShowSection = (key: string) => {
+    if (key === 'itinerary') return true;
     const config = sectionConfig.get(key);
     return config ? config.visible : true;
   };
@@ -693,6 +1120,24 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
     const config = sectionConfig.get(key);
     return config ? config.order : 999;
   };
+
+  const getPinnedSectionOrder = (key: string) => {
+    if (key === 'flights') return -2;
+    if (key === 'itinerary') return -1;
+    return getSectionOrder(key);
+  };
+
+  const hasAnyVisibleMainSection = useMemo(
+    () =>
+      ['flights', 'itinerary', 'flightInfo', 'overview', 'map', 'foods', 'budget'].some(
+        key => sectionConfig.get(key)?.visible ?? true,
+      ),
+    [sectionConfig],
+  );
+
+  const showItinerarySection = shouldShowSection('itinerary') || !hasAnyVisibleMainSection;
+  const showInlineGeneralMap = shouldShowSection('map') && showItinerarySection && routeStops.length > 0;
+  const showStandaloneGeneralMap = shouldShowSection('map') && !showItinerarySection;
 
   useEffect(() => {
     setCurrentDayIndex(index => Math.min(index, Math.max(visibleDays - 1, 0)));
@@ -714,7 +1159,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   }, [currentDayIndex]);
 
   useEffect(() => {
-    const stored = localStorage.getItem('routeit-checklist');
+    const stored = localStorage.getItem(scheduleStorageKey);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as string[];
@@ -725,11 +1170,20 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       }
     }
     setCheckedItems([]);
-  }, []);
+  }, [scheduleStorageKey]);
 
   useEffect(() => {
-    localStorage.setItem('routeit-checklist', JSON.stringify(checkedItems));
-  }, [checkedItems]);
+    localStorage.setItem(scheduleStorageKey, JSON.stringify(checkedItems));
+  }, [checkedItems, scheduleStorageKey]);
+
+  const handleToggleDayItem = (day: ItineraryDay, itemIndex: number) => {
+    const key = `${day.id}-${itemIndex}`;
+    const isChecked = checkedItems.includes(key);
+
+    setCheckedItems(prev =>
+      isChecked ? prev.filter(itemKey => itemKey !== key) : prev.includes(key) ? prev : [...prev, key],
+    );
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('routeit-a11y');
@@ -781,21 +1235,44 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   }, [currentDayIndex, visibleDays]);
 
   useEffect(() => {
+    if (!showInlineGeneralMap && !showStandaloneGeneralMap) return;
+
     const section = mapSectionRef.current;
     if (!section) return;
+
+    const revealMap = () => {
+      setIsMapVisible(true);
+      requestAnimationFrame(() => {
+        mapRef.current?.invalidateSize();
+      });
+    };
+
+    revealMap();
+
     const observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            setIsMapVisible(true);
+            revealMap();
           }
         });
       },
       { threshold: 0.1 },
     );
+
     observer.observe(section);
     return () => observer.disconnect();
-  }, []);
+  }, [showInlineGeneralMap, showStandaloneGeneralMap]);
+
+  useEffect(() => {
+    if (!isMapVisible) return;
+
+    const frame = requestAnimationFrame(() => {
+      mapRef.current?.invalidateSize();
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [currentDayIndex, isMapVisible, isMobile]);
 
   const [showPDFDialog, setShowPDFDialog] = useState(false);
   const itineraryContainerRef = useRef<HTMLDivElement | null>(null);
@@ -809,12 +1286,13 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   };
 
   const handlePrint = () => {
+    if (!SHOW_PDF_EXPORT) return;
     setShowPDFDialog(true);
   };
 
   return (
     <>
-      {showPDFDialog && (
+      {SHOW_PDF_EXPORT && showPDFDialog && (
         <PDFExportDialog
           isOpen={showPDFDialog}
           onExport={handlePDFExport}
@@ -829,8 +1307,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
       >
 
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:py-10 overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
-        <section data-section="flights" className="grid gap-6" style={{ order: getSectionOrder('flights') }}>
-          {itinerary.coverImage && (
+        <section data-section="flights" className="grid gap-6" style={{ order: getPinnedSectionOrder('flights') }}>
+          {SHOW_COVER_IMAGE && itinerary.coverImage && (
             <div className="relative w-full h-64 md:h-96 rounded-lg overflow-hidden">
               <img
                 src={itinerary.coverImage}
@@ -848,53 +1326,23 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
               className="text-sm text-mutedForeground max-w-3xl"
               dangerouslySetInnerHTML={renderHtml(itinerary.intro)}
             />
-            <div className="flex flex-wrap gap-3">
-              <Button  className="rounded-full no-print" onClick={handlePrint}>
-                Exportar PDF
-              </Button>
-            </div>
+            {SHOW_PDF_EXPORT && (
+              <div className="flex flex-wrap gap-3">
+                <Button className="rounded-full no-print" onClick={handlePrint}>
+                  Exportar PDF
+                </Button>
+              </div>
+            )}
+            {!isTripStarted && tripStartDate && (
+              <TripCountdown targetDate={tripStartDate} className="no-print" />
+            )}
           </div>
-
-          {shouldShowSection('overview') && (
-            <Card className="mt-2 hidden bg-gradient-to-br from-card to-muted/80 lg:block">
-              <CardHeader>
-                <CardTitle>Resumen rápido</CardTitle>
-                <CardDescription>Todo lo esencial a un vistazo.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
-                  <p className="text-sm text-mutedForeground">Total de días</p>
-                  <p className="text-3xl font-semibold">{totalDays}</p>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
-                  <p className="text-sm text-mutedForeground">Ciudades</p>
-                  <p className="text-3xl font-semibold">{itinerary.locations.length}</p>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
-                  <p className="text-sm text-mutedForeground">Traslados</p>
-                  <p className="text-3xl font-semibold">{travelCount}</p>
-                </div>
-                <div className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-secondary/30">
-                  <p className="text-sm text-mutedForeground">Vuelos</p>
-                  <p className="text-3xl font-semibold">
-                    {itinerary.days.filter(day => day.kind === 'flight').length}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </section>
 
         {flightsList.length > 0 && (
           <section className="space-y-6" style={{ order: getSectionOrder('flightInfo') }}>
             <div className="flex flex-col gap-2">
               <h2 className="text-3xl font-semibold">Información de vuelos</h2>
-              <p className="text-mutedForeground">
-                {flightsList.length === 1 
-                  ? 'Detalles de tu vuelo.' 
-                  : `${flightsList.length} vuelos configurados. Desliza para ver todos.`
-                }
-              </p>
             </div>
             <FlightCarousel
               flights={flightsList}
@@ -904,74 +1352,9 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
           </section>
         )}
 
-        {shouldShowSection('map') && (
+        {showStandaloneGeneralMap && (
           <section id="map" data-section="map" className="space-y-6" ref={mapSectionRef} style={{ order: getSectionOrder('map') }}>
-          <div className="flex flex-col gap-2">
-            <h2 className="text-3xl font-semibold">Mapa interactivo</h2>
-            <p className="text-mutedForeground">Pins por ciudad y ruta general del viaje.</p>
-          </div>
-          <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle>Ciudades del recorrido</CardTitle>
-                <CardDescription>Hover o foco para destacar; usa el botón para centrar.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm">
-                  <span className="font-medium">Mostrar todos los pins</span>
-                  <button
-                    type="button"
-                    className={`relative h-6 w-11 rounded-full border transition ${
-                      showAllMarkers ? 'border-primary bg-primary' : 'border-border bg-muted'
-                    }`}
-                    onClick={() => setShowAllMarkers(value => !value)}
-                    aria-pressed={showAllMarkers}
-                  >
-                    <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${
-                        showAllMarkers ? 'left-6' : 'left-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (!currentDayLocation) return;
-                    mapRef.current?.setView([currentDayLocation.lat, currentDayLocation.lng], 7);
-                  }}
-                  disabled={!currentDayLocation}
-                  className="w-full"
-                >
-                  Centrar en día actual
-                </Button>
-                {itinerary.locations.map(location => {
-                  const isActive = hoveredCity === location.city;
-                  return (
-                    <button
-                      key={location.city}
-                      type="button"
-                      onMouseEnter={() => setHoveredCity(location.city)}
-                      onMouseLeave={() => setHoveredCity(null)}
-                      onFocus={() => setHoveredCity(location.city)}
-                      onBlur={() => setHoveredCity(null)}
-                      onClick={() => {
-                        // Centrar el mapa en la ciudad seleccionada
-                        mapRef.current?.setView([location.lat, location.lng], 9);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                        isActive ? 'border-primary bg-primary/5' : 'border-border hover:bg-primary/5 hover:border-primary/30'
-                      }`}
-                      aria-pressed={isActive}
-                    >
-                      <span className="font-medium">{location.city}</span>
-                      <span className="text-xs text-mutedForeground">{location.label}</span>
-                    </button>
-                  );
-                })}
-              </CardContent>
-            </Card>
+          <div className="space-y-6">
             <Card className="relative z-0 overflow-hidden">
               <CardContent className="p-0">
                 <div
@@ -1004,7 +1387,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
                         <Polyline positions={routePositions} pathOptions={{ color: '#2563eb', weight: 3 }} />
-                        {visibleLocations.map(location => (
+                        {itinerary.locations.map(location => (
                           <Marker key={location.city} position={[location.lat, location.lng]}>
                             <Tooltip direction="top" offset={[0, -10]} opacity={1}>
                               {location.label}
@@ -1027,32 +1410,8 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         </section>
         )}
 
-        {shouldShowSection('itinerary') && (
-          <section id="itinerary" data-section="itinerary" className="space-y-4" style={{ order: getSectionOrder('itinerary') }}>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-2xl font-bold md:text-3xl">Itinerario</h2>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative flex-1">
-                <input
-                  value={searchQuery}
-                  onChange={event => setSearchQuery(event.target.value)}
-                  placeholder="Buscar actividad, lugar..."
-                  className="w-full rounded-full border border-border bg-white px-4 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 pl-10"
-                  aria-label="Buscar en el itinerario"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-mutedForeground" />
-              </div>
-              {editable && (
-                <Link to="/app/admin?section=days">
-                  <Button size="sm" className="rounded-full whitespace-nowrap">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nuevo día
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-          
+        {showItinerarySection && (
+          <section id="itinerary" data-section="itinerary" className="space-y-4" style={{ order: getPinnedSectionOrder('itinerary') }}>
           {/* Desktop: Selector de días mejorado + Contenido */}
           {!isMobile && (
             <div className="w-full space-y-4">
@@ -1066,127 +1425,42 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 }}
                 tagsCatalog={tagsCatalog}
               />
+              {showInlineGeneralMap && renderInlineGeneralMap()}
+              <div className="flex items-center gap-3">
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    value={searchQuery}
+                    onChange={event => setSearchQuery(event.target.value)}
+                    placeholder="Buscar actividad, lugar..."
+                    className="w-full rounded-full border border-border bg-white px-4 py-2.5 pl-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    aria-label="Buscar en el itinerario"
+                  />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mutedForeground" />
+                </div>
+                {editable && (
+                  <Link to="/app/admin?section=days" className="ml-auto shrink-0">
+                    <Button size="sm" className="rounded-full whitespace-nowrap">
+                      <Plus className="mr-1 h-4 w-4" />
+                      Nuevo día
+                    </Button>
+                  </Link>
+                )}
+              </div>
               
               {/* Contenido del día seleccionado */}
               {filteredDays[currentDayIndex] && (() => {
                 const day = filteredDays[currentDayIndex];
-                const customColor = getTagColor(day.kind, tagsCatalog);
-                const customLabel = getTagLabel(day.kind, tagsCatalog);
                 return (
                   <>
-                    <Card className="w-full border border-border/60 shadow-sm">
-                      <CardHeader className="gap-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {customColor ? (
-                          <span 
-                            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                            style={{ backgroundColor: customColor }}
-                          >
-                            {customLabel ?? day.kind}
-                          </span>
-                        ) : (
-                          <Badge variant={kindVariants[day.kind] ?? 'primary'}>{kindLabels[day.kind] ?? day.kind}</Badge>
-                        )}
-                        <Badge variant="secondary">{day.dayLabel}</Badge>
-                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                          {day.date}
-                        </span>
-                      </div>
-                      <CardTitle className="text-xl">{day.city}</CardTitle>
-                      <CardDescription>{day.plan}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {/* Timeline de actividades */}
-                      <div className="relative space-y-5">
-                        <div className="absolute left-3 top-2 h-[calc(100%-20px)] w-px bg-border" />
-                        {day.schedule.map((item, itemIndex) => {
-                          const checked = checkedItems.includes(`${day.id}-${itemIndex}`);
-                          return (
-                            <div
-                              key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
-                              className={`relative flex flex-col gap-2 pl-8 text-sm transition ${
-                                checked ? 'opacity-50' : ''
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const key = `${day.id}-${itemIndex}`;
-                                  setCheckedItems(prev =>
-                                    prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key],
-                                  );
-                                }}
-                                className={`absolute left-0.5 top-1.5 h-5 w-5 rounded-full border-2 transition ${
-                                  checked
-                                    ? 'border-primary bg-primary text-white'
-                                    : 'border-border bg-background hover:border-primary/50'
-                                }`}
-                                aria-label={checked ? 'Marcar como pendiente' : 'Marcar como completado'}
-                              >
-                                {checked && (
-                                  <svg viewBox="0 0 24 24" className="h-full w-full p-0.5" fill="none" stroke="currentColor" strokeWidth="3">
-                                    <path d="M5 12l5 5L20 7" />
-                                  </svg>
-                                )}
-                              </button>
-                              <span className="font-semibold text-foreground">{item.time}</span>
-                              <div className="flex flex-col gap-1 text-mutedForeground">
-                                <span className={checked ? 'line-through' : ''}>{item.activity}</span>
-                                <div className="flex flex-wrap gap-2">
-                                  {item.link && (
-                                    <a
-                                      href={item.link}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary transition hover:bg-primary/20"
-                                    >
-                                      Entradas
-                                    </a>
-                                  )}
-                                  {item.mapLink && (
-                                    <a
-                                      href={item.mapLink}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success transition hover:bg-success/25"
-                                    >
-                                      Maps
-                                    </a>
-                                  )}
-                                  {item.cost && (
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning">
-                                      €{item.cost.toFixed(2)}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {/* Notas y estadísticas */}
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
-                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                            Notas clave
-                          </p>
-                          {day.notes.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-mutedForeground">
-                              {day.notes.map(note => (
-                                <span key={note} className="rounded-full border border-border px-3 py-1">
-                                  {note}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-2 text-xs text-mutedForeground">Sin notas adicionales.</p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    <DayDetailPanel
+                      day={day}
+                      checkedItems={checkedItems}
+                      onToggleItem={(itemIndex) => handleToggleDayItem(day, itemIndex)}
+                      documentsById={documentsById}
+                    />
                   {shouldShowDayMap && (
                     <div
+                      key={`${day.id}-day-map`}
                       className="overflow-hidden rounded-xl border border-border cursor-pointer group relative"
                       onPointerDown={handleMapPointerDown(dayMapDragState)}
                       onPointerMove={handleMapPointerMove(dayMapDragState)}
@@ -1231,7 +1505,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       aria-label="Abrir mapa del día en pantalla completa"
                     >
                       <div className="h-72 w-full md:h-80 lg:h-96">
-                        <MapContainer center={dayMapCenter} zoom={12} className="h-full w-full">
+                        <MapContainer key={`${day.id}-day-map-container`} center={dayMapCenter} zoom={12} className="h-full w-full">
                           <TileLayer
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1274,6 +1548,27 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 }}
                 tagsCatalog={tagsCatalog}
               />
+              {showInlineGeneralMap && renderInlineGeneralMap(true)}
+              <div className="flex items-center gap-3">
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    value={searchQuery}
+                    onChange={event => setSearchQuery(event.target.value)}
+                    placeholder="Buscar actividad, lugar..."
+                    className="w-full rounded-full border border-border bg-white px-4 py-2.5 pl-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    aria-label="Buscar en el itinerario"
+                  />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mutedForeground" />
+                </div>
+                {editable && (
+                  <Link to="/app/admin?section=days" className="ml-auto shrink-0">
+                    <Button size="sm" className="rounded-full whitespace-nowrap">
+                      <Plus className="mr-1 h-4 w-4" />
+                      Nuevo día
+                    </Button>
+                  </Link>
+                )}
+              </div>
               
               {/* Contenido del día actual */}
               {filteredDays[currentDayIndex] && (() => {
@@ -1288,112 +1583,16 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                 const dayCenter = dayPoints.length > 0 
                   ? dayPoints[0].position 
                   : (currentDayLocation ? [currentDayLocation.lat, currentDayLocation.lng] as [number, number] : mapCenter);
-                const customColor = getTagColor(day.kind, tagsCatalog);
-                const customLabel = getTagLabel(day.kind, tagsCatalog);
-                const mobileDayLabel = trimDisplayText(day.dayLabel, 24);
-                const mobileCity = trimDisplayText(day.city, 56);
                 
                 return (
                   <div key={day.id} className="mt-4 space-y-4">
-                    {/* Info del día */}
-                    <Card>
-                      <CardHeader>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {customColor ? (
-                            <span 
-                              className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                              style={{ backgroundColor: customColor }}
-                            >
-                              {customLabel ?? day.kind}
-                            </span>
-                          ) : (
-                            <Badge variant={kindVariants[day.kind] ?? 'primary'}>{kindLabels[day.kind] ?? day.kind}</Badge>
-                          )}
-                          <Badge variant="secondary" title={day.dayLabel}>
-                            {mobileDayLabel}
-                          </Badge>
-                          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-mutedForeground">
-                            {day.date}
-                          </span>
-                        </div>
-                        <CardTitle className="truncate" title={day.city}>{mobileCity}</CardTitle>
-                        <CardDescription className="line-clamp-2">{day.plan}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Timeline de actividades */}
-                        <div className="relative space-y-4">
-                          <div className="absolute left-3 top-2 h-[calc(100%-16px)] w-px bg-border" />
-                          {day.schedule.map((item, itemIndex) => {
-                            const checked = checkedItems.includes(`${day.id}-${itemIndex}`);
-                            return (
-                              <div
-                                key={`${day.id}-${item.time || 'no-time'}-${itemIndex}`}
-                                className={`relative flex flex-col gap-2 pl-8 text-sm transition ${
-                                  checked ? 'opacity-50' : ''
-                                }`}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const key = `${day.id}-${itemIndex}`;
-                                    setCheckedItems(prev =>
-                                      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key],
-                                    );
-                                  }}
-                                  className={`absolute left-0.5 top-1.5 h-5 w-5 rounded-full border-2 transition ${
-                                    checked
-                                      ? 'border-primary bg-primary text-white'
-                                      : 'border-border bg-background hover:border-primary/50'
-                                  }`}
-                                  aria-label={checked ? 'Marcar como pendiente' : 'Marcar como completado'}
-                                >
-                                  {checked && (
-                                    <svg viewBox="0 0 24 24" className="h-full w-full p-0.5" fill="none" stroke="currentColor" strokeWidth="3">
-                                      <path d="M5 12l5 5L20 7" />
-                                    </svg>
-                                  )}
-                                </button>
-                                <span className="w-auto font-semibold text-foreground">{item.time}</span>
-                                <div className="flex flex-col gap-1 text-mutedForeground">
-                                  <span className={checked ? 'line-through' : ''}>{item.activity}</span>
-                                  <div className="flex flex-wrap gap-2">
-                                    {item.link && (
-                                      <a
-                                        href={item.link}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary transition active:bg-primary/30"
-                                      >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L10 5" />
-                                          <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L14 19" />
-                                        </svg>
-                                        Entradas
-                                      </a>
-                                    )}
-                                    {item.mapLink && (
-                                      <a
-                                        href={item.mapLink}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success transition active:bg-success/25"
-                                      >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <path d="M3 6l8-3 10 4-8 3-10-4z" />
-                                          <path d="M14 10l7-3v11l-7 3" />
-                                          <path d="M3 6v11l8 3" />
-                                        </svg>
-                                        Maps
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <DayDetailPanel
+                      day={day}
+                      compact
+                      checkedItems={checkedItems}
+                      onToggleItem={(itemIndex) => handleToggleDayItem(day, itemIndex)}
+                      documentsById={documentsById}
+                    />
                     {dayPoints.length > 0 && (
                       <div
                         className="overflow-hidden rounded-xl border border-border cursor-pointer group relative"
@@ -1490,87 +1689,21 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         </section>
         )}
 
-        {shouldShowSection('overview') && (
-          <section id="overview" data-section="overview" className="grid gap-6 lg:grid-cols-[2fr_1fr]" style={{ order: getSectionOrder('overview') }}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Checklist previa</CardTitle>
-              <CardDescription>Imprescindibles antes de salir.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm text-mutedForeground">
-                <span>{checklistProgress}% completado</span>
-                <span>
-                  {checkedItems.length}/{checklistItems.length}
-                </span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-muted">
-                <div
-                  className="h-2 rounded-full bg-primary transition-[width] duration-300"
-                  style={{ width: `${checklistProgress}%` }}
-                />
-              </div>
-              <div className="grid gap-3 text-sm text-mutedForeground md:grid-cols-2">
-                {checklistItems.map((item) => {
-                  const checked = checkedItems.includes(item);
-                  return (
-                    <label
-                      key={`check-${item}`}
-                      className={`flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2 transition ${
-                        checked ? 'bg-muted text-foreground' : 'bg-background'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setCheckedItems(prev =>
-                            prev.includes(item) ? prev.filter(value => value !== item) : [...prev, item],
-                          );
-                        }}
-                      />
-                      <span dangerouslySetInnerHTML={renderHtml(item)} />
-                    </label>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-muted">
-            <CardHeader>
-              <CardTitle>Notas clave</CardTitle>
-              <CardDescription>Consejos rápidos de seguridad.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-mutedForeground">
-              <p>Pasaporte siempre contigo + copia digital.</p>
-              <p>Powerbank y adaptador universal cada día.</p>
-              <p>Evita horas pico en atracciones populares.</p>
-            </CardContent>
-          </Card>
-        </section>
-        )}
-
         {shouldShowSection('foods') && (
           <section id="foods" data-section="lists" className="space-y-6" style={{ order: getSectionOrder('foods') }}>
-            {/* Header de la sección */}
-            <div className="flex flex-col gap-2">
-              <h2 className="text-3xl font-semibold">Listas principales</h2>
-              <p className="text-mutedForeground">Un elemento por línea.</p>
-            </div>
-
             {/* Versión móvil: Carousel horizontal */}
             {isMobile && listCards.length > 0 && (
               <div className="space-y-4">
                 {/* Navegación de pestañas */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   {listCards.map((card, idx) => (
                     <button
                       key={card.id}
                       onClick={() => setCurrentListIndex(idx)}
-                      className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+                      className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
                         idx === currentListIndex
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          ? 'border-primary/35 bg-primary/10 text-primary'
+                          : 'border-border/60 bg-background/70 text-mutedForeground hover:border-primary/20 hover:bg-background hover:text-foreground'
                       }`}
                     >
                       <span>{card.icon}</span>

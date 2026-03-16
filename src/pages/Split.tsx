@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Coins, Plus } from 'lucide-react';
 import { MobilePageHeader } from '../components/MobilePageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { HeroBalance } from '../components/split/HeroBalance';
+import { CurrencyConverterCard } from '../components/split/CurrencyConverterCard';
 import { ExpenseCard } from '../components/split/ExpenseCard';
 import { BalanceCard } from '../components/split/BalanceCard';
 import { SettleDebtsDialog } from '../components/split/SettleDebtsDialog';
@@ -39,6 +40,7 @@ import {
   type SplitPayment,
   type SplitCategory,
   type SplitTag,
+  type SplitGroup,
 } from '../services/split';
 import { ExpenseForm } from '../components/split/ExpenseForm';
 import { PaymentForm } from '../components/split/PaymentForm';
@@ -59,26 +61,40 @@ function Split() {
   const [payments, setPayments] = useState<SplitPayment[]>([]);
   const [categories, setCategories] = useState<SplitCategory[]>([]);
   const [tags, setTags] = useState<SplitTag[]>([]);
+  const [splitGroup, setSplitGroup] = useState<SplitGroup | null>(null);
   const [newMember, setNewMember] = useState('');
   const [editingExpense, setEditingExpense] = useState<SplitExpense | null>(null);
   const [viewingExpense, setViewingExpense] = useState<SplitExpense | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [authUserId, setAuthUserId] = useState<string>('');
+  const [authUserHints, setAuthUserHints] = useState<string[]>([]);
+  const [manualCurrentMemberId, setManualCurrentMemberId] = useState<string>('');
   const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<string | null>(null);
   const location = useLocation();
   const { subscribeToSplitwise } = useNotifications();
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setIsLoading(true);
     const { data } = await supabase.auth.getUser();
     if (!data.user) {
       setIsLoading(false);
       return;
     }
-    setCurrentUserId(data.user.id);
+    setAuthUserId(data.user.id);
+    const metadata = data.user.user_metadata as Record<string, unknown> | null;
+    const email = data.user.email ?? '';
+    const emailPrefix = email.includes('@') ? email.split('@')[0] : email;
+    const hints = [
+      typeof metadata?.full_name === 'string' ? metadata.full_name : '',
+      typeof metadata?.name === 'string' ? metadata.name : '',
+      typeof metadata?.preferred_username === 'string' ? metadata.preferred_username : '',
+      emailPrefix,
+      email,
+    ].filter(Boolean);
+    setAuthUserHints(Array.from(new Set(hints.map(value => value.toLowerCase().trim()))));
     const dataItineraries = await listUserItineraries(data.user.id);
     const simplified = dataItineraries.map(item => ({ id: item.id, title: item.title }));
     setItineraries(simplified);
@@ -86,17 +102,21 @@ function Split() {
     const itineraryId = params.get('itineraryId') ?? simplified[0]?.id ?? null;
     setActiveItineraryId(itineraryId);
     setIsLoading(false);
-  };
-
-  useEffect(() => {
-    void load();
   }, [location.search]);
 
   useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
     const loadSplit = async () => {
-      if (!activeItineraryId) return;
+      if (!activeItineraryId) {
+        setSplitGroup(null);
+        return;
+      }
       const group = await ensureSplitGroup(activeItineraryId);
       setGroupId(group.id);
+      setSplitGroup(group);
       const data = await fetchSplit(group.id);
       setMembers(data.members);
       setExpenses(data.expenses);
@@ -121,6 +141,53 @@ function Split() {
     () => computeBalances(members, expenses, shares, payments),
     [members, expenses, shares, payments],
   );
+
+  const normalizeMemberName = (name: string) =>
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ');
+
+  const currentUserId = useMemo(
+    () => {
+      const linkedByUserId = members.find(member => member.user_id === authUserId);
+      if (linkedByUserId) return linkedByUserId.id;
+
+      const hintedMembers = members.filter(member =>
+        authUserHints.includes(normalizeMemberName(member.name)),
+      );
+      if (hintedMembers.length === 1) return hintedMembers[0].id;
+
+      if (members.length === 1) return members[0].id;
+
+      return '';
+    },
+    [members, authUserId, authUserHints],
+  );
+
+  const effectiveCurrentUserId = currentUserId || manualCurrentMemberId;
+
+  useEffect(() => {
+    if (!groupId) {
+      setManualCurrentMemberId('');
+      return;
+    }
+
+    const storageKey = `split.current-member.${groupId}`;
+    const storedMemberId = localStorage.getItem(storageKey);
+    if (storedMemberId && members.some(member => member.id === storedMemberId)) {
+      setManualCurrentMemberId(storedMemberId);
+      return;
+    }
+
+    setManualCurrentMemberId('');
+  }, [groupId, members]);
+
+  useEffect(() => {
+    if (!groupId || !manualCurrentMemberId) return;
+    const storageKey = `split.current-member.${groupId}`;
+    localStorage.setItem(storageKey, manualCurrentMemberId);
+  }, [groupId, manualCurrentMemberId]);
 
   const handleSaveExpense = async (data: {
     title: string;
@@ -391,12 +458,34 @@ function Split() {
       </Card>
 
       {/* Hero Balance */}
-      <HeroBalance balances={balances} currentUserId={currentUserId} />
+      <HeroBalance balances={balances} currentUserId={effectiveCurrentUserId} currency={splitGroup?.currency ?? 'EUR'} />
+
+      {!effectiveCurrentUserId && members.length > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="space-y-3 pt-6">
+            <p className="text-sm text-muted-foreground">
+              No pudimos identificar tu perfil en este grupo. Selecciónalo para activar “Liquidar Deudas”.
+            </p>
+            <select
+              value={manualCurrentMemberId}
+              onChange={event => setManualCurrentMemberId(event.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm shadow-sm transition-colors hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Selecciona tu perfil</option>
+              {members.map(member => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Settle Debts Button */}
-      {currentUserId && (
+      {effectiveCurrentUserId && (
         <SettleDebtsDialog
-          currentUserId={currentUserId}
+          currentUserId={effectiveCurrentUserId}
           balances={balances}
           onSettle={async (fromId, toId, amount) => {
             if (!groupId) return;
@@ -407,17 +496,21 @@ function Split() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 gap-2 bg-muted/50 p-2">
-          <TabsTrigger value="overview">Resumen</TabsTrigger>
-          <TabsTrigger value="expenses">Gastos</TabsTrigger>
-          <TabsTrigger value="payments">Pagos</TabsTrigger>
-          <TabsTrigger value="history">Historial</TabsTrigger>
-          <TabsTrigger value="reports">Reportes</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 gap-2 bg-muted/50 p-2 sm:grid-cols-6">
+          <TabsTrigger value="overview" className="w-full">Resumen</TabsTrigger>
+          <TabsTrigger value="expenses" className="w-full">Gastos</TabsTrigger>
+          <TabsTrigger value="payments" className="w-full">Pagos</TabsTrigger>
+          <TabsTrigger value="history" className="w-full">Historial</TabsTrigger>
+          <TabsTrigger value="reports" className="w-full">Reportes</TabsTrigger>
+          <TabsTrigger value="currency" className="w-full gap-1.5">
+            <Coins className="h-3.5 w-3.5" />
+            Divisas
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {groupId && currentUserId && (
-            <PaymentReminderNotification groupId={groupId} userId={currentUserId} />
+          {groupId && effectiveCurrentUserId && (
+            <PaymentReminderNotification groupId={groupId} userId={effectiveCurrentUserId} />
           )}
           
           <div className="grid gap-4 md:gap-6 md:grid-cols-2">
@@ -500,7 +593,7 @@ function Split() {
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-muted-foreground md:text-sm">Total Gastado</div>
                       <div className="text-lg font-bold truncate sm:text-xl md:text-2xl">
-                        {expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)} EUR
+                        {expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)} {splitGroup?.currency ?? 'EUR'}
                       </div>
                     </div>
                     <div className="text-3xl md:text-4xl flex-shrink-0 ml-2">💰</div>
@@ -521,7 +614,7 @@ function Split() {
                         {expenses.length > 0
                           ? (expenses.reduce((sum, exp) => sum + exp.amount, 0) / expenses.length).toFixed(2)
                           : '0.00'}{' '}
-                        EUR
+                        {splitGroup?.currency ?? 'EUR'}
                       </div>
                     </div>
                     <div className="text-3xl md:text-4xl flex-shrink-0 ml-2">📈</div>
@@ -768,6 +861,13 @@ function Split() {
               groupName={itineraries.find(i => i.id === activeItineraryId)?.title || 'Grupo'}
             />
           </div>
+        </TabsContent>
+
+        <TabsContent value="currency" className="space-y-4">
+          <CurrencyConverterCard
+            defaultFromCurrency={splitGroup?.currency ?? 'EUR'}
+            storageKey={groupId ? `routeit:currency-pref:split:${groupId}` : 'routeit:currency-pref:split'}
+          />
         </TabsContent>
       </Tabs>
 

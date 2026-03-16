@@ -5,11 +5,31 @@ export type DbItinerary = {
   user_id: string;
   title: string;
   date_range: string;
+  start_date?: string | null;
+  end_date?: string | null;
   intro: string;
   cover_image?: string | null;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
+};
+
+const formatDateLabel = (value: string) => {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const buildDateRange = (startDate?: string | null, endDate?: string | null, fallback?: string) => {
+  if (startDate && endDate) {
+    return `${formatDateLabel(startDate)} - ${formatDateLabel(endDate)}`;
+  }
+  if (startDate) return formatDateLabel(startDate);
+  return fallback ?? '';
 };
 
 export type DbDay = {
@@ -37,6 +57,7 @@ export type DbScheduleItem = {
   cost_currency: string | null;
   cost_payer_id: string | null;
   cost_split_expense_id: string | null;
+  related_document_id: string | null;
 };
 
 export type DbDayNote = {
@@ -359,7 +380,9 @@ export function mapDbToItinerary(args: {
   return {
     id: args.itinerary.id,
     title: args.itinerary.title,
-    dateRange: args.itinerary.date_range,
+    startDate: args.itinerary.start_date ?? undefined,
+    endDate: args.itinerary.end_date ?? undefined,
+    dateRange: buildDateRange(args.itinerary.start_date, args.itinerary.end_date, args.itinerary.date_range),
     intro: args.itinerary.intro,
     coverImage: args.itinerary.cover_image ?? undefined,
     budgetTiers: args.budgetTiers
@@ -394,6 +417,7 @@ export function mapDbToItinerary(args: {
           costCurrency: item.cost_currency ?? undefined,
           costPayerId: item.cost_payer_id ?? undefined,
           costSplitExpenseId: item.cost_split_expense_id ?? undefined,
+          documentId: item.related_document_id ?? undefined,
         })),
         tags: tagsByDayId.get(day.id) ?? [],
       })),
@@ -485,6 +509,7 @@ export function buildSeedPayloads(itinerary: TravelItinerary, itineraryId: strin
         cost_currency: item.costCurrency ?? null,
         cost_payer_id: item.costPayerId ?? null,
         cost_split_expense_id: item.costSplitExpenseId ?? null,
+        related_document_id: item.documentId ?? null,
       });
     });
     day.notes.forEach((note, index) => {

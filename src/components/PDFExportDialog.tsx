@@ -24,6 +24,7 @@ export function PDFExportDialog({ onExport, onCancel, isOpen }: PDFExportDialogP
     format: 'A4',
     orientation: 'portrait',
     includeMap: true,
+    visualStyle: 'standard',
   });
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
@@ -61,6 +62,47 @@ export function PDFExportDialog({ onExport, onCancel, isOpen }: PDFExportDialogP
           <CardDescription>Selecciona las secciones que deseas incluir en el PDF</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div>
+            <label className="mb-2 block text-sm font-medium">Estilo de exportación</label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label
+                className={`cursor-pointer rounded-lg border p-3 transition ${
+                  options.visualStyle === 'standard'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-background'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="visualStyle"
+                  className="sr-only"
+                  checked={options.visualStyle === 'standard'}
+                  onChange={() => setOptions({ ...options, visualStyle: 'standard' })}
+                />
+                <p className="text-sm font-semibold">Exportación normal</p>
+                <p className="mt-1 text-xs text-mutedForeground">Diseño limpio y funcional para uso general.</p>
+              </label>
+
+              <label
+                className={`cursor-pointer rounded-lg border p-3 transition ${
+                  options.visualStyle === 'booklet'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-background'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="visualStyle"
+                  className="sr-only"
+                  checked={options.visualStyle === 'booklet'}
+                  onChange={() => setOptions({ ...options, visualStyle: 'booklet' })}
+                />
+                <p className="text-sm font-semibold">Cuadernillo de recuerdo</p>
+                <p className="mt-1 text-xs text-mutedForeground">Portada, índice y estilo editorial para imprimir y guardar.</p>
+              </label>
+            </div>
+          </div>
+
           <div>
             <label className="mb-3 block text-sm font-medium">Secciones a incluir</label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -115,7 +157,7 @@ export function PDFExportDialog({ onExport, onCancel, isOpen }: PDFExportDialogP
               className="h-4 w-4 rounded border-border"
             />
             <label htmlFor="includeMap" className="text-sm cursor-pointer">
-              Incluir mapa como imagen
+              Incluir datos de mapa en el PDF
             </label>
           </div>
 

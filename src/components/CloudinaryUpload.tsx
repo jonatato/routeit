@@ -6,6 +6,18 @@ import { useToast } from '../hooks/useToast';
 interface CloudinaryUploadProps {
   onUpload: (url: string) => void;
   currentImage?: string;
+  uploadPreset?: string;
+  folder?: string;
+  resourceType?: 'image' | 'raw' | 'auto';
+  sources?: string[];
+  cropping?: boolean;
+  multiple?: boolean;
+  maxFileSize?: number;
+  clientAllowedFormats?: string[];
+  buttonLabel?: string;
+  changeButtonLabel?: string;
+  successMessage?: string;
+  previewType?: 'image' | 'none';
 }
 
 type CloudinaryUploadResult = {
@@ -30,7 +42,22 @@ declare global {
   }
 }
 
-export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadProps) {
+export function CloudinaryUpload({
+  onUpload,
+  currentImage,
+  uploadPreset = 'itinerary_images',
+  folder = 'itinerary-images',
+  resourceType = 'image',
+  sources = ['local', 'url', 'camera', 'unsplash', 'pexels'],
+  cropping = true,
+  multiple = false,
+  maxFileSize = 20000000,
+  clientAllowedFormats,
+  buttonLabel = 'Buscar portada',
+  changeButtonLabel = 'Cambiar portada',
+  successMessage = 'Imagen seleccionada exitosamente',
+  previewType = 'image',
+}: CloudinaryUploadProps) {
   const [isReady, setIsReady] = useState(false);
   const widgetRef = useRef<CloudinaryWidget | null>(null);
   const { success, error: showError } = useToast();
@@ -82,18 +109,19 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
       widgetRef.current = window.cloudinary.createUploadWidget(
         {
           cloudName: 'dnx4veyec',
-          uploadPreset: 'itinerary_images',
-          sources: ['local', 'url', 'camera', 'unsplash', 'pexels'],
-          folder: 'itinerary-images',
-          cropping: true,
-          multiple: false,
-          maxFileSize: 20000000,
-          resourceType: 'image',
+          uploadPreset,
+          sources,
+          folder,
+          cropping,
+          multiple,
+          maxFileSize,
+          resourceType,
+          clientAllowedFormats,
         },
         (error: unknown, result: CloudinaryUploadResult) => {
           if (!error && result && result.event === 'success' && result.info?.secure_url) {
             onUpload(result.info.secure_url);
-            success('Imagen seleccionada exitosamente');
+            success(successMessage);
           }
         }
       );
@@ -115,10 +143,10 @@ export function CloudinaryUpload({ onUpload, currentImage }: CloudinaryUploadPro
         disabled={!isReady}
       >
         <ImagePlus className="w-4 h-4" />
-        {!isReady ? 'Cargando...' : currentImage ? 'Cambiar portada' : 'Buscar portada'}
+        {!isReady ? 'Cargando...' : currentImage ? changeButtonLabel : buttonLabel}
       </Button>
 
-      {currentImage && (
+      {currentImage && previewType === 'image' && (
         <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border">
           <img
             src={currentImage}

@@ -40,7 +40,8 @@ export async function getEventCount(eventType: AnalyticsEventType, userId: strin
     .from('analytics_events')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('event_type', eventType);
+    .eq('event_type', eventType)
+    .is('deleted_at', null);
 
   if (error) throw error;
   return count || 0;
@@ -56,6 +57,7 @@ export async function getEventsByType(
     .select('*')
     .eq('user_id', userId)
     .eq('event_type', eventType)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -72,6 +74,7 @@ export async function getEventsByDateRange(
     .from('analytics_events')
     .select('*')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .gte('created_at', startDate)
     .lte('created_at', endDate)
     .order('created_at', { ascending: false });

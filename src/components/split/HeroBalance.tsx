@@ -8,9 +8,10 @@ interface Balance {
 interface HeroBalanceProps {
   balances: Balance[];
   currentUserId: string;
+  currency?: string;
 }
 
-export function HeroBalance({ balances, currentUserId }: HeroBalanceProps) {
+export function HeroBalance({ balances, currentUserId, currency = 'EUR' }: HeroBalanceProps) {
   // Calcular el balance total del usuario actual
   const userBalance = balances.find(b => b.member.id === currentUserId);
   const totalBalance = userBalance?.balance ?? 0;
@@ -41,7 +42,7 @@ export function HeroBalance({ balances, currentUserId }: HeroBalanceProps) {
           <span className="text-3xl font-bold tracking-tight sm:text-4xl md:text-6xl">
             {totalBalance.toFixed(2)}
           </span>
-          <span className="text-lg font-semibold opacity-80 sm:text-xl md:text-2xl">EUR</span>
+          <span className="text-lg font-semibold opacity-80 sm:text-xl md:text-2xl">{currency}</span>
           {totalBalance !== 0 && (
             <div className={`flex items-center gap-1 ${isPositive ? 'text-emerald-300' : 'text-red-300'}`}>
               {isPositive ? (
@@ -57,14 +58,14 @@ export function HeroBalance({ balances, currentUserId }: HeroBalanceProps) {
           <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm md:p-4">
             <div className="text-xs font-medium opacity-80 md:text-sm">Debes</div>
             <div className="mt-1 text-xl font-bold text-red-300 md:text-2xl">
-              {youOwe.toFixed(2)} EUR
+              {youOwe.toFixed(2)} {currency}
             </div>
           </div>
           
           <div className="rounded-lg bg-white/10 p-3 backdrop-blur-sm md:p-4">
             <div className="text-xs font-medium opacity-80 md:text-sm">Te deben</div>
             <div className="mt-1 text-xl font-bold text-emerald-300 md:text-2xl">
-              {owedToYou.toFixed(2)} EUR
+              {owedToYou.toFixed(2)} {currency}
             </div>
           </div>
         </div>

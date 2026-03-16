@@ -15,9 +15,12 @@ export function CapgoAppReadyNotifier() {
           // Never block app startup because of updater errors
         }
 
-        void runSelfHostedOtaCheck();
+        void runSelfHostedOtaCheck({
+          applyMode: 'next',
+          requestTimeoutMs: 8000,
+        });
       })();
-    }, 4000);
+    }, 2500);
 
     return () => window.clearTimeout(timer);
   }, []);

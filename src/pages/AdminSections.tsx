@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { GripVertical, Eye, EyeOff } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
@@ -11,6 +11,8 @@ import { fetchSectionPreferences, updateSectionPreferences, toggleSectionVisibil
 import FullscreenLoader from '../components/FullscreenLoader';
 
 function SortableSectionItem({ preference, onToggle }: { preference: SectionPreference; onToggle: (id: string, visible: boolean) => void }) {
+    const isItinerarySection = preference.section_key === 'itinerary';
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
     id: preference.id,
     disabled: false,
@@ -44,14 +46,23 @@ function SortableSectionItem({ preference, onToggle }: { preference: SectionPref
       <button
         type="button"
         onClick={(e) => {
+          if (isItinerarySection) return;
           e.stopPropagation();
           e.preventDefault();
           onToggle(preference.id, !preference.is_visible);
         }}
-        className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm transition hover:bg-muted flex-shrink-0"
+        disabled={isItinerarySection}
+        className={`flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm transition flex-shrink-0 ${
+          isItinerarySection ? 'cursor-not-allowed opacity-70' : 'hover:bg-muted'
+        }`}
         aria-label={preference.is_visible ? 'Ocultar sección' : 'Mostrar sección'}
       >
-        {preference.is_visible ? (
+        {isItinerarySection ? (
+          <>
+            <Eye className="h-4 w-4" />
+            <span>Siempre visible</span>
+          </>
+        ) : preference.is_visible ? (
           <>
             <Eye className="h-4 w-4" />
             <span>Visible</span>
@@ -71,6 +82,7 @@ function AdminSections() {
   const [isLoading, setIsLoading] = useState(true);
   const [preferences, setPreferences] = useState<SectionPreference[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const location = useLocation();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -163,7 +175,7 @@ function AdminSections() {
           <Link to="/app/admin">
             <Button variant="outline">Volver</Button>
           </Link>
-          <Link to="/app/itinerary">
+          <Link to={`/app${location.search}`}>
             <Button>Ver itinerario</Button>
           </Link>
         </div>

@@ -15,9 +15,38 @@ export const DEFAULT_SECTIONS = [
   { key: 'overview', label: 'Resumen rápido' },
   { key: 'map', label: 'Mapa interactivo' },
   { key: 'itinerary', label: 'Itinerario' },
+  { key: 'documents', label: 'Documentos importantes' },
   { key: 'foods', label: 'Comidas típicas' },
   { key: 'budget', label: 'Presupuesto' },
 ] as const;
+
+async function ensureMissingDefaultSections(userId: string, existing: SectionPreference[]) {
+  const existingKeys = new Set(existing.map(pref => pref.section_key));
+  const missing = DEFAULT_SECTIONS.filter(section => !existingKeys.has(section.key));
+  if (missing.length === 0) {
+    return existing;
+  }
+
+  const maxOrder = existing.reduce((max, pref) => Math.max(max, pref.order_index), -1);
+  const inserts = missing.map((section, index) => ({
+    user_id: userId,
+    section_key: section.key,
+    section_label: section.label,
+    order_index: maxOrder + index + 1,
+    is_visible: true,
+  }));
+
+  const { data: created, error } = await supabase
+    .from('itinerary_section_preferences')
+    .insert(inserts)
+    .select('*');
+
+  if (error) throw error;
+
+  return [...existing, ...((created ?? []) as SectionPreference[])].sort(
+    (left, right) => left.order_index - right.order_index,
+  );
+}
 
 export async function fetchSectionPreferences() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -27,6 +56,7 @@ export async function fetchSectionPreferences() {
     .from('itinerary_section_preferences')
     .select('*')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .order('order_index', { ascending: true });
 
   if (error) throw error;
@@ -36,7 +66,7 @@ export async function fetchSectionPreferences() {
     return await initializeDefaultPreferences(user.id);
   }
 
-  return data as SectionPreference[];
+  return await ensureMissingDefaultSections(user.id, data as SectionPreference[]);
 }
 
 export async function initializeDefaultPreferences(userId: string) {
@@ -73,6 +103,7 @@ export async function updateSectionPreferences(preferences: Array<{ id: string; 
       })
       .eq('id', pref.id)
       .eq('user_id', user.id)
+      .is('deleted_at', null)
   );
 
   const results = await Promise.all(updates);
@@ -94,7 +125,8 @@ export async function toggleSectionVisibility(sectionId: string, isVisible: bool
       updated_at: new Date().toISOString(),
     })
     .eq('id', sectionId)
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .is('deleted_at', null);
 
   if (error) throw error;
 }

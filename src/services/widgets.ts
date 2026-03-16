@@ -26,7 +26,8 @@ export async function fetchUserWidgetPreferences(itineraryId?: string | null) {
     const query = supabase
       .from('user_widget_preferences')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .is('deleted_at', null);
 
     if (itineraryId) {
       query.eq('itinerary_id', itineraryId);

@@ -73,7 +73,12 @@ export function subscribeToItineraryChanges(
         const newData = payload.new as RealtimePayload | null;
         const oldData = payload.old as RealtimePayload | null;
         // Get day_id to check itinerary_id
-        const { data: day } = await supabase.from('days').select('itinerary_id').eq('id', newData?.day_id || oldData?.day_id).single();
+        const { data: day } = await supabase
+          .from('days')
+          .select('itinerary_id')
+          .eq('id', newData?.day_id || oldData?.day_id)
+          .is('deleted_at', null)
+          .single();
         if (day?.itinerary_id === itineraryId) {
           const eventType =
             payload.eventType === 'INSERT'

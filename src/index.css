@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', sans-serif;
+  --font-body: 'Figtree', 'Segoe UI', sans-serif;
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
@@ -98,6 +100,10 @@
   border-color: hsl(var(--border));
 }
 
+html {
+  font-family: var(--font-body);
+}
+
 body {
   overflow-x: hidden;
 }
@@ -121,11 +127,37 @@ textarea::placeholder {
 body {
   background: linear-gradient(180deg, hsl(var(--surface-1)) 0%, hsl(var(--surface-2)) 100%);
   color: hsl(var(--foreground));
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  label {
+    font-family: var(--font-body);
+  }
 }
 
 @layer components {
@@ -209,6 +241,14 @@ body {
 }
 
 @layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+
   .pt-safe-top {
     padding-top: var(--safe-area-inset-top);
   }
@@ -343,6 +383,53 @@ body {
   }
   to {
     transform: scale(1.05);
+  }
+}
+
+@keyframes heartbeat-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(0.88);
+    opacity: 0.62;
+  }
+  14% {
+    transform: translate(-50%, -50%) scale(0.96);
+    opacity: 0.78;
+  }
+  28% {
+    transform: translate(-50%, -50%) scale(1.08);
+    opacity: 0.48;
+  }
+  42% {
+    transform: translate(-50%, -50%) scale(0.98);
+    opacity: 0.66;
+  }
+  56% {
+    transform: translate(-50%, -50%) scale(1.14);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.22);
+    opacity: 0.12;
+  }
+}
+
+@keyframes heartbeat-glow {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  18% {
+    opacity: 0.28;
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+  34% {
+    opacity: 0.12;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  54% {
+    opacity: 0.34;
+    transform: translate(-50%, -50%) scale(1.08);
   }
 }
 

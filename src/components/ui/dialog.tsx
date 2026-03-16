@@ -14,13 +14,16 @@ const Dialog = React.forwardRef<
   return (
     <>
       <div
-        className="fixed inset-0 z-50 bg-black/50"
+        className="fixed inset-0 z-[100] bg-black/60"
         onClick={() => onOpenChange?.(false)}
         aria-hidden="true"
       />
       <div
         ref={ref}
-        className={cn("fixed inset-0 z-50 flex items-center justify-center p-4", className)}
+        className={cn(
+          "fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto p-2 sm:p-4",
+          className,
+        )}
         {...props}
       >
         {children}
@@ -34,8 +37,12 @@ const DialogContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, children, ...props }, ref) => (
-  <Card ref={ref} className={cn("w-full max-w-lg", className)} {...props}>
-    <CardContent className="p-6">
+  <Card
+    ref={ref}
+    className={cn("w-full max-w-lg max-h-[calc(100dvh-1rem)] overflow-hidden", className)}
+    {...props}
+  >
+    <CardContent className="max-h-[calc(100dvh-3.5rem)] overflow-y-auto p-4 pb-[calc(var(--safe-area-inset-bottom)+1rem)] sm:p-6">
       {children}
     </CardContent>
   </Card>

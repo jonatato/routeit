@@ -59,6 +59,10 @@ When triggering the workflow manually, enable `run_ota_release` and choose:
 - `ota_channel`: `beta` or `production`
 - `ota_bump`: `patch`, `minor`, or `major`
 
+### Project skills
+
+- OTA self-hosted release skill: [docs/skills/ota-release-skill.md](docs/skills/ota-release-skill.md)
+
 ### Required GitHub repository secrets
 
 For web deploy:

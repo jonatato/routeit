@@ -1,19 +1,12 @@
 ﻿import { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown } from 'lucide-react';
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, MapPinned, Plane, Route, type LucideIcon } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import type { ItineraryDay } from '../data/itinerary';
 
-const kindLabels: Record<string, string> = {
-  flight: '\u2708\uFE0F Vuelo',
-  travel: '\uD83D\uDE97 Traslado',
-  city: '\uD83C\uDFD9\uFE0F Ciudad',
-};
-
-const kindIcons: Record<string, string> = {
-  flight: '\u2708\uFE0F',
-  travel: '\uD83D\uDE97',
-  city: '\uD83C\uDFD9\uFE0F',
+const kindMeta: Record<string, { label: string; Icon: LucideIcon }> = {
+  flight: { label: 'Vuelo', Icon: Plane },
+  travel: { label: 'Traslado', Icon: Route },
+  city: { label: 'Ciudad', Icon: MapPinned },
 };
 
 interface DaySelectorCarouselProps {
@@ -38,12 +31,14 @@ export function DaySelectorCarousel({
   tagsCatalog 
 }: DaySelectorCarouselProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const startX = useRef(0);
   const startTime = useRef(0);
+  const shouldBlockToggleRef = useRef(false);
 
   const currentDay = days[currentIndex];
   const canGoPrev = currentIndex > 0;
@@ -60,67 +55,72 @@ export function DaySelectorCarousel({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Manejo de gestos tactiles
+  useEffect(() => {
+    if (!isDropdownOpen) {
+      return;
+    }
+
+    const updateDropdownRect = () => {
+      if (!containerRef.current) return;
+      setDropdownRect(containerRef.current.getBoundingClientRect());
+    };
+
+    const handleAnyScroll = (event: Event) => {
+      const target = event.target as Node | null;
+      if (target && dropdownRef.current?.contains(target)) {
+        return;
+      }
+      setIsDropdownOpen(false);
+    };
+
+    updateDropdownRect();
+    window.addEventListener('resize', updateDropdownRect);
+    document.addEventListener('scroll', handleAnyScroll, true);
+
+    return () => {
+      window.removeEventListener('resize', updateDropdownRect);
+      document.removeEventListener('scroll', handleAnyScroll, true);
+    };
+  }, [isDropdownOpen]);
+
+  // Gestos tactiles compactos para movil
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
     startTime.current = Date.now();
-    setIsDragging(true);
+    setIsSwiping(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
+    if (!isSwiping) return;
     const deltaX = e.touches[0].clientX - startX.current;
-    setDragOffset(deltaX);
+    setSwipeOffset(deltaX);
   };
 
   const handleTouchEnd = () => {
-    if (!isDragging) return;
+    if (!isSwiping) return;
     
-    const deltaTime = Date.now() - startTime.current;
-    const velocity = Math.abs(dragOffset) / deltaTime;
-    const threshold = 50; // px minimos para cambiar
-    const velocityThreshold = 0.3; // px/ms para swipe rapido
+    const deltaTime = Math.max(Date.now() - startTime.current, 1);
+    const velocity = Math.abs(swipeOffset) / deltaTime;
+    const threshold = 56;
+    const velocityThreshold = 0.28;
+    let didNavigate = false;
 
-    if (Math.abs(dragOffset) > threshold || velocity > velocityThreshold) {
-      if (dragOffset > 0 && canGoPrev) {
+    if (Math.abs(swipeOffset) > threshold || velocity > velocityThreshold) {
+      if (swipeOffset > 0 && canGoPrev) {
         onDayChange(currentIndex - 1);
-      } else if (dragOffset < 0 && canGoNext) {
+        didNavigate = true;
+      } else if (swipeOffset < 0 && canGoNext) {
         onDayChange(currentIndex + 1);
+        didNavigate = true;
       }
     }
 
-    setIsDragging(false);
-    setDragOffset(0);
-  };
-
-  // Manejo de mouse para desktop
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    startX.current = e.clientX;
-    startTime.current = Date.now();
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const deltaX = e.clientX - startX.current;
-    setDragOffset(deltaX);
-  };
-
-  const handleMouseUp = () => {
-    handleTouchEnd();
-  };
-
-  const handleMouseLeave = () => {
-    if (isDragging) {
-      handleTouchEnd();
+    if (didNavigate) {
+      shouldBlockToggleRef.current = true;
     }
-  };
 
-  const getTagColor = (kind: string): string | null => {
-    if (!tagsCatalog) return null;
-    const tag = tagsCatalog.find(t => t.slug === kind);
-    return tag?.color ?? null;
+    setIsSwiping(false);
+    setSwipeOffset(0);
   };
 
   const getTagLabel = (kind: string): string | null => {
@@ -129,15 +129,11 @@ export function DaySelectorCarousel({
     return tag?.name ?? null;
   };
 
-  const getKindIcon = (kind: string): string => {
-    const customLabel = getTagLabel(kind);
-    if (customLabel) {
-      // Extraer emoji si existe al inicio
-      const emojiMatch = customLabel.match(/^(\p{Emoji})/u);
-      if (emojiMatch) return emojiMatch[1];
-    }
-    return kindIcons[kind] || '\uD83D\uDCCD';
+  const getKindIcon = (kind: string): LucideIcon => {
+    return kindMeta[kind]?.Icon ?? MapPinned;
   };
+
+  const getKindLabel = (kind: string) => getTagLabel(kind) ?? kindMeta[kind]?.label ?? 'Parada';
 
   // Si no hay dia actual, no renderizar nada (despues de todos los hooks)
   if (!currentDay) {
@@ -146,160 +142,118 @@ export function DaySelectorCarousel({
 
   return (
     <div className="w-full min-w-0 space-y-3 overflow-hidden">
-      {/* Selector principal */}
-      <div className="flex w-full min-w-0 items-center gap-2">
-        {/* Boton ir al inicio */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onDayChange(0)}
-          disabled={currentIndex === 0}
-          className="hidden sm:flex h-10 w-10 shrink-0"
-          title="Ir al primer dia"
-        >
-          <ChevronsLeft className="h-5 w-5" />
-        </Button>
-
-        {/* Boton anterior */}
+      <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3">
         <Button
           variant="outline"
           size="icon"
           onClick={() => canGoPrev && onDayChange(currentIndex - 1)}
           disabled={!canGoPrev}
-          className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+          className="h-11 w-11 shrink-0 rounded-full border-border/70 bg-card/80 !p-0 shadow-none"
           title="Dia anterior"
         >
-          <ChevronLeft className="h-6 w-6" />
+          <ChevronLeft className="h-4.5 w-4.5" />
         </Button>
 
-        {/* Contenedor central con swipe y dropdown */}
         <div
           ref={containerRef}
           className="relative min-w-0 flex-1"
         >
-          {/* Area de swipe */}
           <div
-            className={`relative overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-transform ${
-              isDragging ? 'cursor-grabbing' : 'cursor-grab'
-            }`}
-            role="group"
-            aria-label="Selector de dia con gesto de arrastre"
+            className="relative overflow-hidden rounded-[1.2rem] border border-border/70 bg-card/90 shadow-[0_8px_20px_rgba(15,23,42,0.04)] transition-transform"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
             style={{
-              transform: isDragging ? `translateX(${dragOffset * 0.3}px)` : 'translateX(0)',
+              transform: isSwiping ? `translateX(${Math.max(Math.min(swipeOffset * 0.15, 10), -10)}px)` : 'translateX(0)',
             }}
           >
-            {/* Indicador de swipe */}
-            {isDragging && Math.abs(dragOffset) > 30 && (
-              <div className={`absolute inset-y-0 ${dragOffset > 0 ? 'left-0' : 'right-0'} w-12 bg-gradient-to-r ${
-                dragOffset > 0 ? 'from-primary/20 to-transparent' : 'from-transparent to-primary/20'
-              } flex items-center justify-center pointer-events-none z-10`}>
-                {dragOffset > 0 ? (
-                  <ChevronLeft className="h-6 w-6 text-primary animate-pulse" />
-                ) : (
-                  <ChevronRight className="h-6 w-6 text-primary animate-pulse" />
-                )}
-              </div>
-            )}
-
-            {/* Contenido del dia actual */}
             <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex w-full min-w-0 items-center justify-between gap-3 overflow-hidden p-4 text-left transition-colors hover:bg-muted/50"
+              type="button"
+              onClick={() => {
+                if (shouldBlockToggleRef.current) {
+                  shouldBlockToggleRef.current = false;
+                  return;
+                }
+                setIsDropdownOpen(!isDropdownOpen);
+              }}
+              className="flex w-full min-w-0 items-center justify-between gap-3 overflow-hidden px-4 py-2.5 text-left transition-colors hover:bg-muted/15"
             >
-              <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-                <span className="text-2xl shrink-0">{getKindIcon(currentDay.kind)}</span>
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                    <span className="min-w-0 truncate font-semibold text-foreground" title={currentDay.dayLabel}>
-                      {trimText(currentDay.dayLabel, MAX_DAY_LABEL_LENGTH)}
-                    </span>
-                    {(() => {
-                      const customColor = getTagColor(currentDay.kind);
-                      const customLabel = getTagLabel(currentDay.kind);
-                      return customColor ? (
-                        <span 
-                          className="inline-flex max-w-[7rem] shrink-0 items-center truncate rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                          style={{ backgroundColor: customColor }}
-                        >
-                          {customLabel}
-                        </span>
-                      ) : (
-                        <Badge variant="secondary" className="max-w-[7rem] shrink-0 truncate text-[10px]">
-                          {kindLabels[currentDay.kind] || currentDay.kind}
-                        </Badge>
-                      );
-                    })()}
-                  </div>
-                  <p className="truncate text-sm text-muted-foreground" title={currentDay.city}>
-                    {trimText(currentDay.city, MAX_CITY_LENGTH)}
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted/45 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Día {String(currentIndex + 1).padStart(2, '0')}
+                  </span>
+                  <span className="truncate text-[11px] font-medium">{currentDay.date}</span>
+                  <span className="truncate text-[11px] text-muted-foreground/90">{getKindLabel(currentDay.kind)}</span>
+                </div>
+                <div className="mt-1.5 min-w-0">
+                  <p className="truncate font-display text-[1.05rem] font-extrabold leading-none text-foreground sm:text-[1.15rem]" title={currentDay.city || currentDay.dayLabel}>
+                    {trimText(currentDay.city || currentDay.dayLabel, MAX_CITY_LENGTH)}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">{currentDay.date}</p>
+                </div>
+                <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden">
+                  <p className="min-w-0 truncate text-xs text-muted-foreground" title={currentDay.dayLabel}>
+                    {trimText(currentDay.dayLabel, MAX_DAY_LABEL_LENGTH)}
+                  </p>
                 </div>
               </div>
-              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform shrink-0 ${
-                isDropdownOpen ? 'rotate-180' : ''
-              }`} />
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  {currentIndex + 1} / {days.length}
+                </span>
+                <ChevronDown className={`h-4.5 w-4.5 text-muted-foreground transition-transform ${
+                  isDropdownOpen ? 'rotate-180' : ''
+                }`} />
+              </div>
             </button>
           </div>
 
-          {/* Dropdown con lista de todos los dias */}
-          {isDropdownOpen && (
-            <div 
+          {isDropdownOpen && dropdownRect && (
+            <div
               ref={dropdownRef}
-              className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto"
+              className="fixed z-50 max-h-72 overflow-y-auto rounded-[1.1rem] border border-border/70 bg-card shadow-[0_14px_34px_rgba(15,23,42,0.12)]"
+              style={{
+                top: dropdownRect.bottom + 8,
+                left: dropdownRect.left,
+                width: dropdownRect.width,
+                maxHeight: '40vh',
+              }}
             >
               {days.map((day, index) => {
-                const customColor = getTagColor(day.kind);
-                const customLabel = getTagLabel(day.kind);
+                const Icon = getKindIcon(day.kind);
                 const isActive = index === currentIndex;
-                
+
                 return (
                   <button
                     key={day.id}
+                    type="button"
                     onClick={() => {
                       onDayChange(index);
                       setIsDropdownOpen(false);
                     }}
-                    className={`flex w-full min-w-0 items-center gap-3 border-b border-border/50 p-3 text-left transition-colors last:border-b-0 hover:bg-muted/50 ${
-                      isActive ? 'bg-primary/10' : ''
+                    className={`flex w-full min-w-0 items-center gap-3 border-b border-border/40 px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/20 ${
+                      isActive ? 'bg-primary/8' : ''
                     }`}
                   >
-                    <span className="text-lg shrink-0">{getKindIcon(day.kind)}</span>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                      isActive ? 'border-primary/25 bg-primary/8 text-primary' : 'border-border/50 bg-muted/25 text-muted-foreground'
+                    }`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
                     <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                        <span
-                          className={`min-w-0 truncate font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}
-                          title={day.dayLabel}
-                        >
-                          {trimText(day.dayLabel, MAX_DAY_LABEL_LENGTH)}
+                        <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                          Día {String(index + 1).padStart(2, '0')}
                         </span>
-                        {customColor ? (
-                          <span 
-                            className="inline-flex max-w-[6rem] shrink-0 items-center truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium text-white"
-                            style={{ backgroundColor: customColor }}
-                          >
-                            {customLabel}
-                          </span>
-                        ) : (
-                          <span className="max-w-[6rem] shrink-0 truncate text-[10px] text-muted-foreground">
-                            {kindLabels[day.kind] || day.kind}
-                          </span>
-                        )}
+                        <span className={`truncate font-medium ${isActive ? 'text-primary' : 'text-foreground'}`}>
+                          {trimText(day.city || day.dayLabel, 28)}
+                        </span>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate" title={`${day.city} · ${day.date}`}>
-                        {trimText(day.city, MAX_CITY_LENGTH)} · {day.date}
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={`${day.date} · ${getKindLabel(day.kind)}`}>
+                        {day.date} · {getKindLabel(day.kind)}
                       </p>
                     </div>
-                    {isActive && (
-                      <span className="text-xs text-primary font-medium shrink-0">Actual</span>
-                    )}
                   </button>
                 );
               })}
@@ -307,85 +261,15 @@ export function DaySelectorCarousel({
           )}
         </div>
 
-        {/* Boton siguiente */}
         <Button
           variant="outline"
           size="icon"
           onClick={() => canGoNext && onDayChange(currentIndex + 1)}
           disabled={!canGoNext}
-          className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+          className="h-11 w-11 shrink-0 rounded-full border-border/70 bg-card/80 !p-0 shadow-none"
           title="Dia siguiente"
         >
-          <ChevronRight className="h-6 w-6" />
-        </Button>
-
-        {/* Boton ir al final */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onDayChange(days.length - 1)}
-          disabled={currentIndex === days.length - 1}
-          className="hidden sm:flex h-10 w-10 shrink-0"
-          title="Ir al ultimo dia"
-        >
-          <ChevronsRight className="h-5 w-5" />
-        </Button>
-      </div>
-
-      {/* Indicador de progreso */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground shrink-0">
-          {currentIndex + 1} / {days.length}
-        </span>
-        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary rounded-full transition-all duration-300"
-            style={{ width: `${((currentIndex + 1) / days.length) * 100}%` }}
-          />
-        </div>
-        <div className="hidden sm:flex gap-1">
-          {days.map((day, index) => {
-            const isSpecial = day.kind === 'flight' || day.kind === 'travel';
-            const isCurrent = index === currentIndex;
-            return (
-              <button
-                key={day.id}
-                onClick={() => onDayChange(index)}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  isCurrent 
-                    ? 'bg-primary scale-125' 
-                    : isSpecial 
-                      ? 'bg-accent hover:bg-accent/80' 
-                      : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                }`}
-                title={`${day.dayLabel} - ${day.city}`}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Acceso rapido movil */}
-      <div className="flex sm:hidden justify-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDayChange(0)}
-          disabled={currentIndex === 0}
-          className="text-xs"
-        >
-          <ChevronsLeft className="h-4 w-4 mr-1" />
-          Inicio
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDayChange(days.length - 1)}
-          disabled={currentIndex === days.length - 1}
-          className="text-xs"
-        >
-          Final
-          <ChevronsRight className="h-4 w-4 ml-1" />
+          <ChevronRight className="h-4.5 w-4.5" />
         </Button>
       </div>
     </div>

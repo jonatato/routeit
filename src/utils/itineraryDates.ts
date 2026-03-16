@@ -35,25 +35,40 @@ const monthMap: Record<string, number> = {
   dec: 11,
 };
 
-const stripWeekdayPrefix = (value: string) => value.replace(/^[A-Za-z]{2,},?\s+/u, '').trim();
+const stripWeekdayPrefix = (value: string) => value.replace(/^[\p{L}]{2,}[.,]?\s+/u, '').trim();
 
 const normalize = (value: string) => value.trim().toLowerCase();
+
+const inferYearForMonthDay = (month: number, day: number) => {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const candidate = new Date(now.getFullYear(), month, day);
+  return candidate.getTime() >= todayStart.getTime() ? now.getFullYear() : now.getFullYear() + 1;
+};
 
 export const parseItineraryDate = (raw: string): Date | null => {
   if (!raw) return null;
   const value = normalize(stripWeekdayPrefix(raw));
 
-  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const isoMatch = value.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
     return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
   }
 
-  const slashMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const slashMatch = value.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
   if (slashMatch) {
     return new Date(Number(slashMatch[3]), Number(slashMatch[2]) - 1, Number(slashMatch[1]));
   }
 
-  const spanishMatch = value.match(/(\d{1,2})\s+de\s+([a-z]+)\s+(\d{4})/);
+  const slashNoYearMatch = value.match(/(\d{1,2})[\/-](\d{1,2})(?![\/-]\d)/);
+  if (slashNoYearMatch) {
+    const day = Number(slashNoYearMatch[1]);
+    const month = Number(slashNoYearMatch[2]) - 1;
+    const year = inferYearForMonthDay(month, day);
+    return new Date(year, month, day);
+  }
+
+  const spanishMatch = value.match(/(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+(?:de\s+)?(\d{4})/u);
   if (spanishMatch) {
     const month = monthMap[spanishMatch[2]];
     if (month !== undefined) {
@@ -61,11 +76,21 @@ export const parseItineraryDate = (raw: string): Date | null => {
     }
   }
 
-  const shortMatch = value.match(/(\d{1,2})\s+([a-z]{3,})\s+(\d{4})/);
+  const shortMatch = value.match(/(\d{1,2})\s+([a-záéíóúñ]{3,})\s+(\d{4})/u);
   if (shortMatch) {
     const month = monthMap[shortMatch[2]];
     if (month !== undefined) {
       return new Date(Number(shortMatch[3]), month, Number(shortMatch[1]));
+    }
+  }
+
+  const shortNoYearMatch = value.match(/(\d{1,2})\s+([a-záéíóúñ]{3,})/u);
+  if (shortNoYearMatch) {
+    const month = monthMap[shortNoYearMatch[2]];
+    if (month !== undefined) {
+      const day = Number(shortNoYearMatch[1]);
+      const year = inferYearForMonthDay(month, day);
+      return new Date(year, month, day);
     }
   }
 
@@ -89,8 +114,10 @@ const parseDateRangeStart = (dateRange: string) => {
   const patterns = [
     /\d{4}-\d{2}-\d{2}/,
     /\d{1,2}\/\d{1,2}\/\d{4}/,
+    /\d{1,2}[\/-]\d{1,2}/,
     /\d{1,2}\s+de\s+[A-Za-z]+\s+\d{4}/,
     /\d{1,2}\s+[A-Za-z]{3,}\s+\d{4}/,
+    /\d{1,2}\s+[A-Za-záéíóúñ]{3,}/u,
   ];
   for (const pattern of patterns) {
     const match = dateRange.match(pattern);
@@ -103,6 +130,9 @@ const parseDateRangeStart = (dateRange: string) => {
 };
 
 export const getItineraryStartDate = (itinerary: TravelItinerary): Date | null => {
+  const rangeStart = parseDateRangeStart(itinerary.dateRange);
+  if (rangeStart) return rangeStart;
+
   const dayDates = itinerary.days.map(day => parseItineraryDate(day.date));
   const earliestDay = getEarliestDate(dayDates);
   if (earliestDay) return earliestDay;
@@ -118,7 +148,7 @@ export const getItineraryStartDate = (itinerary: TravelItinerary): Date | null =
   const earliestFlight = getEarliestDate(flightDates);
   if (earliestFlight) return earliestFlight;
 
-  return parseDateRangeStart(itinerary.dateRange);
+  return null;
 };
 
 export const isSameDay = (left: Date, right: Date) =>

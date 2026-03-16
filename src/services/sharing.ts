@@ -41,7 +41,8 @@ export async function listUserItineraries(userId: string): Promise<ItinerarySumm
     supabase
       .from('itinerary_collaborators')
       .select('role, itineraries(*)')
-      .eq('user_id', userId),
+      .eq('user_id', userId)
+      .is('deleted_at', null),
   ]);
   if (owned.error) throw owned.error;
   if (shared.error) throw shared.error;
@@ -98,6 +99,7 @@ export async function listCollaborators(itineraryId: string) {
     .from('itinerary_collaborators')
     .select('id, user_id, user_email, role, created_at')
     .eq('itinerary_id', itineraryId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true });
   
   if (collabError) throw collabError;
@@ -107,6 +109,7 @@ export async function listCollaborators(itineraryId: string) {
     .from('itinerary_share_links')
     .select('id, token, role, created_at, expires_at')
     .eq('itinerary_id', itineraryId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true });
   
   if (linksError) throw linksError;
@@ -144,7 +147,11 @@ export async function listCollaborators(itineraryId: string) {
 }
 
 export async function removeCollaborator(collaboratorId: string) {
-  const { error } = await supabase.from('itinerary_collaborators').delete().eq('id', collaboratorId);
+  const { error } = await supabase
+    .from('itinerary_collaborators')
+    .delete()
+    .eq('id', collaboratorId)
+    .is('deleted_at', null);
   if (error) throw error;
 }
 
@@ -160,6 +167,7 @@ export async function deleteItinerary(itineraryId: string, userId: string): Prom
     .from('itineraries')
     .select('user_id')
     .eq('id', itineraryId)
+    .is('deleted_at', null)
     .single();
 
   if (fetchError) throw fetchError;
@@ -171,7 +179,8 @@ export async function deleteItinerary(itineraryId: string, userId: string): Prom
   const { error } = await supabase
     .from('itineraries')
     .update({ deleted_at: new Date().toISOString() })
-    .eq('id', itineraryId);
+    .eq('id', itineraryId)
+    .is('deleted_at', null);
 
   if (error) throw error;
 }

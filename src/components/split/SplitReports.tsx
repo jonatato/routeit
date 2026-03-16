@@ -6,6 +6,8 @@ import type { SplitExpense, SplitMember, SplitCategory, SplitPayment } from '../
 import { exportSplitReportToPDF } from '../../services/splitReports';
 import { useToast } from '../../hooks/useToast';
 
+const SHOW_SPLIT_PDF_EXPORT = false;
+
 type SplitReportsProps = {
   expenses: SplitExpense[];
   members: SplitMember[];
@@ -75,12 +77,14 @@ export function SplitReports({ expenses, members, categories, payments = [], gro
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={handleExportPDF} disabled={isExporting} variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          {isExporting ? 'Exportando...' : 'Exportar PDF'}
-        </Button>
-      </div>
+      {SHOW_SPLIT_PDF_EXPORT && (
+        <div className="flex justify-end">
+          <Button onClick={handleExportPDF} disabled={isExporting} variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            {isExporting ? 'Exportando...' : 'Exportar PDF'}
+          </Button>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
       <Card>
         <CardHeader>

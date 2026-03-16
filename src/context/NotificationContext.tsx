@@ -90,7 +90,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         // Send push notification
         sendLocalNotification(notification.title, {
           body: notification.message,
-          icon: '/panda-logo.png',
+          icon: '/routeit-icon.svg',
           data: {
             type: 'itinerary',
             itineraryId: event.itinerary_id,
@@ -127,7 +127,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       // Send push notification
       sendLocalNotification(notification.title, {
         body: notification.message,
-        icon: '/panda-logo.png',
+        icon: '/routeit-icon.svg',
         data: {
           type: 'splitwise',
           groupId: event.group_id,
