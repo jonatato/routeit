@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog } from './ui/dialog';
 import { IonicPdfPreview } from './IonicPdfPreview';
@@ -20,10 +20,6 @@ type DocumentPreviewModalProps = {
   title: string;
   url: string | null;
 };
-
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 2;
-const ZOOM_STEP = 0.25;
 
 const getExtensionFromMimeType = (mimeType: string) => {
   switch (mimeType.toLowerCase()) {
@@ -56,7 +52,6 @@ export function DocumentPreviewModal({ open, onOpenChange, title, url }: Documen
   const [mimeType, setMimeType] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
 
   useEffect(() => {
     if (!open) return;
@@ -85,7 +80,6 @@ export function DocumentPreviewModal({ open, onOpenChange, title, url }: Documen
       setMimeType('');
       setError(null);
       setIsPreparing(false);
-      setZoomLevel(1);
       return;
     }
 
@@ -93,7 +87,6 @@ export function DocumentPreviewModal({ open, onOpenChange, title, url }: Documen
     const abortController = new AbortController();
     let disposed = false;
 
-    setZoomLevel(1);
     setPreviewUrl(null);
     setDownloadUrl(null);
     setMimeType('');
@@ -206,14 +199,6 @@ export function DocumentPreviewModal({ open, onOpenChange, title, url }: Documen
   const isImage = Boolean(previewUrl && isImageMimeType(mimeType));
   const isPdf = Boolean(previewUrl && isPdfMimeType(mimeType));
 
-  const handleZoomOut = () => {
-    setZoomLevel(current => Math.max(MIN_ZOOM, Number((current - ZOOM_STEP).toFixed(2))));
-  };
-
-  const handleZoomIn = () => {
-    setZoomLevel(current => Math.min(MAX_ZOOM, Number((current + ZOOM_STEP).toFixed(2))));
-  };
-
   const handleDownload = () => {
     if (!downloadUrl) return;
 
@@ -252,47 +237,6 @@ export function DocumentPreviewModal({ open, onOpenChange, title, url }: Documen
                 Descargar
               </Button>
 
-              {isImage && (
-                <div className="flex items-center gap-1 rounded-lg border border-border bg-background/80 p-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleZoomOut}
-                    disabled={zoomLevel <= MIN_ZOOM}
-                    aria-label="Reducir zoom"
-                    className="h-8 w-8"
-                  >
-                    <ZoomOut className="h-4 w-4" />
-                  </Button>
-                  <span className="min-w-12 text-center text-xs font-medium text-muted-foreground">
-                    {Math.round(zoomLevel * 100)}%
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleZoomIn}
-                    disabled={zoomLevel >= MAX_ZOOM}
-                    aria-label="Aumentar zoom"
-                    className="h-8 w-8"
-                  >
-                    <ZoomIn className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setZoomLevel(1)}
-                    disabled={zoomLevel === 1}
-                    aria-label="Restablecer zoom"
-                    className="h-8 w-8"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-
               <Button
                 type="button"
                 variant="outline"
@@ -322,11 +266,9 @@ export function DocumentPreviewModal({ open, onOpenChange, title, url }: Documen
                 <img
                   src={previewUrl!}
                   alt={title}
-                  className="h-auto w-auto max-w-none object-contain transition-transform duration-150"
+                  className="h-auto w-auto max-w-full object-contain"
                   style={{
                     maxHeight: 'calc(100dvh - 8rem)',
-                    transform: `scale(${zoomLevel})`,
-                    transformOrigin: 'center center',
                   }}
                 />
               </div>
