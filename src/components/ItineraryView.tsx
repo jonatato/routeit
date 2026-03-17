@@ -15,12 +15,14 @@ import { DaySelectorCarousel } from './DaySelectorCarousel';
 import { FlightCarousel } from './FlightCarousel';
 import { fetchSectionPreferences, type SectionPreference } from '../services/sections';
 import { supabase } from '../lib/supabase';
+import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { PDFExportDialog } from './PDFExportDialog';
 import { MapModal } from './MapModal';
 import { useIsMobileShell } from '../hooks/useIsMobileShell';
 import { downloadFlightICS } from '../utils/calendarExport';
 import { getItineraryStartDate } from '../utils/itineraryDates';
 import { listItineraryDocuments, type ItineraryDocument } from '../services/documents';
+import { isBase64Document } from '../utils/documentPreview';
 import TripCountdown from './TripCountdown';
 
 const budgetToneClasses = {
@@ -69,58 +71,13 @@ const getRenderableRouteLocations = (locations: TravelItinerary['locations']) =>
   });
 };
 
-const parseBase64DataUrl = (value: string) => {
-  const match = value.match(/^data:([^;]+);base64,(.*)$/i);
-  if (!match) return null;
-  return { mimeType: match[1], data: match[2] };
-};
-
-const base64ToBlob = (base64: string, mimeType: string) => {
-  const binary = window.atob(base64);
-  const length = binary.length;
-  const bytes = new Uint8Array(length);
-  for (let index = 0; index < length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: mimeType });
-};
-
-const isBase64Document = (value: string) => /^data:[^;]+;base64,/i.test(value);
-
-const openDocumentUrl = (url: string) => {
-  try {
-    if (!isBase64Document(url)) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    const parsed = parseBase64DataUrl(url);
-    if (!parsed) return;
-
-    const blob = base64ToBlob(parsed.data, parsed.mimeType || 'application/octet-stream');
-    const objectUrl = URL.createObjectURL(blob);
-    const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
-
-    if (!opened) {
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.click();
-    }
-
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-  } catch (error) {
-    console.error('Error opening itinerary document:', error);
-  }
-};
-
 type DayDetailPanelProps = {
   day: ItineraryDay;
   compact?: boolean;
   checkedItems: string[];
   onToggleItem: (itemIndex: number) => void;
   documentsById: Map<string, ItineraryDocument>;
+  onOpenDocument: (document: ItineraryDocument) => void;
 };
 
 function ActivityTimelineCard({
@@ -131,6 +88,7 @@ function ActivityTimelineCard({
   isLast,
   linkedDocument,
   compact = false,
+  onOpenDocument,
 }: {
   item: ScheduleItem;
   checked: boolean;
@@ -139,6 +97,7 @@ function ActivityTimelineCard({
   isLast: boolean;
   linkedDocument?: ItineraryDocument | null;
   compact?: boolean;
+  onOpenDocument: (document: ItineraryDocument) => void;
 }) {
   const hasTags = Boolean(item.tags && item.tags.length > 0);
   const hasMeta = Boolean(item.link || item.mapLink || item.cost || linkedDocument);
@@ -271,7 +230,7 @@ function ActivityTimelineCard({
                   type="button"
                   onClick={event => {
                     event.stopPropagation();
-                    openDocumentUrl(linkedDocument.url);
+                    onOpenDocument(linkedDocument);
                   }}
                   className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/25 bg-amber-700/10 px-2.5 py-1 text-[11px] font-semibold text-amber-900 transition hover:bg-amber-700/15 dark:border-amber-500/30 dark:bg-amber-500/12 dark:text-amber-200"
                   title={linkedDocument.title}
@@ -288,7 +247,7 @@ function ActivityTimelineCard({
   );
 }
 
-function DayDetailPanel({ day, compact = false, checkedItems, onToggleItem, documentsById }: DayDetailPanelProps) {
+function DayDetailPanel({ day, compact = false, checkedItems, onToggleItem, documentsById, onOpenDocument }: DayDetailPanelProps) {
   return (
     <div className={compact ? 'space-y-3' : 'space-y-4'}>
       <div
@@ -326,6 +285,7 @@ function DayDetailPanel({ day, compact = false, checkedItems, onToggleItem, docu
               isLast={itemIndex === day.schedule.length - 1}
               linkedDocument={linkedDocument}
               compact={compact}
+              onOpenDocument={onOpenDocument}
             />
           );
         })}
@@ -378,6 +338,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [itineraryDocuments, setItineraryDocuments] = useState<ItineraryDocument[]>([]);
+  const [previewDocument, setPreviewDocument] = useState<{ title: string; url: string } | null>(null);
   const [highContrast, setHighContrast] = useState(false);
   const [largeText, setLargeText] = useState(false);
   const [currentListIndex, setCurrentListIndex] = useState(0);
@@ -399,6 +360,19 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
   const listStartTime = useRef(0);
   const mapDragState = useRef({ startX: 0, startY: 0, dragged: false });
   const dayMapDragState = useRef({ startX: 0, startY: 0, dragged: false });
+
+  const handleOpenDocument = (document: ItineraryDocument) => {
+    try {
+      if (isBase64Document(document.url)) {
+        setPreviewDocument({ title: document.title, url: document.url });
+        return;
+      }
+
+      window.open(document.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error opening itinerary document:', error);
+    }
+  };
 
   const handleMapPointerDown = (state: typeof mapDragState) => (event: ReactPointerEvent) => {
     state.current.startX = event.clientX;
@@ -1457,6 +1431,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       checkedItems={checkedItems}
                       onToggleItem={(itemIndex) => handleToggleDayItem(day, itemIndex)}
                       documentsById={documentsById}
+                      onOpenDocument={handleOpenDocument}
                     />
                   {shouldShowDayMap && (
                     <div
@@ -1592,6 +1567,7 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
                       checkedItems={checkedItems}
                       onToggleItem={(itemIndex) => handleToggleDayItem(day, itemIndex)}
                       documentsById={documentsById}
+                      onOpenDocument={handleOpenDocument}
                     />
                     {dayPoints.length > 0 && (
                       <div
@@ -1845,6 +1821,17 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
         title={`Mapa del día - ${dayMapModalData.points[0]?.city || 'Día'}`}
       />
     )}
+
+    <DocumentPreviewModal
+      open={Boolean(previewDocument)}
+      onOpenChange={(open) => {
+        if (!open) {
+          setPreviewDocument(null);
+        }
+      }}
+      title={previewDocument?.title ?? 'Documento'}
+      url={previewDocument?.url ?? null}
+    />
     </>
   );
 }

@@ -3,6 +3,7 @@ import { ExternalLink, FileText, Pencil, Plus, Trash2, Upload } from 'lucide-rea
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { DocumentPreviewModal } from '../DocumentPreviewModal';
 import { useToast } from '../../hooks/useToast';
 import {
   createExpenseDocument,
@@ -12,6 +13,7 @@ import {
   type ExpenseDocument,
   type ExpenseDocumentType,
 } from '../../services/expenseDocuments';
+import { isBase64Document } from '../../utils/documentPreview';
 
 type ExpenseDocumentsSectionProps = {
   expenseId: string;
@@ -61,8 +63,6 @@ const extractDataUrlMimeType = (value: string) => {
   return match?.[1]?.toLowerCase() ?? '';
 };
 
-const isBase64Document = (value: string) => /^data:[^;]+;base64,/i.test(value);
-
 const isAllowedDocumentValue = (value: string) => {
   if (!value) return false;
 
@@ -93,22 +93,6 @@ const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-const parseBase64DataUrl = (value: string) => {
-  const match = value.match(/^data:([^;]+);base64,(.*)$/i);
-  if (!match) return null;
-  return { mimeType: match[1], data: match[2] };
-};
-
-const base64ToBlob = (base64: string, mimeType: string) => {
-  const binary = window.atob(base64);
-  const length = binary.length;
-  const bytes = new Uint8Array(length);
-  for (let index = 0; index < length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: mimeType });
 };
 
 const getFileLabel = (url: string) => {
@@ -146,6 +130,7 @@ export function ExpenseDocumentsSection({ expenseId, editable = false }: Expense
   const [selectedFileName, setSelectedFileName] = useState('');
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [form, setForm] = useState<DocumentFormState>(EMPTY_FORM);
+  const [previewDocument, setPreviewDocument] = useState<{ title: string; url: string } | null>(null);
   const { success, error: showError } = useToast();
 
   const editingDocument = useMemo(
@@ -198,32 +183,14 @@ export function ExpenseDocumentsSection({ expenseId, editable = false }: Expense
     setSelectedFileName('');
   };
 
-  const handleOpenDocument = (url: string) => {
+  const handleOpenDocument = (document: Pick<ExpenseDocument, 'title' | 'url'>) => {
     try {
-      if (!isBase64Document(url)) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+      if (isBase64Document(document.url)) {
+        setPreviewDocument({ title: document.title, url: document.url });
         return;
       }
 
-      const parsed = parseBase64DataUrl(url);
-      if (!parsed) {
-        showError('El documento no tiene un formato válido');
-        return;
-      }
-
-      const blob = base64ToBlob(parsed.data, parsed.mimeType || 'application/octet-stream');
-      const objectUrl = URL.createObjectURL(blob);
-      const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
-
-      if (!opened) {
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.click();
-      }
-
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      window.open(document.url, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Error opening expense document:', error);
       showError('No se pudo abrir el documento');
@@ -390,7 +357,7 @@ export function ExpenseDocumentsSection({ expenseId, editable = false }: Expense
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleOpenDocument(doc.url)}>
+                <Button variant="outline" size="sm" onClick={() => handleOpenDocument(doc)}>
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Abrir
                 </Button>
@@ -528,6 +495,17 @@ export function ExpenseDocumentsSection({ expenseId, editable = false }: Expense
           </div>
         </DialogContent>
       </Dialog>
+
+      <DocumentPreviewModal
+        open={Boolean(previewDocument)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewDocument(null);
+          }
+        }}
+        title={previewDocument?.title ?? 'Documento'}
+        url={previewDocument?.url ?? null}
+      />
     </div>
   );
 }

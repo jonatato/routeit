@@ -3,6 +3,7 @@ import { CalendarClock, ExternalLink, FileText, Pencil, Plus, Trash2, Upload } f
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { useToast } from '../hooks/useToast';
 import {
   createItineraryDocument,
@@ -12,6 +13,7 @@ import {
   type ItineraryDocument,
   type ItineraryDocumentType,
 } from '../services/documents';
+import { isBase64Document } from '../utils/documentPreview';
 
 type ItineraryDocumentsSectionProps = {
   itineraryId?: string;
@@ -97,8 +99,6 @@ const extractDataUrlMimeType = (value: string) => {
   return match?.[1]?.toLowerCase() ?? '';
 };
 
-const isBase64Document = (value: string) => /^data:[^;]+;base64,/i.test(value);
-
 const isAllowedDocumentValue = (value: string) => {
   if (!value) return false;
 
@@ -131,22 +131,6 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const parseBase64DataUrl = (value: string) => {
-  const match = value.match(/^data:([^;]+);base64,(.*)$/i);
-  if (!match) return null;
-  return { mimeType: match[1], data: match[2] };
-};
-
-const base64ToBlob = (base64: string, mimeType: string) => {
-  const binary = window.atob(base64);
-  const length = binary.length;
-  const bytes = new Uint8Array(length);
-  for (let index = 0; index < length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: mimeType });
-};
-
 const getFileLabel = (url: string) => {
   if (isBase64Document(url)) {
     return 'documento-base64';
@@ -169,6 +153,7 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
   const [selectedFileName, setSelectedFileName] = useState('');
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [form, setForm] = useState<DocumentFormState>(EMPTY_FORM);
+  const [previewDocument, setPreviewDocument] = useState<{ title: string; url: string } | null>(null);
   const { success, error: showError } = useToast();
 
   const editingDocument = useMemo(
@@ -227,32 +212,14 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
     setSelectedFileName('');
   };
 
-  const handleOpenDocument = (url: string) => {
+  const handleOpenDocument = (document: Pick<ItineraryDocument, 'title' | 'url'>) => {
     try {
-      if (!isBase64Document(url)) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+      if (isBase64Document(document.url)) {
+        setPreviewDocument({ title: document.title, url: document.url });
         return;
       }
 
-      const parsed = parseBase64DataUrl(url);
-      if (!parsed) {
-        showError('El documento no tiene un formato válido');
-        return;
-      }
-
-      const blob = base64ToBlob(parsed.data, parsed.mimeType || 'application/octet-stream');
-      const objectUrl = URL.createObjectURL(blob);
-      const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
-
-      if (!opened) {
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.click();
-      }
-
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      window.open(document.url, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Error opening document:', error);
       showError('No se pudo abrir el documento');
@@ -450,7 +417,7 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleOpenDocument(document.url)}
+                        onClick={() => handleOpenDocument(document)}
                         aria-label={`Abrir ${document.title}`}
                         title="Abrir"
                         className="h-8 w-8 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:text-sky-300 dark:hover:bg-sky-500/15 dark:hover:text-sky-200"
@@ -567,7 +534,7 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleOpenDocument(document.url)}
+                            onClick={() => handleOpenDocument(document)}
                             aria-label={`Abrir ${document.title}`}
                             title="Abrir"
                             className="h-8 w-8 text-sky-700 hover:bg-sky-100 hover:text-sky-800 dark:text-sky-300 dark:hover:bg-sky-500/15 dark:hover:text-sky-200"
@@ -738,6 +705,17 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
           </div>
         </DialogContent>
       </Dialog>
+
+      <DocumentPreviewModal
+        open={Boolean(previewDocument)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewDocument(null);
+          }
+        }}
+        title={previewDocument?.title ?? 'Documento'}
+        url={previewDocument?.url ?? null}
+      />
     </div>
   );
 }
