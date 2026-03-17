@@ -22,7 +22,6 @@ import { useIsMobileShell } from '../hooks/useIsMobileShell';
 import { downloadFlightICS } from '../utils/calendarExport';
 import { getItineraryStartDate } from '../utils/itineraryDates';
 import { listItineraryDocuments, type ItineraryDocument } from '../services/documents';
-import { isBase64Document } from '../utils/documentPreview';
 import TripCountdown from './TripCountdown';
 
 const budgetToneClasses = {
@@ -363,12 +362,12 @@ function ItineraryView({ itinerary, editable = false }: ItineraryViewProps) {
 
   const handleOpenDocument = (document: ItineraryDocument) => {
     try {
-      if (isBase64Document(document.url)) {
-        setPreviewDocument({ title: document.title, url: document.url });
+      const trimmedUrl = document.url.trim();
+      if (!trimmedUrl) {
         return;
       }
 
-      window.open(document.url, '_blank', 'noopener,noreferrer');
+      setPreviewDocument({ title: document.title, url: trimmedUrl });
     } catch (error) {
       console.error('Error opening itinerary document:', error);
     }

@@ -318,6 +318,179 @@ body {
   color: hsl(var(--foreground));
 }
 
+.routeit-pdf-viewer.pdf-viewer-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: hsl(var(--background));
+}
+
+.routeit-pdf-viewer .pdf-controls-single-line {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background) / 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.routeit-pdf-viewer .pdf-controls-group,
+.routeit-pdf-viewer .page-input-compact,
+.routeit-pdf-viewer .error-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.routeit-pdf-viewer .pdf-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+
+.routeit-pdf-viewer .pdf-control-btn:hover:not(:disabled) {
+  background: hsl(var(--muted));
+}
+
+.routeit-pdf-viewer .pdf-control-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.routeit-pdf-viewer .page-info-compact,
+.routeit-pdf-viewer .zoom-info-compact {
+  min-width: 3.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.routeit-pdf-viewer .page-number-input {
+  width: 4.5rem;
+  height: 2.25rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font: inherit;
+  text-align: center;
+}
+
+.routeit-pdf-viewer .pdf-content-ionic,
+.routeit-pdf-viewer .pdf-content-continuous,
+.routeit-pdf-viewer .pdf-viewer-error {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  background: hsl(var(--muted) / 0.18);
+}
+
+.routeit-pdf-viewer .pdf-loading-ionic,
+.routeit-pdf-viewer .error-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 100%;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.routeit-pdf-viewer .loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid hsl(var(--border));
+  border-top-color: hsl(var(--primary));
+  border-radius: 999px;
+  animation: routeit-pdf-spin 0.9s linear infinite;
+}
+
+.routeit-pdf-viewer .loading-details,
+.routeit-pdf-viewer .error-message,
+.routeit-pdf-viewer .error-suggestions {
+  max-width: 36rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.routeit-pdf-viewer .error-suggestions ul {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+  text-align: left;
+}
+
+.routeit-pdf-viewer .pdf-pages-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.routeit-pdf-viewer .pdf-page-wrapper,
+.routeit-pdf-viewer .react-pdf__Page {
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.routeit-pdf-viewer .pdf-page-continuous.current-page {
+  outline: 2px solid hsl(var(--primary) / 0.32);
+  outline-offset: 3px;
+}
+
+.routeit-pdf-viewer .react-pdf__Page__canvas {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+}
+
+.routeit-pdf-viewer .react-pdf__Page__textContent,
+.routeit-pdf-viewer .react-pdf__Page__annotations {
+  inset: 0;
+}
+
+@keyframes routeit-pdf-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .routeit-pdf-viewer .pdf-controls-single-line {
+    justify-content: center;
+  }
+
+  .routeit-pdf-viewer .pdf-controls-group {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .driver-popover.routeit-onboarding .driver-popover-footer button.driver-popover-next-btn,
 .driver-popover.routeit-onboarding .driver-popover-footer button.driver-popover-done-btn {
   background: hsl(var(--primary));

@@ -10,6 +10,7 @@ import type {
 } from '../services/documents';
 import { POPULAR_CURRENCIES } from '../services/currency';
 import { useToast } from '../hooks/useToast';
+import { isAllowedDocumentValue } from '../utils/documentPreview';
 
 type NewDocumentFormState = {
   type: ItineraryDocumentType;
@@ -29,7 +30,6 @@ const EMPTY_DOCUMENT_FORM: NewDocumentFormState = {
   url: '',
 };
 
-const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 
@@ -52,35 +52,6 @@ const fileToBase64DataUrl = (file: File) =>
     reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
     reader.readAsDataURL(file);
   });
-
-const detectExtension = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    const fileName = parsed.pathname.split('/').pop() ?? '';
-    const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
-    return extension?.toLowerCase() ?? '';
-  } catch {
-    return '';
-  }
-};
-
-const extractDataUrlMimeType = (value: string) => {
-  const match = value.match(/^data:([^;]+);base64,/i);
-  return match?.[1]?.toLowerCase() ?? '';
-};
-
-const isBase64Document = (value: string) => /^data:[^;]+;base64,/i.test(value);
-
-const isAllowedDocumentValue = (value: string) => {
-  if (!value) return false;
-
-  const trimmed = value.trim();
-  if (isBase64Document(trimmed)) {
-    return ALLOWED_MIME_TYPES.includes(extractDataUrlMimeType(trimmed));
-  }
-
-  return ALLOWED_EXTENSIONS.includes(detectExtension(trimmed));
-};
 
 interface ActivityAdminMetaModalProps {
   isOpen: boolean;

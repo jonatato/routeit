@@ -4,6 +4,13 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react-pdf'],
+    alias: {
+      'pdfjs-dist/legacy/build/pdf.mjs': 'pdfjs-dist/legacy/build/pdf.js',
+      'pdfjs-dist/legacy/build/pdf': 'pdfjs-dist/legacy/build/pdf.js',
+    },
+  },
   build: {
     rollupOptions: {
       output: {

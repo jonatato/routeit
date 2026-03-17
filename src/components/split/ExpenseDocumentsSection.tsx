@@ -13,7 +13,7 @@ import {
   type ExpenseDocument,
   type ExpenseDocumentType,
 } from '../../services/expenseDocuments';
-import { isBase64Document } from '../../utils/documentPreview';
+import { isAllowedDocumentValue, isBase64Document } from '../../utils/documentPreview';
 
 type ExpenseDocumentsSectionProps = {
   expenseId: string;
@@ -36,7 +36,6 @@ const EMPTY_FORM: DocumentFormState = {
   url: '',
 };
 
-const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 
@@ -46,34 +45,6 @@ const DOCUMENT_TYPES: Array<{ value: ExpenseDocumentType; label: string }> = [
   { value: 'ticket', label: 'Ticket' },
   { value: 'other', label: 'Otro' },
 ];
-
-const detectExtension = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    const fileName = parsed.pathname.split('/').pop() ?? '';
-    const ext = fileName.includes('.') ? fileName.split('.').pop() : '';
-    return ext?.toLowerCase() ?? '';
-  } catch {
-    return '';
-  }
-};
-
-const extractDataUrlMimeType = (value: string) => {
-  const match = value.match(/^data:([^;]+);base64,/i);
-  return match?.[1]?.toLowerCase() ?? '';
-};
-
-const isAllowedDocumentValue = (value: string) => {
-  if (!value) return false;
-
-  const trimmed = value.trim();
-  if (isBase64Document(trimmed)) {
-    return ALLOWED_MIME_TYPES.includes(extractDataUrlMimeType(trimmed));
-  }
-
-  const extension = detectExtension(trimmed);
-  return ALLOWED_EXTENSIONS.includes(extension);
-};
 
 const fileToBase64DataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -185,12 +156,13 @@ export function ExpenseDocumentsSection({ expenseId, editable = false }: Expense
 
   const handleOpenDocument = (document: Pick<ExpenseDocument, 'title' | 'url'>) => {
     try {
-      if (isBase64Document(document.url)) {
-        setPreviewDocument({ title: document.title, url: document.url });
+      const trimmedUrl = document.url.trim();
+      if (!trimmedUrl) {
+        showError('El documento no tiene un archivo o enlace válido');
         return;
       }
 
-      window.open(document.url, '_blank', 'noopener,noreferrer');
+      setPreviewDocument({ title: document.title, url: trimmedUrl });
     } catch (error) {
       console.error('Error opening expense document:', error);
       showError('No se pudo abrir el documento');
@@ -247,7 +219,7 @@ export function ExpenseDocumentsSection({ expenseId, editable = false }: Expense
     }
 
     if (!url) {
-      showError('Sube un archivo antes de guardar');
+      showError('Añade un archivo o una URL antes de guardar');
       return;
     }
 
