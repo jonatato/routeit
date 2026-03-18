@@ -13,7 +13,12 @@ import {
   type ItineraryDocument,
   type ItineraryDocumentType,
 } from '../services/documents';
-import { isBase64Document, isAllowedDocumentValue } from '../utils/documentPreview';
+import {
+  SUPPORTED_DOCUMENT_EXTENSIONS,
+  SUPPORTED_DOCUMENT_MIME_TYPES,
+  isAllowedDocumentValue,
+  isBase64Document,
+} from '../utils/documentPreview';
 
 type ItineraryDocumentsSectionProps = {
   itineraryId?: string;
@@ -38,7 +43,6 @@ const EMPTY_FORM: DocumentFormState = {
   url: '',
 };
 
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 
 const DOCUMENT_TYPES: Array<{ value: ItineraryDocumentType; label: string }> = [
@@ -161,6 +165,13 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
     setIsDialogOpen(true);
   };
 
+  const resetDialogState = () => {
+    setIsDialogOpen(false);
+    setEditingDocumentId(null);
+    setForm(EMPTY_FORM);
+    setSelectedFileName('');
+  };
+
   const openEditDialog = (document: ItineraryDocument) => {
     setEditingDocumentId(document.id);
     setForm({
@@ -177,10 +188,7 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
 
   const closeDialog = () => {
     if (isSaving || isEncodingFile) return;
-    setIsDialogOpen(false);
-    setEditingDocumentId(null);
-    setForm(EMPTY_FORM);
-    setSelectedFileName('');
+    resetDialogState();
   };
 
   const handleOpenDocument = (document: Pick<ItineraryDocument, 'title' | 'url'>) => {
@@ -211,8 +219,12 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
 
     const extension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() ?? '' : '';
     const mimeType = file.type.toLowerCase();
-    const isAllowedByType = ALLOWED_MIME_TYPES.includes(mimeType);
-    const isAllowedByExt = ALLOWED_EXTENSIONS.includes(extension);
+    const isAllowedByType = SUPPORTED_DOCUMENT_MIME_TYPES.includes(
+      mimeType as (typeof SUPPORTED_DOCUMENT_MIME_TYPES)[number],
+    );
+    const isAllowedByExt = SUPPORTED_DOCUMENT_EXTENSIONS.includes(
+      extension as (typeof SUPPORTED_DOCUMENT_EXTENSIONS)[number],
+    );
 
     if (!isAllowedByType && !isAllowedByExt) {
       showError('Formato no permitido. Usa PDF, JPG, PNG o WEBP');
@@ -291,7 +303,7 @@ function ItineraryDocumentsSection({ itineraryId, editable = false }: ItineraryD
         success('Documento añadido');
       }
 
-      closeDialog();
+      resetDialogState();
     } catch (error) {
       console.error('Error saving document:', error);
       showError('No se pudo guardar el documento');

@@ -10,7 +10,11 @@ import type {
 } from '../services/documents';
 import { POPULAR_CURRENCIES } from '../services/currency';
 import { useToast } from '../hooks/useToast';
-import { isAllowedDocumentValue } from '../utils/documentPreview';
+import {
+  SUPPORTED_DOCUMENT_EXTENSIONS,
+  SUPPORTED_DOCUMENT_MIME_TYPES,
+  isAllowedDocumentValue,
+} from '../utils/documentPreview';
 
 type NewDocumentFormState = {
   type: ItineraryDocumentType;
@@ -30,7 +34,6 @@ const EMPTY_DOCUMENT_FORM: NewDocumentFormState = {
   url: '',
 };
 
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 
 const formatBytes = (bytes: number) => {
@@ -119,7 +122,14 @@ export function ActivityAdminMetaModal({
 
     const extension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() ?? '' : '';
     const mimeType = file.type.toLowerCase();
-    if (!ALLOWED_MIME_TYPES.includes(mimeType) && !ALLOWED_EXTENSIONS.includes(extension)) {
+    const isAllowedByType = SUPPORTED_DOCUMENT_MIME_TYPES.includes(
+      mimeType as (typeof SUPPORTED_DOCUMENT_MIME_TYPES)[number],
+    );
+    const isAllowedByExt = SUPPORTED_DOCUMENT_EXTENSIONS.includes(
+      extension as (typeof SUPPORTED_DOCUMENT_EXTENSIONS)[number],
+    );
+
+    if (!isAllowedByType && !isAllowedByExt) {
       showError('Formato no permitido. Usa PDF, JPG, PNG o WEBP');
       return;
     }
