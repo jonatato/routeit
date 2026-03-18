@@ -3,32 +3,35 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { X, Plus, ExternalLink, AlertCircle } from 'lucide-react';
-import { parseVideoUrl, generateThumbnailUrl, addVideo, addVideoTags } from '../../services/socialVideos';
-import { supabase } from '../../lib/supabase';
+import {
+  addVideo,
+  createVideoTag,
+  generateThumbnailUrl,
+  parseVideoUrl,
+  replaceVideoTags,
+  type SocialVideoTag,
+} from '../../services/socialVideos';
 import { useToast } from '../../hooks/useToast';
 import { useIsMobileShell } from '../../hooks/useIsMobileShell';
 
 interface VideoUploadDialogProps {
   itineraryId: string;
   userId: string;
+  availableTags: SocialVideoTag[];
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-}
-
-interface Tag {
-  id: string;
-  name: string;
-  slug: string;
-  isCity?: boolean;
+  onTagCreated?: (tag: SocialVideoTag) => void;
 }
 
 export function VideoUploadDialog({ 
   itineraryId, 
   userId, 
+  availableTags,
   open, 
   onClose, 
-  onSuccess 
+  onSuccess,
+  onTagCreated,
 }: VideoUploadDialogProps) {
   const isMobile = useIsMobileShell();
   const [url, setUrl] = useState('');
@@ -38,7 +41,6 @@ export function VideoUploadDialog({
     videoId: string;
     thumbnailUrl: string;
   } | null>(null);
-  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTagName, setNewTagName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,10 +48,19 @@ export function VideoUploadDialog({
   const toast = useToast();
 
   useEffect(() => {
-    if (open) {
-      loadTags();
+    if (!open) {
+      setSelectedTags([]);
+      setNewTagName('');
+      setUrl('');
+      setDescription('');
+      setPreview(null);
+      setError(null);
     }
-  }, [open, itineraryId]);
+  }, [open]);
+
+  useEffect(() => {
+    setSelectedTags(prev => prev.filter(tagId => availableTags.some(tag => tag.id === tagId)));
+  }, [availableTags]);
 
   useEffect(() => {
     if (url) {
@@ -59,38 +70,6 @@ export function VideoUploadDialog({
       setError(null);
     }
   }, [url]);
-
-  const loadTags = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tags')
-        .select('*')
-        .eq('itinerary_id', itineraryId)
-        .order('name');
-
-      if (error) throw error;
-
-      const { data: locationsData } = await supabase
-        .from('locations')
-        .select('city')
-        .eq('itinerary_id', itineraryId)
-        .order('order_index');
-
-      const cityTags = (locationsData || [])
-        .filter((loc, idx, self) => self.findIndex(l => l.city === loc.city) === idx)
-        .map(loc => ({
-          id: `city-${loc.city}`,
-          name: `📍 ${loc.city}`,
-          slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
-          isCity: true
-        }));
-
-      const allTags = [...(data || []), ...cityTags];
-      setAvailableTags(allTags);
-    } catch (error) {
-      console.error('Error loading tags:', error);
-    }
-  };
 
   const validateAndPreview = (videoUrl: string) => {
     const parsed = parseVideoUrl(videoUrl);
@@ -114,22 +93,9 @@ export function VideoUploadDialog({
     if (!newTagName.trim()) return;
 
     try {
-      const slug = newTagName.trim().toLowerCase().replace(/\s+/g, '-');
-      
-      const { data, error } = await supabase
-        .from('tags')
-        .insert({
-          itinerary_id: itineraryId,
-          name: newTagName.trim(),
-          slug,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setAvailableTags([...availableTags, data]);
-      setSelectedTags([...selectedTags, data.id]);
+      const createdTag = await createVideoTag(itineraryId, newTagName.trim());
+      onTagCreated?.(createdTag);
+      setSelectedTags(prev => (prev.includes(createdTag.id) ? prev : [...prev, createdTag.id]));
       setNewTagName('');
       toast.success('Tag creado');
     } catch (error) {
@@ -158,45 +124,7 @@ export function VideoUploadDialog({
       const video = await addVideo(itineraryId, userId, url, description || undefined);
       
       if (selectedTags.length > 0) {
-        const tagIds: string[] = [];
-        
-        for (const tagId of selectedTags) {
-          if (tagId.startsWith('city-')) {
-            const cityName = tagId.replace('city-', '');
-            const slug = cityName.toLowerCase().replace(/\s+/g, '-');
-            
-            const { data: existingTag } = await supabase
-              .from('tags')
-              .select('id')
-              .eq('itinerary_id', itineraryId)
-              .eq('slug', slug)
-              .single();
-            
-            if (existingTag) {
-              tagIds.push(existingTag.id);
-            } else {
-              const { data: newTag } = await supabase
-                .from('tags')
-                .insert({
-                  itinerary_id: itineraryId,
-                  name: `📍 ${cityName}`,
-                  slug,
-                })
-                .select('id')
-                .single();
-              
-              if (newTag) {
-                tagIds.push(newTag.id);
-              }
-            }
-          } else {
-            tagIds.push(tagId);
-          }
-        }
-        
-        if (tagIds.length > 0) {
-          await addVideoTags(video.id, tagIds);
-        }
+        await replaceVideoTags(video.id, selectedTags);
       }
 
       toast.success('¡Video agregado!');
@@ -244,9 +172,6 @@ export function VideoUploadDialog({
   };
 
   if (!open) return null;
-
-  const cityTags = availableTags.filter(t => t.isCity);
-  const customTags = availableTags.filter(t => !t.isCity);
 
   // Mobile: Fullscreen dialog
   if (isMobile) {
@@ -347,39 +272,18 @@ export function VideoUploadDialog({
                       className="cursor-pointer shadow-sm"
                       onClick={() => toggleTag(tag.id)}
                     >
-                      {tag.isCity ? tag.name : `#${tag.name}`} <X className="ml-1 h-3 w-3" />
+                      #{tag.name} <X className="ml-1 h-3 w-3" />
                     </Badge>
                   ) : null;
                 })}
               </div>
             )}
 
-            {/* City Tags */}
-            {cityTags.length > 0 && (
+            {availableTags.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">📍 Ciudades de la Ruta</p>
+                <p className="text-xs font-medium text-muted-foreground">🏷️ Tags del Video</p>
                 <div className="flex gap-2 flex-wrap">
-                  {cityTags
-                    .filter(tag => !selectedTags.includes(tag.id))
-                    .map(tag => (
-                      <button
-                        key={tag.id}
-                        onClick={() => toggleTag(tag.id)}
-                        className="px-3 py-1.5 text-sm bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors active:scale-95"
-                      >
-                        {tag.name} <Plus className="inline h-3 w-3 ml-1" />
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Custom Tags */}
-            {customTags.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">🏷️ Tags Personalizados</p>
-                <div className="flex gap-2 flex-wrap">
-                  {customTags
+                  {availableTags
                     .filter(tag => !selectedTags.includes(tag.id))
                     .map(tag => (
                       <button
@@ -534,40 +438,18 @@ export function VideoUploadDialog({
                       className="cursor-pointer"
                       onClick={() => toggleTag(tag.id)}
                     >
-                      {tag.isCity ? tag.name : `#${tag.name}`} <X className="ml-1 h-3 w-3" />
+                      #{tag.name} <X className="ml-1 h-3 w-3" />
                     </Badge>
                   ) : null;
                 })}
               </div>
             )}
 
-            {/* City Tags Section */}
-            {cityTags.length > 0 && (
+            {availableTags.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">📍 Ciudades de la Ruta</p>
-                <div className="flex gap-2 flex-wrap p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  {cityTags
-                    .filter(tag => !selectedTags.includes(tag.id))
-                    .map(tag => (
-                      <Badge
-                        key={tag.id}
-                        variant="outline"
-                        className="cursor-pointer hover:bg-blue-500 hover:text-white border-blue-300 transition-colors"
-                        onClick={() => toggleTag(tag.id)}
-                      >
-                        {tag.name} <Plus className="ml-1 h-3 w-3" />
-                      </Badge>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Regular Tags Section */}
-            {customTags.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">🏷️ Tags Personalizados</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">🏷️ Tags del Video</p>
                 <div className="flex gap-2 flex-wrap p-3 bg-muted rounded-lg">
-                  {customTags
+                  {availableTags
                     .filter(tag => !selectedTags.includes(tag.id))
                     .map(tag => (
                       <Badge

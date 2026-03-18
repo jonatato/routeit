@@ -1243,13 +1243,33 @@ create table if not exists video_tags (
   primary key (video_id, tag_id)
 );
 
+create table if not exists video_filter_tags (
+  id uuid primary key default gen_random_uuid(),
+  itinerary_id uuid not null references itineraries(id) on delete cascade,
+  name text not null,
+  slug text not null,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  unique (itinerary_id, slug)
+);
+
+create table if not exists social_video_tag_links (
+  video_id uuid not null references social_videos(id) on delete cascade,
+  tag_id uuid not null references video_filter_tags(id) on delete cascade,
+  primary key (video_id, tag_id)
+);
+
 create index if not exists social_videos_itinerary_id_idx on social_videos (itinerary_id);
 create index if not exists video_reactions_video_id_idx on video_reactions (video_id);
 create index if not exists video_tags_video_id_idx on video_tags (video_id);
+create index if not exists video_filter_tags_itinerary_id_idx on video_filter_tags (itinerary_id);
+create index if not exists social_video_tag_links_tag_id_idx on social_video_tag_links (tag_id);
 
 alter table social_videos enable row level security;
 alter table video_reactions enable row level security;
 alter table video_tags enable row level security;
+alter table video_filter_tags enable row level security;
+alter table social_video_tag_links enable row level security;
 
 -- Políticas RLS para social_videos
 -- Cualquier persona con acceso al itinerario puede ver los videos
@@ -1327,6 +1347,53 @@ create policy "video_tags_write" on video_tags
     exists (
       select 1 from social_videos
       where social_videos.id = video_tags.video_id
+        and has_itinerary_write_access(social_videos.itinerary_id)
+    )
+  );
+
+create policy "video_filter_tags_read" on video_filter_tags
+  for select
+  using (has_itinerary_access(itinerary_id));
+
+create policy "video_filter_tags_insert" on video_filter_tags
+  for insert
+  with check (has_itinerary_write_access(itinerary_id));
+
+create policy "video_filter_tags_update" on video_filter_tags
+  for update
+  using (has_itinerary_write_access(itinerary_id))
+  with check (has_itinerary_write_access(itinerary_id));
+
+create policy "video_filter_tags_delete" on video_filter_tags
+  for delete
+  using (has_itinerary_write_access(itinerary_id));
+
+create policy "social_video_tag_links_read" on social_video_tag_links
+  for select
+  using (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = social_video_tag_links.video_id
+        and has_itinerary_access(social_videos.itinerary_id)
+    )
+  );
+
+create policy "social_video_tag_links_insert" on social_video_tag_links
+  for insert
+  with check (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = social_video_tag_links.video_id
+        and has_itinerary_write_access(social_videos.itinerary_id)
+    )
+  );
+
+create policy "social_video_tag_links_delete" on social_video_tag_links
+  for delete
+  using (
+    exists (
+      select 1 from social_videos
+      where social_videos.id = social_video_tag_links.video_id
         and has_itinerary_write_access(social_videos.itinerary_id)
     )
   );

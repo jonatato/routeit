@@ -1,5 +1,14 @@
 import { supabase } from '../lib/supabase';
 
+export type SocialVideoTag = {
+  id: string;
+  itinerary_id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SocialVideo = {
   id: string;
   itinerary_id: string;
@@ -11,7 +20,7 @@ export type SocialVideo = {
   description?: string;
   created_at: string;
   updated_at?: string;
-  tags?: { id: string; name: string }[];
+  tags?: SocialVideoTag[];
   reactions?: VideoReaction[];
   user_name?: string;
 };
@@ -32,7 +41,19 @@ export type VideoTag = {
 };
 
 type TagJoinRow = {
-  tags: { id: string; name: string };
+  video_filter_tags: SocialVideoTag | null;
+};
+
+const slugifyVideoTagName = (name: string) => {
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || 'tag';
 };
 
 // Parsear URL y extraer información de la plataforma
@@ -134,13 +155,105 @@ export function generateThumbnailUrl(platform: 'tiktok' | 'instagram' | 'youtube
   }
 }
 
+export async function fetchVideoTags(itineraryId: string): Promise<SocialVideoTag[]> {
+  const { data, error } = await supabase
+    .from('video_filter_tags')
+    .select('*')
+    .eq('itinerary_id', itineraryId)
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as SocialVideoTag[];
+}
+
+export async function createVideoTag(itineraryId: string, name: string): Promise<SocialVideoTag> {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    throw new Error('El nombre del tag es obligatorio.');
+  }
+
+  const slug = slugifyVideoTagName(trimmedName);
+
+  const { data: existing, error: existingError } = await supabase
+    .from('video_filter_tags')
+    .select('*')
+    .eq('itinerary_id', itineraryId)
+    .eq('slug', slug)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (existing) return existing as SocialVideoTag;
+
+  const { data, error } = await supabase
+    .from('video_filter_tags')
+    .insert({
+      itinerary_id: itineraryId,
+      name: trimmedName,
+      slug,
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as SocialVideoTag;
+}
+
+export async function updateVideoTag(tagId: string, name: string): Promise<SocialVideoTag> {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    throw new Error('El nombre del tag es obligatorio.');
+  }
+
+  const { data, error } = await supabase
+    .from('video_filter_tags')
+    .update({
+      name: trimmedName,
+      slug: slugifyVideoTagName(trimmedName),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', tagId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as SocialVideoTag;
+}
+
+export async function deleteVideoTag(tagId: string): Promise<void> {
+  const { error } = await supabase
+    .from('video_filter_tags')
+    .delete()
+    .eq('id', tagId);
+
+  if (error) throw error;
+}
+
+export async function replaceVideoTags(videoId: string, tagIds: string[]): Promise<void> {
+  const uniqueTagIds = Array.from(new Set(tagIds));
+
+  const { error: deleteError } = await supabase
+    .from('social_video_tag_links')
+    .delete()
+    .eq('video_id', videoId);
+
+  if (deleteError) throw deleteError;
+
+  if (uniqueTagIds.length === 0) return;
+
+  const { error: insertError } = await supabase
+    .from('social_video_tag_links')
+    .insert(uniqueTagIds.map(tagId => ({ video_id: videoId, tag_id: tagId })));
+
+  if (insertError) throw insertError;
+}
+
 // Obtener todos los videos de un itinerario
 export async function fetchVideos(itineraryId: string): Promise<SocialVideo[]> {
   const { data, error } = await supabase
     .from('social_videos')
     .select(`
       *,
-      video_tags(tag_id, tags(id, name)),
+      social_video_tag_links(tag_id, video_filter_tags(id, itinerary_id, name, slug, created_at, updated_at)),
       video_reactions(*)
     `)
     .eq('itinerary_id', itineraryId)
@@ -152,7 +265,9 @@ export async function fetchVideos(itineraryId: string): Promise<SocialVideo[]> {
   // Transformar datos para formato más amigable
   const videos = (data || []).map(video => ({
     ...video,
-    tags: (video.video_tags as TagJoinRow[] | undefined)?.map((vt) => vt.tags) || [],
+    tags: ((video.social_video_tag_links as TagJoinRow[] | undefined) ?? [])
+      .map(link => link.video_filter_tags)
+      .filter(Boolean),
     reactions: video.video_reactions || [],
   }));
   
@@ -165,7 +280,7 @@ export async function fetchVideo(videoId: string): Promise<SocialVideo | null> {
     .from('social_videos')
     .select(`
       *,
-      video_tags(tag_id, tags(id, name)),
+      social_video_tag_links(tag_id, video_filter_tags(id, itinerary_id, name, slug, created_at, updated_at)),
       video_reactions(*)
     `)
     .eq('id', videoId)
@@ -179,7 +294,9 @@ export async function fetchVideo(videoId: string): Promise<SocialVideo | null> {
   
   return {
     ...data,
-    tags: (data.video_tags as TagJoinRow[] | undefined)?.map((vt) => vt.tags) || [],
+    tags: ((data.social_video_tag_links as TagJoinRow[] | undefined) ?? [])
+      .map(link => link.video_filter_tags)
+      .filter(Boolean),
     reactions: data.video_reactions || [],
   } as SocialVideo;
 }
@@ -261,32 +378,6 @@ export async function deleteVideo(videoId: string): Promise<void> {
   if (error) throw error;
 }
 
-// Agregar tags a un video
-export async function addVideoTags(videoId: string, tagIds: string[]): Promise<void> {
-  const videoTags = tagIds.map(tagId => ({
-    video_id: videoId,
-    tag_id: tagId,
-  }));
-  
-  const { error } = await supabase
-    .from('video_tags')
-    .insert(videoTags);
-    
-  if (error) throw error;
-}
-
-// Eliminar tags de un video
-export async function removeVideoTags(videoId: string, tagIds: string[]): Promise<void> {
-  const { error } = await supabase
-    .from('video_tags')
-    .delete()
-    .eq('video_id', videoId)
-    .is('deleted_at', null)
-    .in('tag_id', tagIds);
-    
-  if (error) throw error;
-}
-
 // Agregar reacción
 export async function addReaction(
   videoId: string,
@@ -340,19 +431,21 @@ export async function filterVideosByTags(itineraryId: string, tagIds: string[]):
     .from('social_videos')
     .select(`
       *,
-      video_tags!inner(tag_id, tags(id, name)),
+      social_video_tag_links!inner(tag_id, video_filter_tags(id, itinerary_id, name, slug, created_at, updated_at)),
       video_reactions(*)
     `)
     .eq('itinerary_id', itineraryId)
     .is('deleted_at', null)
-    .in('video_tags.tag_id', tagIds)
+    .in('social_video_tag_links.tag_id', tagIds)
     .order('created_at', { ascending: false });
     
   if (error) throw error;
   
   const videos = (data || []).map(video => ({
     ...video,
-    tags: (video.video_tags as TagJoinRow[] | undefined)?.map((vt) => vt.tags) || [],
+    tags: ((video.social_video_tag_links as TagJoinRow[] | undefined) ?? [])
+      .map(link => link.video_filter_tags)
+      .filter(Boolean),
     reactions: video.video_reactions || [],
   }));
   

@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Plus, Filter, Video as VideoIcon } from 'lucide-react';
+import { Plus, Filter, Tag, Video as VideoIcon } from 'lucide-react';
 import { VideoPreview } from '../components/social/VideoPreview';
 import { VideoFullscreenModal } from '../components/social/VideoFullscreenModal';
 import { VideoReactions } from '../components/social/VideoReactions';
 import { VideoUploadDialog } from '../components/social/VideoUploadDialog';
 import { VideoFilters } from '../components/social/VideoFilters';
-import type { SocialVideo } from '../services/socialVideos';
-import { fetchVideos, deleteVideo } from '../services/socialVideos';
+import { VideoTagManagerDialog } from '../components/social/VideoTagManagerDialog';
+import type { SocialVideo, SocialVideoTag } from '../services/socialVideos';
+import {
+  createVideoTag,
+  deleteVideo,
+  deleteVideoTag,
+  fetchVideoTags,
+  fetchVideos,
+  updateVideoTag,
+} from '../services/socialVideos';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../hooks/useToast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -17,21 +25,15 @@ import { useLocation } from 'react-router-dom';
 import FullscreenLoader from '../components/FullscreenLoader';
 import type { User } from '@supabase/supabase-js';
 
-interface Tag {
-  id: string;
-  name: string;
-  slug: string;
-  isCity?: boolean;
-}
-
 function SocialVideos() {
   const location = useLocation();
   const isMobile = useIsMobileShell();
   const [videos, setVideos] = useState<SocialVideo[]>([]);
   const [filteredVideos, setFilteredVideos] = useState<SocialVideo[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [tags, setTags] = useState<SocialVideoTag[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,10 @@ function SocialVideos() {
   useEffect(() => {
     applyFilters();
   }, [videos, selectedTags]);
+
+  useEffect(() => {
+    setSelectedTags(prev => prev.filter(tagId => tags.some(tag => tag.id === tagId)));
+  }, [tags]);
 
   const loadCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -110,32 +116,13 @@ function SocialVideos() {
     try {
       setLoading(true);
 
-      const videosData = await fetchVideos(itineraryId);
+      const [videosData, tagsData] = await Promise.all([
+        fetchVideos(itineraryId),
+        fetchVideoTags(itineraryId),
+      ]);
+
       setVideos(videosData);
-
-      const { data: tagsData } = await supabase
-        .from('tags')
-        .select('*')
-        .eq('itinerary_id', itineraryId)
-        .order('name');
-
-      const { data: locationsData } = await supabase
-        .from('locations')
-        .select('city')
-        .eq('itinerary_id', itineraryId)
-        .order('order_index');
-
-      const cityTags = (locationsData || [])
-        .filter((loc, idx, self) => self.findIndex(l => l.city === loc.city) === idx)
-        .map((loc) => ({
-        id: `city-${loc.city}`,
-        name: `📍 ${loc.city}`,
-        slug: loc.city.toLowerCase().replace(/\s+/g, '-'),
-        isCity: true
-      }));
-
-      const allTags = [...(tagsData || []), ...cityTags];
-      setTags(allTags);
+      setTags(tagsData);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Error al cargar videos');
@@ -161,6 +148,35 @@ function SocialVideos() {
     } else {
       setSelectedTags([...selectedTags, tagId]);
     }
+  };
+
+  const handleTagCreated = async (name: string) => {
+    if (!itineraryId) {
+      throw new Error('No se ha encontrado el itinerario del video.');
+    }
+
+    const createdTag = await createVideoTag(itineraryId, name);
+    setTags(prev => [...prev.filter(tag => tag.id !== createdTag.id), createdTag].sort((a, b) => a.name.localeCompare(b.name, 'es')));
+    return createdTag;
+  };
+
+  const handleTagUpdated = async (tagId: string, name: string) => {
+    const updatedTag = await updateVideoTag(tagId, name);
+    setTags(prev => prev.map(tag => (tag.id === updatedTag.id ? updatedTag : tag)).sort((a, b) => a.name.localeCompare(b.name, 'es')));
+    setVideos(prev => prev.map(video => ({
+      ...video,
+      tags: video.tags?.map(tag => (tag.id === updatedTag.id ? updatedTag : tag)) ?? [],
+    })));
+  };
+
+  const handleTagDeleted = async (tagId: string) => {
+    await deleteVideoTag(tagId);
+    setTags(prev => prev.filter(tag => tag.id !== tagId));
+    setSelectedTags(prev => prev.filter(id => id !== tagId));
+    setVideos(prev => prev.map(video => ({
+      ...video,
+      tags: video.tags?.filter(tag => tag.id !== tagId) ?? [],
+    })));
   };
 
   const handleDeleteVideo = async () => {
@@ -234,9 +250,13 @@ function SocialVideos() {
         </div>
 
             <Button onClick={() => setShowUploadDialog(true)} className="shadow-lg">
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar Video
-          </Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar Video
+            </Button>
+            <Button variant="outline" onClick={() => setShowTagManager(true)}>
+              <Tag className="h-4 w-4 mr-2" />
+              Gestionar Tags
+            </Button>
         </div>
 
           {/* Desktop Filters */}
@@ -254,6 +274,13 @@ function SocialVideos() {
       {/* Mobile Floating Buttons */}
       {isMobile && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            onClick={() => setShowTagManager(true)}
+            className="h-10 w-10 rounded-full bg-card/95 backdrop-blur-sm border border-border flex items-center justify-center hover:bg-primary/10 hover:border-primary/50 dark:hover:bg-primary/20 active:scale-95 transition-all shadow-lg"
+            aria-label="Gestionar tags"
+          >
+            <Tag className="h-5 w-5 text-foreground" />
+          </button>
       {tags.length > 0 && (
             <button
               onClick={() => setShowFilters(true)}
@@ -353,9 +380,34 @@ function SocialVideos() {
         <VideoUploadDialog
           itineraryId={itineraryId}
           userId={currentUser.id}
+          availableTags={tags}
           open={showUploadDialog}
           onClose={() => setShowUploadDialog(false)}
           onSuccess={loadData}
+          onTagCreated={(tag) => {
+            setTags(prev => [...prev.filter(item => item.id !== tag.id), tag].sort((a, b) => a.name.localeCompare(b.name, 'es')));
+          }}
+        />
+      )}
+
+      {itineraryId && (
+        <VideoTagManagerDialog
+          open={showTagManager}
+          onClose={() => setShowTagManager(false)}
+          tags={tags}
+          onCreateTag={async (name) => {
+            const createdTag = await handleTagCreated(name);
+            toast.success('Tag creado');
+            return createdTag;
+          }}
+          onUpdateTag={async (tagId, name) => {
+            await handleTagUpdated(tagId, name);
+            toast.success('Tag actualizado');
+          }}
+          onDeleteTag={async (tagId) => {
+            await handleTagDeleted(tagId);
+            toast.success('Tag eliminado');
+          }}
         />
       )}
 
