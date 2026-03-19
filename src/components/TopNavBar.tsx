@@ -6,7 +6,7 @@ import { NotificationBell } from './NotificationBell';
 import { useUserInitials } from '../hooks/useUserInitials';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { checkUserRole } from '../services/itinerary';
+import { canEditItineraryRole, checkUserRole } from '../services/itinerary';
 
 function TopNavBar() {
   const initials = useUserInitials();
@@ -35,7 +35,7 @@ function TopNavBar() {
     checkRole();
   }, [searchParams]);
   
-  const canEdit = userRole !== 'viewer';
+  const canEdit = canEditItineraryRole(userRole);
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

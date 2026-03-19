@@ -9,6 +9,7 @@ import { TabPageSkeleton } from '../components/TabPageSkeleton';
 import { supabase } from '../lib/supabase';
 import { checkUserRole, fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
 import type { TravelItinerary } from '../data/itinerary';
+import type { CollaboratorRole } from '../services/sharing';
 
 function Documents() {
   const location = useLocation();
@@ -16,7 +17,8 @@ function Documents() {
   const [error, setError] = useState<string | null>(null);
   const [itinerary, setItinerary] = useState<TravelItinerary | null>(null);
   const [hasNoItineraries, setHasNoItineraries] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<CollaboratorRole | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -34,6 +36,8 @@ function Documents() {
         setIsLoading(false);
         return;
       }
+
+      setCurrentUserId(user.id);
 
       try {
         const params = new URLSearchParams(location.search);
@@ -53,7 +57,7 @@ function Documents() {
         setItinerary(loadedItinerary);
 
         const resolvedRole = await checkUserRole(user.id, loadedItinerary.id ?? '');
-        setRole(resolvedRole);
+        setRole((resolvedRole as CollaboratorRole | null) ?? 'owner');
       } catch (err) {
         const message = err instanceof Error ? err.message : 'No se pudieron cargar los documentos.';
         setError(message);
@@ -109,8 +113,6 @@ function Documents() {
     );
   }
 
-  const canEdit = role !== 'viewer';
-
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 pb-24 md:py-10">
       <MobilePageHeader title="Documentos" subtitle={itinerary.title} backTo="/app" />
@@ -132,7 +134,7 @@ function Documents() {
         </div>
       </div>
 
-      <ItineraryDocumentsSection itineraryId={itinerary.id} editable={canEdit} />
+      <ItineraryDocumentsSection itineraryId={itinerary.id} role={role} currentUserId={currentUserId} />
     </div>
   );
 }

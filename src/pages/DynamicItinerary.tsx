@@ -5,7 +5,7 @@ import { PandaLogo } from '../components/PandaLogo';
 import ItineraryView from '../components/ItineraryView';
 import { TabPageSkeleton } from '../components/TabPageSkeleton';
 import { supabase } from '../lib/supabase';
-import { fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
+import { canEditItineraryRole, checkUserRole, fetchItineraryById, fetchUserItinerary } from '../services/itinerary';
 import type { TravelItinerary } from '../data/itinerary';
 
 function DynamicItinerary() {
@@ -13,6 +13,7 @@ function DynamicItinerary() {
   const [error, setError] = useState<string | null>(null);
   const [itinerary, setItinerary] = useState<TravelItinerary | null>(null);
   const [hasNoItineraries, setHasNoItineraries] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -38,15 +39,18 @@ function DynamicItinerary() {
         if (!dataItinerary) {
           setHasNoItineraries(true);
           setItinerary(null);
+          setRole(null);
         } else {
           setItinerary(dataItinerary);
           setHasNoItineraries(false);
+          setRole(await checkUserRole(user.id, dataItinerary.id ?? ''));
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el itinerario.';
         console.error('Error cargando itinerario:', errorMessage);
         setError(errorMessage);
         setItinerary(null);
+        setRole(null);
       } finally {
         setIsLoading(false);
       }
@@ -103,7 +107,7 @@ function DynamicItinerary() {
 
   return (
     <div className="relative">
-      <ItineraryView itinerary={itinerary} editable />
+      <ItineraryView itinerary={itinerary} editable={canEditItineraryRole(role)} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { canEditItineraryRole, checkUserRole } from './itinerary';
 
 export type SplitGroup = {
   id: string;
@@ -105,6 +106,7 @@ export type SplitShare = {
 };
 
 const PAYMENT_DUPLICATE_WINDOW_MS = 15_000;
+const SPLIT_WRITE_ACCESS_ERROR = 'No tienes permisos para modificar los gastos de este viaje.';
 
 const normalizePaymentNote = (note?: string | null) => {
   const normalized = (note ?? '').trim();
@@ -158,15 +160,102 @@ const dedupeLikelyDuplicatePayments = (payments: SplitPayment[]) => {
   );
 };
 
-export async function ensureSplitGroup(itineraryId: string, currency = 'EUR') {
+async function getAuthenticatedUserId() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error(SPLIT_WRITE_ACCESS_ERROR);
+  }
+
+  return user.id;
+}
+
+async function assertCanEditSplitItinerary(itineraryId: string) {
+  const userId = await getAuthenticatedUserId();
+  const role = await checkUserRole(userId, itineraryId);
+
+  if (!canEditItineraryRole(role)) {
+    throw new Error(SPLIT_WRITE_ACCESS_ERROR);
+  }
+}
+
+async function resolveSplitItineraryIdFromGroup(groupId: string) {
+  const { data, error } = await supabase
+    .from('split_groups')
+    .select('itinerary_id')
+    .eq('id', groupId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.itinerary_id) throw new Error('Grupo de gastos no encontrado.');
+
+  return data.itinerary_id as string;
+}
+
+async function assertCanEditSplitGroup(groupId: string) {
+  const itineraryId = await resolveSplitItineraryIdFromGroup(groupId);
+  await assertCanEditSplitItinerary(itineraryId);
+}
+
+async function resolveSplitGroupIdFromExpense(expenseId: string) {
+  const { data, error } = await supabase
+    .from('split_expenses')
+    .select('group_id')
+    .eq('id', expenseId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.group_id) throw new Error('Gasto no encontrado.');
+
+  return data.group_id as string;
+}
+
+async function assertCanEditSplitExpense(expenseId: string) {
+  const groupId = await resolveSplitGroupIdFromExpense(expenseId);
+  await assertCanEditSplitGroup(groupId);
+}
+
+async function resolveSplitGroupIdFromMember(memberId: string) {
+  const { data, error } = await supabase
+    .from('split_members')
+    .select('group_id')
+    .eq('id', memberId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.group_id) throw new Error('Miembro no encontrado.');
+
+  return data.group_id as string;
+}
+
+async function assertCanEditSplitMember(memberId: string) {
+  const groupId = await resolveSplitGroupIdFromMember(memberId);
+  await assertCanEditSplitGroup(groupId);
+}
+
+export async function fetchSplitGroup(itineraryId: string) {
   const existing = await supabase
     .from('split_groups')
     .select('*')
     .eq('itinerary_id', itineraryId)
     .is('deleted_at', null)
     .maybeSingle();
+
   if (existing.error) throw existing.error;
-  if (existing.data) return existing.data as SplitGroup;
+  return existing.data ? (existing.data as SplitGroup) : null;
+}
+
+export async function ensureSplitGroup(itineraryId: string, currency = 'EUR') {
+  const existing = await fetchSplitGroup(itineraryId);
+  if (existing) return existing;
+
+  await assertCanEditSplitItinerary(itineraryId);
+
   const created = await supabase
     .from('split_groups')
     .insert({ itinerary_id: itineraryId, currency })
@@ -211,6 +300,8 @@ export async function fetchSplit(groupId: string) {
 }
 
 export async function addSplitMember(groupId: string, name: string) {
+  await assertCanEditSplitGroup(groupId);
+
   const { data, error } = await supabase
     .from('split_members')
     .insert({ group_id: groupId, name })
@@ -231,6 +322,8 @@ export async function addExpense(
   categoryId?: string,
   scheduleItemId?: string, // Enlace bidireccional
 ) {
+  await assertCanEditSplitGroup(groupId);
+
   const expenseData: {
     group_id: string;
     payer_id: string;
@@ -280,6 +373,8 @@ export async function updateExpense(
   },
   shares?: Array<{ member_id: string; amount: number }>,
 ) {
+  await assertCanEditSplitExpense(expenseId);
+
   const { data, error } = await supabase
     .from('split_expenses')
     .update(updates)
@@ -305,6 +400,8 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(expenseId: string) {
+  await assertCanEditSplitExpense(expenseId);
+
   // Primero, buscar si hay un schedule_item vinculado
   const { data: expense, error: fetchError } = await supabase
     .from('split_expenses')
@@ -341,6 +438,8 @@ export async function deleteExpense(expenseId: string) {
 }
 
 export async function updateMember(memberId: string, name: string) {
+  await assertCanEditSplitMember(memberId);
+
   const { data, error } = await supabase
     .from('split_members')
     .update({ name })
@@ -353,6 +452,8 @@ export async function updateMember(memberId: string, name: string) {
 }
 
 export async function deleteMember(memberId: string) {
+  await assertCanEditSplitMember(memberId);
+
   const { error } = await supabase
     .from('split_members')
     .delete()
@@ -437,6 +538,8 @@ export async function addPayment(
   amount: number,
   note?: string,
 ) {
+  await assertCanEditSplitGroup(groupId);
+
   const resolveMemberId = async (memberOrUserId: string) => {
     const { data: matches, error: memberError } = await supabase
       .from('split_members')
@@ -517,6 +620,8 @@ export async function fetchPayments(groupId: string) {
 }
 
 export async function addCategory(groupId: string, name: string, icon?: string, color?: string) {
+  await assertCanEditSplitGroup(groupId);
+
   const { data, error } = await supabase
     .from('split_expense_categories')
     .insert({ group_id: groupId, name, icon, color })
@@ -538,6 +643,8 @@ export async function fetchCategories(groupId: string) {
 }
 
 export async function addComment(expenseId: string, memberId: string, comment: string) {
+  await assertCanEditSplitExpense(expenseId);
+
   const { data, error } = await supabase
     .from('split_expense_comments')
     .insert({ expense_id: expenseId, member_id: memberId, comment })
@@ -559,6 +666,8 @@ export async function fetchComments(expenseId: string) {
 }
 
 export async function addTag(groupId: string, name: string, color?: string) {
+  await assertCanEditSplitGroup(groupId);
+
   const { data, error } = await supabase
     .from('split_tags')
     .insert({ group_id: groupId, name, color })
@@ -581,6 +690,8 @@ export async function fetchTags(groupId: string) {
 
 export async function addExpenseTags(expenseId: string, tagIds: string[]) {
   if (tagIds.length === 0) return;
+  await assertCanEditSplitExpense(expenseId);
+
   const { error } = await supabase
     .from('split_expense_tags')
     .insert(tagIds.map(tagId => ({ expense_id: expenseId, tag_id: tagId })));
@@ -599,6 +710,8 @@ export async function fetchExpenseTags(expenseId: string) {
 
 export async function removeExpenseTags(expenseId: string, tagIds: string[]) {
   if (tagIds.length === 0) return;
+  await assertCanEditSplitExpense(expenseId);
+
   const { error } = await supabase
     .from('split_expense_tags')
     .delete()

@@ -23,6 +23,7 @@ type ExpenseDetailProps = {
   onClose: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  canManage?: boolean;
 };
 
 type ExpenseComment = {
@@ -42,6 +43,7 @@ export function ExpenseDetail({
   onClose,
   onEdit,
   onDelete,
+  canManage,
 }: ExpenseDetailProps) {
   const [comments, setComments] = useState<ExpenseComment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -91,7 +93,8 @@ export function ExpenseDetail({
   const payer = members.find(m => m.id === expense.payer_id);
   const category = categories.find(c => c.id === expense.category_id);
   const expenseTags = tags.filter(t => expenseTagIds.includes(t.id));
-  const canManageDocuments = Boolean(onEdit || onDelete);
+  const canMutateExpense = canManage ?? Boolean(onEdit || onDelete);
+  const canManageDocuments = canMutateExpense;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -181,7 +184,7 @@ export function ExpenseDetail({
                 );
               })}
             </div>
-            {currentMemberId && (
+            {canMutateExpense && currentMemberId && (
               <div className="mt-2 flex gap-2">
                 <input
                   value={newComment}
@@ -203,12 +206,12 @@ export function ExpenseDetail({
           </div>
 
           <div className="flex gap-2">
-            {onEdit && (
+            {canMutateExpense && onEdit && (
               <Button variant="outline" onClick={onEdit} className="flex-1">
                 Editar
               </Button>
             )}
-            {onDelete && (
+            {canMutateExpense && onDelete && (
               <Button variant="destructive" onClick={onDelete} className="flex-1">
                 Eliminar
               </Button>

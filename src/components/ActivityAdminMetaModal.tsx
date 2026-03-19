@@ -2,11 +2,20 @@ import { useMemo, useState } from 'react';
 import { FileText, Plus, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
+import DocumentDetailFields from './DocumentDetailFields';
 import type { ScheduleItem } from '../data/itinerary';
 import type {
   CreateItineraryDocumentInput,
   ItineraryDocument,
+  ItineraryDocumentDetailsByType,
   ItineraryDocumentType,
+  ItineraryDocumentVisibility,
+} from '../services/documents';
+import {
+  createEmptyDocumentDetailsByType,
+  DOCUMENT_TYPE_OPTIONS,
+  getDocumentDetailSummary,
+  getDocumentTypeLabel,
 } from '../services/documents';
 import { POPULAR_CURRENCIES } from '../services/currency';
 import { useToast } from '../hooks/useToast';
@@ -18,23 +27,32 @@ import {
 
 type NewDocumentFormState = {
   type: ItineraryDocumentType;
+  visibility: ItineraryDocumentVisibility;
   title: string;
   subtitle: string;
   reference: string;
   expiryDate: string;
   url: string;
+  detailsByType: ItineraryDocumentDetailsByType;
 };
 
-const EMPTY_DOCUMENT_FORM: NewDocumentFormState = {
+const createEmptyDocumentForm = (): NewDocumentFormState => ({
   type: 'other',
+  visibility: 'public',
   title: '',
   subtitle: '',
   reference: '',
   expiryDate: '',
   url: '',
-};
+  detailsByType: createEmptyDocumentDetailsByType(),
+});
 
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+
+const VISIBILITY_OPTIONS: Array<{ value: ItineraryDocumentVisibility; label: string }> = [
+  { value: 'public', label: 'Publico del viaje' },
+  { value: 'private', label: 'Privado / personal' },
+];
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -81,7 +99,7 @@ export function ActivityAdminMetaModal({
 }: ActivityAdminMetaModalProps) {
   const [formData, setFormData] = useState<ScheduleItem>(item);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(documents.length === 0);
-  const [newDocumentForm, setNewDocumentForm] = useState<NewDocumentFormState>(EMPTY_DOCUMENT_FORM);
+  const [newDocumentForm, setNewDocumentForm] = useState<NewDocumentFormState>(() => createEmptyDocumentForm());
   const [selectedFileName, setSelectedFileName] = useState('');
   const [isEncodingFile, setIsEncodingFile] = useState(false);
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
@@ -91,6 +109,14 @@ export function ActivityAdminMetaModal({
   const selectedDocument = useMemo(
     () => documents.find(document => document.id === formData.documentId) ?? null,
     [documents, formData.documentId],
+  );
+
+  const selectedDocumentSummary = useMemo(
+    () =>
+      selectedDocument
+        ? getDocumentDetailSummary(selectedDocument.type, selectedDocument.details).slice(0, 3)
+        : [],
+    [selectedDocument],
   );
 
   const splitHint =
@@ -116,7 +142,7 @@ export function ActivityAdminMetaModal({
 
     if (!file) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      showError(`Archivo demasiado grande. Máximo ${formatBytes(MAX_FILE_SIZE_BYTES)}.`);
+      showError(`Archivo demasiado grande. Maximo ${formatBytes(MAX_FILE_SIZE_BYTES)}.`);
       return;
     }
 
@@ -153,6 +179,19 @@ export function ActivityAdminMetaModal({
     }
   };
 
+  const updateQuickCreateDetails = (type: ItineraryDocumentType, patch: Record<string, string>) => {
+    setNewDocumentForm(prev => ({
+      ...prev,
+      detailsByType: {
+        ...prev.detailsByType,
+        [type]: {
+          ...prev.detailsByType[type],
+          ...patch,
+        },
+      },
+    }));
+  };
+
   const handleCreateAndAttachDocument = async () => {
     if (!itineraryId || !onCreateDocument) {
       showError('Guarda el itinerario antes de crear documentos desde la actividad');
@@ -163,12 +202,12 @@ export function ActivityAdminMetaModal({
     const url = newDocumentForm.url.trim();
 
     if (!title) {
-      showError('El nuevo documento necesita un título');
+      showError('El nuevo documento necesita un titulo');
       return;
     }
 
     if (!url) {
-      showError('Añade un archivo o una URL para crear el documento');
+      showError('Anade un archivo o una URL para crear el documento');
       return;
     }
 
@@ -187,13 +226,15 @@ export function ActivityAdminMetaModal({
         reference: newDocumentForm.reference,
         expiryDate: newDocumentForm.expiryDate,
         url,
+        visibility: newDocumentForm.visibility,
+        details: newDocumentForm.detailsByType[newDocumentForm.type],
       });
 
       setFormData(prev => ({
         ...prev,
         documentId: createdDocument.id,
       }));
-      setNewDocumentForm(EMPTY_DOCUMENT_FORM);
+      setNewDocumentForm(createEmptyDocumentForm());
       setSelectedFileName('');
       setIsQuickCreateOpen(false);
       success('Documento creado y asociado a la actividad');
@@ -208,13 +249,13 @@ export function ActivityAdminMetaModal({
   return (
     <Dialog
       open={isOpen}
-      onOpenChange={(open) => {
+      onOpenChange={open => {
         if (!open && !isSavingActivityMeta && !isCreatingDocument && !isEncodingFile) {
           onClose();
         }
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Gasto y documento</DialogTitle>
         </DialogHeader>
@@ -224,7 +265,7 @@ export function ActivityAdminMetaModal({
             <div>
               <h3 className="text-sm font-semibold text-foreground">Gasto asociado</h3>
               <p className="text-xs text-muted-foreground">
-                Define coste, moneda y quién pagó para que Split siga sincronizado.
+                Define coste, moneda y quien pago para que Split siga sincronizado.
               </p>
             </div>
 
@@ -237,7 +278,7 @@ export function ActivityAdminMetaModal({
                   min="0"
                   step="0.01"
                   value={formData.cost ?? ''}
-                  onChange={(event) => {
+                  onChange={event => {
                     const value = event.target.value;
                     setFormData(prev => ({
                       ...prev,
@@ -254,7 +295,7 @@ export function ActivityAdminMetaModal({
                 <select
                   id="activity-meta-currency"
                   value={formData.costCurrency ?? 'EUR'}
-                  onChange={(event) => setFormData(prev => ({ ...prev, costCurrency: event.target.value }))}
+                  onChange={event => setFormData(prev => ({ ...prev, costCurrency: event.target.value }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   disabled={!formData.cost}
                 >
@@ -267,14 +308,16 @@ export function ActivityAdminMetaModal({
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="activity-meta-payer" className="text-sm font-medium">Quién pagó</label>
+                <label htmlFor="activity-meta-payer" className="text-sm font-medium">Quien pago</label>
                 <select
                   id="activity-meta-payer"
                   value={formData.costPayerId ?? ''}
-                  onChange={(event) => setFormData(prev => ({
-                    ...prev,
-                    costPayerId: event.target.value || undefined,
-                  }))}
+                  onChange={event =>
+                    setFormData(prev => ({
+                      ...prev,
+                      costPayerId: event.target.value || undefined,
+                    }))
+                  }
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   disabled={!formData.cost}
                 >
@@ -288,15 +331,11 @@ export function ActivityAdminMetaModal({
               </div>
             </div>
 
-            {splitHint && (
-              <p className="text-xs text-muted-foreground">
-                Reparto orientativo: {splitHint}
-              </p>
-            )}
+            {splitHint && <p className="text-xs text-muted-foreground">Reparto orientativo: {splitHint}</p>}
 
             {splitMembers.length === 0 && formData.cost && (
               <p className="text-xs text-amber-700">
-                Añade miembros en Split para poder asociar correctamente el gasto.
+                Anade miembros en Split para poder asociar correctamente el gasto.
               </p>
             )}
           </section>
@@ -318,7 +357,7 @@ export function ActivityAdminMetaModal({
                     onClick={() => setIsQuickCreateOpen(current => !current)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    {isQuickCreateOpen ? 'Ocultar alta rápida' : 'Añadir documento nuevo'}
+                    {isQuickCreateOpen ? 'Ocultar alta rapida' : 'Anadir documento nuevo'}
                   </Button>
                 )}
                 {onManageDocuments && (
@@ -334,10 +373,12 @@ export function ActivityAdminMetaModal({
               <select
                 id="activity-meta-document"
                 value={formData.documentId ?? ''}
-                onChange={(event) => setFormData(prev => ({
-                  ...prev,
-                  documentId: event.target.value || undefined,
-                }))}
+                onChange={event =>
+                  setFormData(prev => ({
+                    ...prev,
+                    documentId: event.target.value || undefined,
+                  }))
+                }
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 disabled={documents.length === 0}
               >
@@ -358,44 +399,74 @@ export function ActivityAdminMetaModal({
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-[0.12em]">
-                    {selectedDocument.type}
+                    {getDocumentTypeLabel(selectedDocument.type)}
                   </span>
                   {selectedDocument.reference && <span>Ref. {selectedDocument.reference}</span>}
                   {selectedDocument.expiry_date && <span>Caduca {selectedDocument.expiry_date}</span>}
                 </div>
+                {selectedDocumentSummary.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {selectedDocumentSummary.map(item => (
+                      <span key={`${selectedDocument.id}-${item}`} className="rounded-full bg-slate-100 px-2 py-1">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : documents.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Todavía no hay documentos guardados en este itinerario.
-              </p>
+              <p className="text-xs text-muted-foreground">Todavia no hay documentos guardados en este itinerario.</p>
             ) : null}
 
             {isQuickCreateOpen && onCreateDocument && (
-              <div className="space-y-3 rounded-xl border border-dashed border-slate-300 bg-white/90 p-4">
+              <div className="space-y-4 rounded-xl border border-dashed border-slate-300 bg-white/90 p-4">
                 <div>
-                  <h4 className="text-sm font-semibold text-foreground">Alta rápida de documento</h4>
+                  <h4 className="text-sm font-semibold text-foreground">Alta rapida de documento</h4>
                   <p className="text-xs text-muted-foreground">
-                    Al crearlo quedará seleccionado automáticamente en esta actividad.
+                    Al crearlo quedara seleccionado automaticamente en esta actividad.
                   </p>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
+                    <label htmlFor="activity-new-document-visibility" className="text-sm font-medium">Visibilidad</label>
+                    <select
+                      id="activity-new-document-visibility"
+                      value={newDocumentForm.visibility}
+                      onChange={event =>
+                        setNewDocumentForm(prev => ({
+                          ...prev,
+                          visibility: event.target.value as ItineraryDocumentVisibility,
+                        }))
+                      }
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    >
+                      {VISIBILITY_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
                     <label htmlFor="activity-new-document-type" className="text-sm font-medium">Tipo</label>
                     <select
                       id="activity-new-document-type"
                       value={newDocumentForm.type}
-                      onChange={(event) => setNewDocumentForm(prev => ({
-                        ...prev,
-                        type: event.target.value as ItineraryDocumentType,
-                      }))}
+                      onChange={event =>
+                        setNewDocumentForm(prev => ({
+                          ...prev,
+                          type: event.target.value as ItineraryDocumentType,
+                        }))
+                      }
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     >
-                      <option value="passport">Pasaporte</option>
-                      <option value="flight">Vuelo</option>
-                      <option value="hotel">Hotel</option>
-                      <option value="insurance">Seguro</option>
-                      <option value="other">Otro</option>
+                      {DOCUMENT_TYPE_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -405,28 +476,28 @@ export function ActivityAdminMetaModal({
                       id="activity-new-document-expiry"
                       type="date"
                       value={newDocumentForm.expiryDate}
-                      onChange={(event) => setNewDocumentForm(prev => ({ ...prev, expiryDate: event.target.value }))}
+                      onChange={event => setNewDocumentForm(prev => ({ ...prev, expiryDate: event.target.value }))}
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <label htmlFor="activity-new-document-title" className="text-sm font-medium">Título</label>
+                    <label htmlFor="activity-new-document-title" className="text-sm font-medium">Titulo</label>
                     <input
                       id="activity-new-document-title"
                       value={newDocumentForm.title}
-                      onChange={(event) => setNewDocumentForm(prev => ({ ...prev, title: event.target.value }))}
+                      onChange={event => setNewDocumentForm(prev => ({ ...prev, title: event.target.value }))}
                       placeholder="Ej: Reserva hotel Tokio"
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="activity-new-document-subtitle" className="text-sm font-medium">Subtítulo</label>
+                    <label htmlFor="activity-new-document-subtitle" className="text-sm font-medium">Subtitulo</label>
                     <input
                       id="activity-new-document-subtitle"
                       value={newDocumentForm.subtitle}
-                      onChange={(event) => setNewDocumentForm(prev => ({ ...prev, subtitle: event.target.value }))}
+                      onChange={event => setNewDocumentForm(prev => ({ ...prev, subtitle: event.target.value }))}
                       placeholder="Opcional"
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
@@ -437,9 +508,25 @@ export function ActivityAdminMetaModal({
                     <input
                       id="activity-new-document-reference"
                       value={newDocumentForm.reference}
-                      onChange={(event) => setNewDocumentForm(prev => ({ ...prev, reference: event.target.value }))}
+                      onChange={event => setNewDocumentForm(prev => ({ ...prev, reference: event.target.value }))}
                       placeholder="Localizador / ref"
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-3 md:col-span-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Datos del documento</p>
+                      <p className="text-xs text-muted-foreground">
+                        Campos especificos para {getDocumentTypeLabel(newDocumentForm.type).toLowerCase()}.
+                      </p>
+                    </div>
+                    <DocumentDetailFields
+                      type={newDocumentForm.type}
+                      detailsByType={newDocumentForm.detailsByType}
+                      onChange={updateQuickCreateDetails}
+                      idPrefix="activity-doc-details"
+                      disabled={isCreatingDocument || isEncodingFile}
                     />
                   </div>
 
@@ -448,7 +535,7 @@ export function ActivityAdminMetaModal({
                     <input
                       id="activity-new-document-url"
                       value={newDocumentForm.url}
-                      onChange={(event) => setNewDocumentForm(prev => ({ ...prev, url: event.target.value }))}
+                      onChange={event => setNewDocumentForm(prev => ({ ...prev, url: event.target.value }))}
                       placeholder="https://... o sube un archivo debajo"
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
@@ -467,14 +554,16 @@ export function ActivityAdminMetaModal({
                   <label
                     htmlFor="activity-new-document-file"
                     className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm transition ${
-                      isCreatingDocument || isEncodingFile ? 'cursor-not-allowed opacity-60' : 'hover:border-primary/50 hover:bg-primary/5'
+                      isCreatingDocument || isEncodingFile
+                        ? 'cursor-not-allowed opacity-60'
+                        : 'hover:border-primary/50 hover:bg-primary/5'
                     }`}
                   >
                     <Upload className="h-4 w-4 text-primary" />
                     {selectedFileName || newDocumentForm.url ? 'Cambiar archivo' : 'Subir archivo'}
                   </label>
                   <p className="text-xs text-muted-foreground">
-                    Formatos permitidos: PDF, JPG, PNG, WEBP. Máximo {formatBytes(MAX_FILE_SIZE_BYTES)}.
+                    Formatos permitidos: PDF, JPG, PNG, WEBP. Maximo {formatBytes(MAX_FILE_SIZE_BYTES)}.
                   </p>
                   {selectedFileName && (
                     <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">

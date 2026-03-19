@@ -4,7 +4,7 @@ import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
-import { checkUserRole } from '../services/itinerary';
+import { canEditItineraryRole, checkUserRole } from '../services/itinerary';
 import { useUserInitials } from '../hooks/useUserInitials';
 import { openCookiePreferences } from '../hooks/useCookieConsent';
 
@@ -70,7 +70,7 @@ function MobileHeader({ title }: MobileHeaderProps) {
     checkRole();
   }, [searchParams]);
   
-  const canEdit = userRole !== 'viewer';
+  const canEdit = canEditItineraryRole(userRole);
 
   const menuItems = [
     { path: '/app', label: 'Inicio', icon: Home },

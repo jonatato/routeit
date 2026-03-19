@@ -12,6 +12,16 @@ export type ItineraryChangeEvent = {
   data: RealtimePayload;
 };
 
+export type DocumentSubmissionChangeEvent = {
+  type: 'document_submission_added' | 'document_submission_updated' | 'document_submission_deleted';
+  itinerary_id: string;
+  submission_id: string;
+  submitted_by: string;
+  status: string | null;
+  previous_status: string | null;
+  data: RealtimePayload;
+};
+
 export function subscribeToItineraryChanges(
   itineraryId: string,
   onChange: RealtimeCallback<ItineraryChangeEvent>,
@@ -197,6 +207,44 @@ export function subscribeToSplitwiseChanges(
     .subscribe();
 
   return channel;
+}
+
+export function subscribeToDocumentSubmissionChanges(
+  itineraryId: string,
+  onChange: RealtimeCallback<DocumentSubmissionChangeEvent>,
+): RealtimeChannel {
+  return supabase
+    .channel(`document_submissions:${itineraryId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'itinerary_document_submissions',
+        filter: `itinerary_id=eq.${itineraryId}`,
+      },
+      payload => {
+        const newData = payload.new as RealtimePayload | null;
+        const oldData = payload.old as RealtimePayload | null;
+        const eventType =
+          payload.eventType === 'INSERT'
+            ? 'document_submission_added'
+            : payload.eventType === 'UPDATE'
+              ? 'document_submission_updated'
+              : 'document_submission_deleted';
+
+        onChange({
+          type: eventType,
+          itinerary_id: itineraryId,
+          submission_id: (newData?.id || oldData?.id || '') as string,
+          submitted_by: (newData?.submitted_by || oldData?.submitted_by || '') as string,
+          status: (newData?.status || oldData?.status || null) as string | null,
+          previous_status: (oldData?.status || null) as string | null,
+          data: (newData || oldData || {}) as RealtimePayload,
+        });
+      },
+    )
+    .subscribe();
 }
 
 export function unsubscribe(channel: RealtimeChannel) {

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useNavigate } from 'react-router-dom';
-import { ensureSplitGroup, fetchSplit, computeBalances, fetchPayments } from '../../services/split';
+import { supabase } from '../../lib/supabase';
+import { canEditItineraryRole, checkUserRole } from '../../services/itinerary';
+import { ensureSplitGroup, fetchSplit, computeBalances, fetchSplitGroup } from '../../services/split';
 
 interface ExpenseSummaryWidgetProps {
   itineraryId: string;
@@ -24,45 +26,68 @@ export function ExpenseSummaryWidget({ itineraryId, currentUserId }: ExpenseSumm
   const loadExpenseSummary = async () => {
     try {
       setLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setTotalSpent(0);
+        setMyBalance(0);
+        setYouOwe(0);
+        setTheyOweYou(0);
+        return;
+      }
+
+      const role = await checkUserRole(user.id, itineraryId);
+      const group = canEditItineraryRole(role)
+        ? await ensureSplitGroup(itineraryId)
+        : await fetchSplitGroup(itineraryId);
       
-      // Ensure split group exists (creates if doesn't exist)
-      const group = await ensureSplitGroup(itineraryId);
+      if (!group) {
+        setTotalSpent(0);
+        setMyBalance(0);
+        setYouOwe(0);
+        setTheyOweYou(0);
+        return;
+      }
       
       // Fetch all split data
       const splitData = await fetchSplit(group.id);
-      const payments = await fetchPayments(group.id);
-      
+
       // Calculate balances
       const balances = computeBalances(
         splitData.members,
         splitData.expenses,
         splitData.shares,
-        payments
+        splitData.payments,
       );
-      
+
+      const currentMemberId =
+        splitData.members.find(member => member.user_id === user.id)?.id ?? currentUserId;
+
       // Find current user's balance
-      const myBalanceData = balances.find(b => b.member.id === currentUserId);
-      
+      const myBalanceData = balances.find(b => b.member.id === currentMemberId);
+
       if (myBalanceData) {
         setMyBalance(myBalanceData.balance);
+      } else {
+        setMyBalance(0);
       }
 
       // Calculate totals
       const owe = balances
-        .filter(b => b.member.id === currentUserId && b.balance < 0)
+        .filter(b => b.member.id === currentMemberId && b.balance < 0)
         .reduce((sum, b) => sum + Math.abs(b.balance), 0);
-      
+
       const owed = balances
-        .filter(b => b.member.id !== currentUserId && b.balance < 0)
+        .filter(b => b.member.id !== currentMemberId && b.balance < 0)
         .reduce((sum, b) => sum + Math.abs(b.balance), 0);
 
       setYouOwe(owe);
       setTheyOweYou(owed);
 
-      // Calculate total spent from expenses
       const total = splitData.expenses.reduce((sum, exp) => sum + exp.amount, 0);
       setTotalSpent(total);
-
     } catch (error) {
       console.error('Error loading expense summary:', error);
     } finally {

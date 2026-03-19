@@ -17,11 +17,13 @@ import { listUserItineraries } from '../services/sharing';
 import { useNotifications } from '../context/NotificationContext';
 import { useToast } from '../hooks/useToast';
 import { TabPageSkeleton } from '../components/TabPageSkeleton';
+import { canEditItineraryRole } from '../services/itinerary';
 import {
   addExpense,
   addSplitMember,
   computeBalances,
   ensureSplitGroup,
+  fetchSplitGroup,
   fetchSplit,
   updateExpense,
   deleteExpense,
@@ -52,7 +54,7 @@ import { PaymentReminderNotification } from '../components/split/PaymentReminder
 
 function Split() {
   const [isLoading, setIsLoading] = useState(true);
-  const [itineraries, setItineraries] = useState<Array<{ id: string; title: string }>>([]);
+  const [itineraries, setItineraries] = useState<Array<{ id: string; title: string; role: string }>>([]);
   const [activeItineraryId, setActiveItineraryId] = useState<string | null>(null);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [members, setMembers] = useState<SplitMember[]>([]);
@@ -75,6 +77,21 @@ function Split() {
   const location = useLocation();
   const { subscribeToSplitwise } = useNotifications();
   const { toast } = useToast();
+  const activeItinerary = useMemo(
+    () => itineraries.find(itinerary => itinerary.id === activeItineraryId) ?? null,
+    [activeItineraryId, itineraries],
+  );
+  const canManageSplit = canEditItineraryRole(activeItinerary?.role ?? null);
+
+  const showReadOnlySplitError = useCallback(() => {
+    toast.error('Solo owner y editor pueden modificar los gastos de este viaje.');
+  }, [toast]);
+
+  const ensureCanManageSplit = useCallback(() => {
+    if (canManageSplit) return true;
+    showReadOnlySplitError();
+    return false;
+  }, [canManageSplit, showReadOnlySplitError]);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -96,7 +113,7 @@ function Split() {
     ].filter(Boolean);
     setAuthUserHints(Array.from(new Set(hints.map(value => value.toLowerCase().trim()))));
     const dataItineraries = await listUserItineraries(data.user.id);
-    const simplified = dataItineraries.map(item => ({ id: item.id, title: item.title }));
+    const simplified = dataItineraries.map(item => ({ id: item.id, title: item.title, role: item.role }));
     setItineraries(simplified);
     const params = new URLSearchParams(location.search);
     const itineraryId = params.get('itineraryId') ?? simplified[0]?.id ?? null;
@@ -111,10 +128,33 @@ function Split() {
   useEffect(() => {
     const loadSplit = async () => {
       if (!activeItineraryId) {
+        setGroupId(null);
         setSplitGroup(null);
+        setMembers([]);
+        setExpenses([]);
+        setShares([]);
+        setPayments([]);
+        setCategories([]);
+        setTags([]);
         return;
       }
-      const group = await ensureSplitGroup(activeItineraryId);
+
+      const group = canManageSplit
+        ? await ensureSplitGroup(activeItineraryId)
+        : await fetchSplitGroup(activeItineraryId);
+
+      if (!group) {
+        setGroupId(null);
+        setSplitGroup(null);
+        setMembers([]);
+        setExpenses([]);
+        setShares([]);
+        setPayments([]);
+        setCategories([]);
+        setTags([]);
+        return;
+      }
+
       setGroupId(group.id);
       setSplitGroup(group);
       const data = await fetchSplit(group.id);
@@ -126,7 +166,7 @@ function Split() {
       setTags(data.tags);
     };
     void loadSplit();
-  }, [activeItineraryId]);
+  }, [activeItineraryId, canManageSplit]);
 
   // Subscribe to Splitwise changes
   useEffect(() => {
@@ -199,6 +239,8 @@ function Split() {
     categoryId?: string;
     tagIds: string[];
   }) => {
+    if (!ensureCanManageSplit()) return;
+
     if (!groupId) {
       toast.error('No hay grupo seleccionado');
       return;
@@ -258,6 +300,8 @@ function Split() {
   };
 
   const handleSavePayment = async (data: { payerId: string; payeeId: string; amount: number; note?: string }) => {
+    if (!ensureCanManageSplit()) return;
+
     if (!groupId) {
       toast.error('No hay grupo seleccionado');
       return;
@@ -273,10 +317,12 @@ function Split() {
   };
 
   const handleDeleteExpense = (expenseId: string) => {
+    if (!ensureCanManageSplit()) return;
     setConfirmDeleteExpense(expenseId);
   };
 
   const confirmDeleteExpenseAction = async () => {
+    if (!ensureCanManageSplit()) return;
     if (!confirmDeleteExpense) return;
     try {
       await deleteExpense(confirmDeleteExpense);
@@ -291,6 +337,7 @@ function Split() {
   };
 
   const handleEditExpense = (expense: SplitExpense) => {
+    if (!ensureCanManageSplit()) return;
     setEditingExpense(expense);
     setViewingExpense(null);
     setShowExpenseForm(true);
@@ -299,10 +346,12 @@ function Split() {
   const [confirmDeleteMember, setConfirmDeleteMember] = useState<string | null>(null);
 
   const handleDeleteMember = (memberId: string) => {
+    if (!ensureCanManageSplit()) return;
     setConfirmDeleteMember(memberId);
   };
 
   const confirmDeleteMemberAction = async () => {
+    if (!ensureCanManageSplit()) return;
     if (!confirmDeleteMember) return;
     try {
       await deleteMember(confirmDeleteMember);
@@ -316,6 +365,7 @@ function Split() {
   };
 
   const handleUpdateMember = async (memberId: string, name: string) => {
+    if (!ensureCanManageSplit()) return;
     try {
       await updateMember(memberId, name);
       await reloadData();
@@ -326,6 +376,7 @@ function Split() {
   };
 
   const handleAddCategory = async (name: string) => {
+    if (!ensureCanManageSplit()) return;
     if (!groupId || !name.trim()) {
       toast.error('El nombre de la categoría no puede estar vacío');
       return;
@@ -340,6 +391,7 @@ function Split() {
   };
 
   const handleAddTag = async (name: string) => {
+    if (!ensureCanManageSplit()) return;
     if (!groupId || !name.trim()) {
       toast.error('El nombre del tag no puede estar vacío');
       return;
@@ -482,8 +534,16 @@ function Split() {
         </Card>
       )}
 
+      {!canManageSplit && activeItinerary && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/30 dark:bg-amber-950/20">
+          <CardContent className="pt-6 text-sm text-amber-900 dark:text-amber-100">
+            Estás en modo solo lectura. Como viewer puedes consultar gastos y balances, pero no crear, editar ni eliminar datos.
+          </CardContent>
+        </Card>
+      )}
+
       {/* Settle Debts Button */}
-      {effectiveCurrentUserId && (
+      {canManageSplit && effectiveCurrentUserId && (
         <SettleDebtsDialog
           currentUserId={effectiveCurrentUserId}
           balances={balances}
@@ -527,17 +587,18 @@ function Split() {
                     <BalanceCard
                       key={member.id}
                       balance={memberBalance || { member, balance: 0 }}
-                      onEdit={() => {
+                      onEdit={canManageSplit ? () => {
                         const newName = prompt('Nuevo nombre:', member.name);
                         if (newName && newName.trim() && newName !== member.name) {
                           void handleUpdateMember(member.id, newName.trim());
                         }
-                      }}
-                      onDelete={() => void handleDeleteMember(member.id)}
+                      } : undefined}
+                      onDelete={canManageSplit ? () => void handleDeleteMember(member.id) : undefined}
                     />
                   );
                 })}
-                <div className="flex flex-col gap-2 sm:flex-row pt-4">
+                {canManageSplit && (
+                <div className="flex flex-col gap-2 pt-4 sm:flex-row">
                   <input
                     value={newMember}
                     onChange={event => setNewMember(event.target.value)}
@@ -579,6 +640,7 @@ function Split() {
                     Añadir
                   </Button>
                 </div>
+                )}
               </CardContent>
             </Card>
 
@@ -641,6 +703,7 @@ function Split() {
                     </div>
                   ))}
                 </div>
+                {canManageSplit && (
                 <div className="flex gap-2 pt-2">
                   <input
                     type="text"
@@ -666,6 +729,7 @@ function Split() {
                     Añadir
                   </Button>
                 </div>
+                )}
               </CardContent>
             </Card>
 
@@ -681,6 +745,7 @@ function Split() {
                     </span>
                   ))}
                 </div>
+                {canManageSplit && (
                 <div className="flex gap-2 pt-2">
                   <input
                     type="text"
@@ -706,13 +771,14 @@ function Split() {
                     Añadir
                   </Button>
                 </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-6">
-          {showExpenseForm ? (
+          {showExpenseForm && canManageSplit ? (
             <ExpenseForm
               members={members}
               categories={categories}
@@ -746,10 +812,12 @@ function Split() {
                     {expenses.length} {expenses.length === 1 ? 'gasto registrado' : 'gastos registrados'}
                   </p>
                 </div>
-                <Button onClick={() => setShowExpenseForm(true)} size="lg">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo Gasto
-                </Button>
+                {canManageSplit && (
+                  <Button onClick={() => setShowExpenseForm(true)} size="lg">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuevo Gasto
+                  </Button>
+                )}
               </div>
               
               <div className="space-y-3">
@@ -760,12 +828,16 @@ function Split() {
                         <div className="text-6xl mb-4">📝</div>
                         <h3 className="text-lg font-semibold mb-2">No hay gastos registrados</h3>
                         <p className="text-sm text-muted-foreground mb-6">
-                          Comienza añadiendo tu primer gasto compartido
+                          {canManageSplit
+                            ? 'Comienza añadiendo tu primer gasto compartido'
+                            : 'Todavía no hay gastos registrados en este viaje.'}
                         </p>
-                        <Button onClick={() => setShowExpenseForm(true)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Añadir Primer Gasto
-                        </Button>
+                        {canManageSplit && (
+                          <Button onClick={() => setShowExpenseForm(true)}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Añadir Primer Gasto
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -784,11 +856,11 @@ function Split() {
                         categoryIcon={category?.name === 'Comida' ? '🍜' : category?.name === 'Transporte' ? '🚕' : category?.name === 'Alojamiento' ? '🏨' : category?.name === 'Actividades' ? '🎫' : '📦'}
                         categoryColor={category?.name === 'Comida' ? '#f59e0b' : category?.name === 'Transporte' ? '#3b82f6' : category?.name === 'Alojamiento' ? '#ec4899' : category?.name === 'Actividades' ? '#8b5cf6' : '#6b7280'}
                         onClick={() => setViewingExpense(expense)}
-                        onEdit={() => {
+                        onEdit={canManageSplit ? () => {
                           setEditingExpense(expense);
                           setShowExpenseForm(true);
-                        }}
-                        onDelete={() => setConfirmDeleteExpense(expense.id)}
+                        } : undefined}
+                        onDelete={canManageSplit ? () => setConfirmDeleteExpense(expense.id) : undefined}
                       />
                     );
                   })
@@ -799,7 +871,7 @@ function Split() {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
-          {showPaymentForm ? (
+          {showPaymentForm && canManageSplit ? (
             <PaymentForm
               members={members}
               onSave={handleSavePayment}
@@ -807,9 +879,11 @@ function Split() {
             />
           ) : (
             <>
-              <div className="flex justify-end">
-                <Button onClick={() => setShowPaymentForm(true)}>Registrar pago</Button>
-              </div>
+              {canManageSplit && (
+                <div className="flex justify-end">
+                  <Button onClick={() => setShowPaymentForm(true)}>Registrar pago</Button>
+                </div>
+              )}
               <Card>
                 <CardHeader>
                   <CardTitle>Pagos</CardTitle>
@@ -879,8 +953,9 @@ function Split() {
           tags={tags}
           shares={getExpenseShares(viewingExpense.id)}
           onClose={() => setViewingExpense(null)}
-          onEdit={() => handleEditExpense(viewingExpense)}
-          onDelete={() => handleDeleteExpense(viewingExpense.id)}
+          onEdit={canManageSplit ? () => handleEditExpense(viewingExpense) : undefined}
+          onDelete={canManageSplit ? () => handleDeleteExpense(viewingExpense.id) : undefined}
+          canManage={canManageSplit}
         />
       )}
 
@@ -907,7 +982,7 @@ function Split() {
       />
       
       {/* FAB for mobile - Add expense quickly */}
-      {activeTab === 'expenses' && !showExpenseForm && (
+      {canManageSplit && activeTab === 'expenses' && !showExpenseForm && (
         <FloatingActionButton
           onClick={() => setShowExpenseForm(true)}
           label="Añadir gasto"

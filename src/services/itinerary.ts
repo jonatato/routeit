@@ -275,6 +275,12 @@ async function getUserRole(userId: string, itineraryId: string): Promise<string 
   return collaborator?.role ?? null;
 }
 
+export type ItineraryUserRole = 'owner' | 'editor' | 'viewer';
+
+export function canEditItineraryRole(role: string | null | undefined): role is 'owner' | 'editor' {
+  return role === 'owner' || role === 'editor';
+}
+
 export async function checkUserRole(userId: string, itineraryId: string): Promise<string | null> {
   return getUserRole(userId, itineraryId);
 }

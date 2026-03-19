@@ -5,7 +5,7 @@ import { PandaLogo } from './PandaLogo';
 import { NotificationBell } from './NotificationBell';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { checkUserRole } from '../services/itinerary';
+import { canEditItineraryRole, checkUserRole } from '../services/itinerary';
 import { useUserInitials } from '../hooks/useUserInitials';
 
 function WebSideMenu() {
@@ -36,7 +36,7 @@ function WebSideMenu() {
     checkRole();
   }, [searchParams]);
   
-  const canEdit = userRole !== 'viewer';
+  const canEdit = canEditItineraryRole(userRole);
   
   const baseMenuItems = [
     { path: '/app', label: 'Inicio', icon: Home },

@@ -1,16 +1,22 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { subscribeToUserItineraries, subscribeToSplitwiseChanges, type ItineraryChangeEvent } from '../services/realtime';
+import {
+  subscribeToDocumentSubmissionChanges,
+  subscribeToUserItineraries,
+  subscribeToSplitwiseChanges,
+  type ItineraryChangeEvent,
+} from '../services/realtime';
 import { requestNotificationPermission, subscribeToPushNotifications, sendLocalNotification } from '../services/pushNotifications';
 import { fetchUserItinerary } from '../services/itinerary';
 import { fetchUserPreferences } from '../services/userPreferences';
 import { getItineraryStartDate, isSameDay } from '../utils/itineraryDates';
+import { listUserItineraries } from '../services/sharing';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export type Notification = {
   id: string;
-  type: 'itinerary' | 'splitwise';
+  type: 'itinerary' | 'splitwise' | 'documents';
   title: string;
   message: string;
   read: boolean;
@@ -98,6 +104,68 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         });
       });
       channels.push(itineraryChannel);
+
+      const itineraries = await listUserItineraries(user.id);
+      itineraries.forEach(itinerarySummary => {
+        const channel = subscribeToDocumentSubmissionChanges(itinerarySummary.id, event => {
+          const route = `/app/documents?itineraryId=${itinerarySummary.id}`;
+          const title = typeof event.data?.title === 'string' ? event.data.title : 'Documento';
+
+          if (
+            (itinerarySummary.role === 'owner' || itinerarySummary.role === 'editor') &&
+            event.type === 'document_submission_added' &&
+            event.status === 'pending' &&
+            event.submitted_by !== user.id
+          ) {
+            const notification: Notification = {
+              id: `documents-pending-${event.submission_id}-${Date.now()}`,
+              type: 'documents',
+              title: 'Documento pendiente de revision',
+              message: `Han enviado "${title}" para publicarlo en el viaje.`,
+              read: false,
+              created_at: new Date().toISOString(),
+              data: { route, itineraryId: itinerarySummary.id, submissionId: event.submission_id },
+            };
+
+            setNotifications(prev => [notification, ...prev]);
+            sendLocalNotification(notification.title, {
+              body: notification.message,
+              icon: '/routeit-icon.svg',
+              data: notification.data,
+            });
+            return;
+          }
+
+          if (
+            event.type === 'document_submission_updated' &&
+            event.submitted_by === user.id &&
+            event.previous_status === 'pending' &&
+            (event.status === 'approved' || event.status === 'rejected')
+          ) {
+            const approved = event.status === 'approved';
+            const notification: Notification = {
+              id: `documents-resolution-${event.submission_id}-${Date.now()}`,
+              type: 'documents',
+              title: approved ? 'Documento aprobado' : 'Documento rechazado',
+              message: approved
+                ? `Tu propuesta "${title}" ya es publica en el viaje.`
+                : `Tu propuesta "${title}" ha sido rechazada.`,
+              read: false,
+              created_at: new Date().toISOString(),
+              data: { route, itineraryId: itinerarySummary.id, submissionId: event.submission_id },
+            };
+
+            setNotifications(prev => [notification, ...prev]);
+            sendLocalNotification(notification.title, {
+              body: notification.message,
+              icon: '/routeit-icon.svg',
+              data: notification.data,
+            });
+          }
+        });
+
+        channels.push(channel);
+      });
 
       return () => {
         channels.forEach(channel => supabase.removeChannel(channel));
