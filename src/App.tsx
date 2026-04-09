@@ -53,6 +53,11 @@ function RootEntryRoute() {
     supabase.auth.getSession().then(({ data }) => {
       if (!isMounted) return;
       setHasSession(Boolean(data.session));
+    }).catch(() => {
+      if (!isMounted) return;
+      setHasSession(false);
+    }).finally(() => {
+      if (!isMounted) return;
       setIsLoading(false);
     });
 
